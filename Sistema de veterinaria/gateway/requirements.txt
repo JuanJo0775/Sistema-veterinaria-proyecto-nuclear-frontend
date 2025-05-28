@@ -1,0 +1,8 @@
+# gateway/requirements.txt
+Flask==2.3.3
+Flask-CORS==4.0.0
+Flask-Session==0.5.0
+requests==2.31.0
+Jinja2==3.1.2
+Werkzeug==2.3.7
+psutil==5.9.5

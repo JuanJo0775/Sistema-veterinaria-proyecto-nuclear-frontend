@@ -1,0 +1,223 @@
+# docker-compose.dev.yml
+version: '3.8'
+
+services:
+  # Base de datos PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: vet_clinic_db_dev
+    environment:
+      POSTGRES_DB: veterinary-system
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: bocato0731
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - vet_clinic_dev_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d veterinary-system"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis para cache y sesiones
+  redis:
+    image: redis:7-alpine
+    container_name: vet_clinic_redis_dev
+    ports:
+      - "6379:6379"
+    networks:
+      - vet_clinic_dev_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Servicio de Autenticación - Desarrollo
+  auth_service:
+    build:
+      context: ./microservices/auth_service
+      dockerfile: Dockerfile
+    container_name: vet_auth_service_dev
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - POSTGRES_DB=veterinary-system
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=bocato0731
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=dev-secret-key-auth-2024
+      - JWT_SECRET_KEY=dev-jwt-secret-key-2024
+    volumes:
+      - ./microservices/auth_service:/app
+      - ./utils:/app/utils
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - vet_clinic_dev_network
+    restart: unless-stopped
+
+  # Servicio de Inventario - Desarrollo
+  inventory_service:
+    build:
+      context: ./microservices/inventory_service
+      dockerfile: Dockerfile
+    container_name: vet_inventory_service_dev
+    ports:
+      - "5005:5005"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - POSTGRES_DB=veterinary-system
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=bocato0731
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/4
+      - SECRET_KEY=dev-secret-key-inventory-2024
+      - AUTO_ALERTS_ENABLED=true
+      - LOW_STOCK_THRESHOLD_DAYS=7
+      - AUTH_SERVICE_URL=http://auth_service:5001
+      - APPOINTMENT_SERVICE_URL=http://appointment_service:5002
+      - NOTIFICATION_SERVICE_URL=http://notification_service:5003
+      - MEDICAL_SERVICE_URL=http://medical_service:5004
+    volumes:
+      - ./microservices/inventory_service:/app
+      - ./utils:/app/utils
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - vet_clinic_dev_network
+    restart: unless-stopped
+
+  # Servicio Médico - Desarrollo
+  medical_service:
+    build:
+      context: ./microservices/medical_service
+      dockerfile: Dockerfile
+    container_name: vet_medical_service_dev
+    ports:
+      - "5004:5004"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - POSTGRES_DB=veterinary-system
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=bocato0731
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/3
+      - SECRET_KEY=dev-secret-key-medical-2024
+      - UPLOAD_FOLDER=/app/uploads
+      - AUTH_SERVICE_URL=http://auth_service:5001
+      - APPOINTMENT_SERVICE_URL=http://appointment_service:5002
+      - NOTIFICATION_SERVICE_URL=http://notification_service:5003
+      - INVENTORY_SERVICE_URL=http://inventory_service:5005
+    volumes:
+      - ./microservices/medical_service:/app
+      - ./utils:/app/utils
+      - medical_files:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - vet_clinic_dev_network
+    restart: unless-stopped
+
+  # Servicio de Notificaciones - Desarrollo
+  notification_service:
+    build:
+      context: ./microservices/notification_service
+      dockerfile: Dockerfile
+    container_name: vet_notification_service_dev
+    ports:
+      - "5003:5003"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - POSTGRES_DB=veterinary-system
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=bocato0731
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/2
+      - SECRET_KEY=dev-secret-key-notification-2024
+      - GMAIL_USER=dev@veterinariaclinic.com
+      - GMAIL_PASSWORD=dev_password
+      - TWILIO_ACCOUNT_SID=dev_account_sid
+      - TWILIO_AUTH_TOKEN=dev_auth_token
+      - TWILIO_PHONE_NUMBER=+1234567890
+      - AUTH_SERVICE_URL=http://auth_service:5001
+      - APPOINTMENT_SERVICE_URL=http://appointment_service:5002
+      - MEDICAL_SERVICE_URL=http://medical_service:5004
+      - INVENTORY_SERVICE_URL=http://inventory_service:5005
+    volumes:
+      - ./microservices/notification_service:/app
+      - ./utils:/app/utils
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - vet_clinic_dev_network
+    restart: unless-stopped
+
+  # Servicio de Citas - Desarrollo
+  appointment_service:
+    build:
+      context: ./microservices/appointment_service
+      dockerfile: Dockerfile
+    container_name: vet_appointment_service_dev
+    ports:
+      - "5002:5002"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - POSTGRES_DB=veterinary-system
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=bocato0731
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/1
+      - SECRET_KEY=dev-secret-key-appointment-2024
+      - AUTH_SERVICE_URL=http://auth_service:5001
+      - NOTIFICATION_SERVICE_URL=http://notification_service:5003
+      - MEDICAL_SERVICE_URL=http://medical_service:5004
+    volumes:
+      - ./microservices/appointment_service:/app
+      - ./utils:/app/utils
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - vet_clinic_dev_network
+    restart: unless-stopped
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  medical_files:
+    driver: local
+
+networks:
+  vet_clinic_dev_network:
+    driver: bridge
