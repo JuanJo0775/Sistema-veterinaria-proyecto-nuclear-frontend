@@ -125,8 +125,7 @@ cd microservices/auth_service
 
 # Crear entorno virtual
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate   # Windows
+venv\Scripts\activate   # Windows
 
 # Instalar dependencias
 pip install -r requirements.txt
@@ -181,7 +180,7 @@ cd microservices/appointment_service
 
 # Crear entorno virtual
 python -m venv venv
-source venv/bin/activate
+venv\Scripts\activate   # Windows
 
 # Instalar dependencias
 pip install -r requirements.txt
@@ -238,7 +237,7 @@ cd microservices/notification_service
 
 # Crear entorno virtual
 python -m venv venv
-source venv/bin/activate
+venv\Scripts\activate   # Windows
 
 # Instalar dependencias
 pip install -r requirements.txt
@@ -295,7 +294,7 @@ cd microservices/medical_service
 
 # Crear entorno virtual
 python -m venv venv
-source venv/bin/activate
+venv\Scripts\activate   # Windows
 
 # Instalar dependencias
 pip install -r requirements.txt
@@ -354,7 +353,7 @@ cd microservices/inventory_service
 
 # Crear entorno virtual
 python -m venv venv
-source venv/bin/activate
+venv\Scripts\activate   # Windows
 
 # Instalar dependencias
 pip install -r requirements.txt
