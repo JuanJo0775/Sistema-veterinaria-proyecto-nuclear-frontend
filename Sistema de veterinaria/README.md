@@ -4,6 +4,7 @@
 - **Appointment Service**: http://localhost:5002
 - **Notification Service**: http://localhost:5003
 - **Medical Service**: http://localhost:5004
+- **Inventory Service**: http://localhost:5005
 - **PostgreSQL**: localhost:5432
 - **Redis**: localhost:6379
 
@@ -18,6 +19,7 @@ curl http://localhost:5001/health
 curl http://localhost:5002/health
 curl http://localhost:5003/health
 curl http://localhost:5004/health
+curl http://localhost:5005/health
 ```
 
 ## 🧪# Sistema de Gestión para Clínica Veterinaria
