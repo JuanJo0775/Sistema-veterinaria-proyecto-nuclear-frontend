@@ -1,0 +1,12 @@
+# requirements.txt - Para el main principal
+# Dependencias para el gestor de microservicios
+
+psutil==5.9.5
+requests==2.31.0
+psycopg2-binary==2.9.7
+redis==4.6.0
+
+# Dependencias opcionales para verificación
+# (Estas también están en cada microservicio)
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
