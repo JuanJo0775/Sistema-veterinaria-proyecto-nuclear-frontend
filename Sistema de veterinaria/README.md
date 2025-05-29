@@ -446,7 +446,7 @@ make test-inventory
    - URLs de servicios deben apuntar a las direcciones correctas
    - Redis debe usar diferentes bases de datos (0-4)
 
-## 📁 Estructura del Proyecto
+## 📁 Estructura del Proyecto enfocado en microservicios
 
 ```
 veterinary_clinic_system/
@@ -461,6 +461,148 @@ veterinary_clinic_system/
 ├── scripts/               # Scripts de automatización
 ├── utils/                 # Utilidades compartidas
 └── docker-compose.dev.yml # Configuración desarrollo
+```
+
+## 📁 Estructura completa
+
+```
+veterinary_clinic_system/
+├── microservices/
+│   ├── auth_service/
+│   │   ├── app/
+│   │   │   ├── __init__.py
+│   │   │   ├── models/
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── user.py
+│   │   │   ├── routes/
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── auth_routes.py
+│   │   │   └── services/
+│   │   │       ├── __init__.py
+│   │   │       └── auth_service.py
+│   │   ├── config.py
+│   │   ├── requirements.txt
+│   │   ├── main.py
+│   │   └── Dockerfile
+│   ├── appointment_service/
+│   │   ├── app/
+│   │   │   ├── __init__.py
+│   │   │   ├── models/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── appointment.py
+│   │   │   │   └── schedule.py
+│   │   │   ├── routes/
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── appointment_routes.py
+│   │   │   └── services/
+│   │   │       ├── __init__.py
+│   │   │       └── appointment_service.py
+│   │   ├── config.py
+│   │   ├── requirements.txt
+│   │   ├── main.py
+│   │   └── Dockerfile
+│   ├── notification_service/
+│   │   ├── app/
+│   │   │   ├── __init__.py
+│   │   │   ├── models/
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── notification.py
+│   │   │   ├── routes/
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── notification_routes.py
+│   │   │   └── services/
+│   │   │       ├── __init__.py
+│   │   │       ├── email_service.py
+│   │   │       └── whatsapp_service.py
+│   │   ├── config.py
+│   │   ├── requirements.txt
+│   │   ├── main.py
+│   │   └── Dockerfile
+│   ├── medical_service/
+│   │   ├── app/
+│   │   │   ├── __init__.py
+│   │   │   ├── models/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── medical_record.py
+│   │   │   │   └── pet.py
+│   │   │   ├── routes/
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── medical_routes.py
+│   │   │   └── services/
+│   │   │       ├── __init__.py
+│   │   │       └── medical_service.py
+│   │   ├── config.py
+│   │   ├── requirements.txt
+│   │   ├── main.py
+│   │   └── Dockerfile
+│   └── inventory_service/
+│       ├── app/
+│       │   ├── __init__.py
+│       │   ├── models/
+│       │   │   ├── __init__.py
+│       │   │   └── medication.py
+│       │   ├── routes/
+│       │   │   ├── __init__.py
+│       │   │   └── inventory_routes.py
+│       │   └── services/
+│       │       ├── __init__.py
+│       │       └── inventory_service.py
+│       ├── config.py
+│       ├── requirements.txt
+│       ├── main.py
+│       └── Dockerfile
+├── gateway/
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── routes/
+│   │   │   ├── __init__.py
+│   │   │   └── gateway_routes.py
+│   │   ├── templates/
+│   │   │   ├── base.html
+│   │   │   ├── index.html
+│   │   │   ├── client/
+│   │   │   │   └── dashboard.html
+│   │   │   ├── veterinarian/
+│   │   │   │   └── dashboard.html
+│   │   │   ├── receptionist/
+│   │   │   │   └── dashboard.html
+│   │   │   ├── auxiliary/
+│   │   │   │   └── dashboard.html
+│   │   │   └── admin/
+│   │   │       └── dashboard.html
+│   │   ├── static/
+│   │   │   ├── css/
+│   │   │   │   └── style.css
+│   │   │   ├── js/
+│   │   │   │   └── main.js
+│   │   │   └── images/
+│   │   └── services/
+│   │       ├── __init__.py
+│   │       └── api_client.py
+│   ├── config.py
+│   ├── requirements.txt
+│   ├── main.py
+│   └── Dockerfile
+├── database/
+│   └── init.sql
+├── scripts/
+│   ├── start_dev.sh
+│   ├── stop_dev.sh
+│   ├── clean_dev.sh
+│   ├── deploy_prod.sh
+│   ├── backup.sh
+│   └── generate_secrets.sh
+├── utils/
+│   ├── __init__.py
+│   ├── logger.py
+│   ├── health_check.py
+│   └── swagger_config.py
+├── docker-compose.yml
+├── docker-compose.dev.yml
+├── .env.development
+├── .env.production
+├── Makefile
+└── README.md
 ```
 
 ## 🐳 Comandos Docker
