@@ -446,7 +446,7 @@ make test-inventory
    - URLs de servicios deben apuntar a las direcciones correctas
    - Redis debe usar diferentes bases de datos (0-4)
 
-## 📁 Estructura del Proyecto enfocado en microservicios
+## 📁 Estructura del Proyecto simple
 
 ```
 veterinary_clinic_system/
