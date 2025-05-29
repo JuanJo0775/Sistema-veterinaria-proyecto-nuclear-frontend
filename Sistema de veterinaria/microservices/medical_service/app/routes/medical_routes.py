@@ -10,8 +10,6 @@ medical_bp = Blueprint('medical', __name__)
 medical_service = MedicalService()
 
 
-# =============== PET ROUTES ===============
-
 @medical_bp.route('/pets', methods=['POST'])
 def create_pet():
     """Crear nueva mascota"""

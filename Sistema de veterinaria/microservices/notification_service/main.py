@@ -6,8 +6,8 @@ from app import create_app
 # Agregar directorios al path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'utils'))
 
-from untils import create_health_endpoint
-from untils import setup_logger
+from utils import create_health_endpoint
+from utils import setup_logger
 
 
 def main():

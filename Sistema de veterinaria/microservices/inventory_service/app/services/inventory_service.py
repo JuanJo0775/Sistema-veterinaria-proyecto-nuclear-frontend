@@ -2,7 +2,6 @@
 from datetime import datetime, date, timedelta
 import requests
 from flask import current_app
-import pandas as pd
 from ..models.medication import Medication, StockMovement, db
 
 
