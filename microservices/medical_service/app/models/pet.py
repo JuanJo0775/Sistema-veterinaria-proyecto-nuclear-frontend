@@ -1,5 +1,6 @@
 # microservices/medical_service/app/models/pet.py
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime, date
 
@@ -9,8 +10,8 @@ db = SQLAlchemy()
 class Pet(db.Model):
     __tablename__ = 'pets'
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    owner_id = db.Column(db.String(36), nullable=False)  # FK a users
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    owner_id = db.Column(UUID(as_uuid=True), nullable=False)  # FK a users
     name = db.Column(db.String(100), nullable=False)
     species = db.Column(db.String(50), nullable=False)
     breed = db.Column(db.String(100))
@@ -33,8 +34,8 @@ class Pet(db.Model):
 
     def to_dict(self):
         return {
-            'id': self.id,
-            'owner_id': self.owner_id,
+            'id': str(self.id),
+            'owner_id': str(self.owner_id),
             'name': self.name,
             'species': self.species,
             'breed': self.breed,
@@ -64,6 +65,9 @@ class Pet(db.Model):
 
     @classmethod
     def get_by_owner(cls, owner_id):
+        # Convertir string a UUID si es necesario
+        if isinstance(owner_id, str):
+            owner_id = uuid.UUID(owner_id)
         return cls.query.filter_by(owner_id=owner_id, is_active=True).order_by(cls.name).all()
 
     @classmethod

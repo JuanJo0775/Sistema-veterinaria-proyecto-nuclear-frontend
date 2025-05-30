@@ -1,5 +1,6 @@
 # microservices/inventory_service/app/models/medication.py
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime, date, timedelta
 
@@ -9,7 +10,7 @@ db = SQLAlchemy()
 class Medication(db.Model):
     __tablename__ = 'medications'
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     stock_quantity = db.Column(db.Integer, nullable=False, default=0)
@@ -34,7 +35,7 @@ class Medication(db.Model):
 
     def to_dict(self):
         return {
-            'id': self.id,
+            'id': str(self.id),
             'name': self.name,
             'description': self.description,
             'stock_quantity': self.stock_quantity,
@@ -117,15 +118,15 @@ class Medication(db.Model):
 class StockMovement(db.Model):
     __tablename__ = 'stock_movements'
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    medication_id = db.Column(db.String(36), db.ForeignKey('medications.id'), nullable=False)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    medication_id = db.Column(UUID(as_uuid=True), db.ForeignKey('medications.id'), nullable=False)
     movement_type = db.Column(db.Enum('in', 'out', 'adjustment', name='movement_type_enum'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     previous_stock = db.Column(db.Integer, nullable=False)
     new_stock = db.Column(db.Integer, nullable=False)
     reason = db.Column(db.String(255))
-    reference_id = db.Column(db.String(36))  # ID de prescripción, compra, etc.
-    user_id = db.Column(db.String(36))  # Usuario que realizó el movimiento
+    reference_id = db.Column(UUID(as_uuid=True))  # ID de prescripción, compra, etc.
+    user_id = db.Column(UUID(as_uuid=True))  # Usuario que realizó el movimiento
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Campos adicionales
@@ -134,15 +135,15 @@ class StockMovement(db.Model):
 
     def to_dict(self):
         return {
-            'id': self.id,
-            'medication_id': self.medication_id,
+            'id': str(self.id),
+            'medication_id': str(self.medication_id),
             'movement_type': self.movement_type,
             'quantity': self.quantity,
             'previous_stock': self.previous_stock,
             'new_stock': self.new_stock,
             'reason': self.reason,
-            'reference_id': self.reference_id,
-            'user_id': self.user_id,
+            'reference_id': str(self.reference_id) if self.reference_id else None,
+            'user_id': str(self.user_id) if self.user_id else None,
             'unit_cost': float(self.unit_cost) if self.unit_cost else None,
             'notes': self.notes,
             'created_at': self.created_at.isoformat() if self.created_at else None
@@ -151,6 +152,10 @@ class StockMovement(db.Model):
     @classmethod
     def get_by_medication(cls, medication_id, limit=None):
         """Obtener movimientos de un medicamento"""
+        # Convertir string a UUID si es necesario
+        if isinstance(medication_id, str):
+            medication_id = uuid.UUID(medication_id)
+
         query = cls.query.filter_by(medication_id=medication_id).order_by(cls.created_at.desc())
         if limit:
             query = query.limit(limit)

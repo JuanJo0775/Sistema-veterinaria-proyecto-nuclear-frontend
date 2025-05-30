@@ -1,5 +1,6 @@
 # microservices/medical_service/app/models/medical_record.py
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime
 
@@ -9,10 +10,10 @@ db = SQLAlchemy()
 class MedicalRecord(db.Model):
     __tablename__ = 'medical_records'
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    pet_id = db.Column(db.String(36), db.ForeignKey('pets.id'), nullable=False)
-    veterinarian_id = db.Column(db.String(36), nullable=False)  # FK a users
-    appointment_id = db.Column(db.String(36))  # FK a appointments (opcional)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    pet_id = db.Column(UUID(as_uuid=True), db.ForeignKey('pets.id'), nullable=False)
+    veterinarian_id = db.Column(UUID(as_uuid=True), nullable=False)  # FK a users
+    appointment_id = db.Column(UUID(as_uuid=True))  # FK a appointments (opcional)
 
     # Información de la consulta
     symptoms_description = db.Column(db.Text)
@@ -43,10 +44,10 @@ class MedicalRecord(db.Model):
 
     def to_dict(self):
         return {
-            'id': self.id,
-            'pet_id': self.pet_id,
-            'veterinarian_id': self.veterinarian_id,
-            'appointment_id': self.appointment_id,
+            'id': str(self.id),
+            'pet_id': str(self.pet_id),
+            'veterinarian_id': str(self.veterinarian_id),
+            'appointment_id': str(self.appointment_id) if self.appointment_id else None,
             'symptoms_description': self.symptoms_description,
             'physical_examination': self.physical_examination,
             'diagnosis': self.diagnosis,
@@ -67,10 +68,17 @@ class MedicalRecord(db.Model):
 
     @classmethod
     def get_by_pet(cls, pet_id):
+        # Convertir string a UUID si es necesario
+        if isinstance(pet_id, str):
+            pet_id = uuid.UUID(pet_id)
         return cls.query.filter_by(pet_id=pet_id).order_by(cls.created_at.desc()).all()
 
     @classmethod
     def get_by_veterinarian(cls, vet_id, start_date=None, end_date=None):
+        # Convertir string a UUID si es necesario
+        if isinstance(vet_id, str):
+            vet_id = uuid.UUID(vet_id)
+
         query = cls.query.filter_by(veterinarian_id=vet_id)
         if start_date:
             query = query.filter(cls.created_at >= start_date)
@@ -82,9 +90,9 @@ class MedicalRecord(db.Model):
 class Prescription(db.Model):
     __tablename__ = 'prescriptions'
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    medical_record_id = db.Column(db.String(36), db.ForeignKey('medical_records.id'), nullable=False)
-    medication_id = db.Column(db.String(36))  # FK a medications (en inventory service)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    medical_record_id = db.Column(UUID(as_uuid=True), db.ForeignKey('medical_records.id'), nullable=False)
+    medication_id = db.Column(UUID(as_uuid=True))  # FK a medications (en inventory service)
     medication_name = db.Column(db.String(255), nullable=False)
     dosage = db.Column(db.String(100))
     frequency = db.Column(db.String(100))
@@ -94,9 +102,9 @@ class Prescription(db.Model):
 
     def to_dict(self):
         return {
-            'id': self.id,
-            'medical_record_id': self.medical_record_id,
-            'medication_id': self.medication_id,
+            'id': str(self.id),
+            'medical_record_id': str(self.medical_record_id),
+            'medication_id': str(self.medication_id) if self.medication_id else None,
             'medication_name': self.medication_name,
             'dosage': self.dosage,
             'frequency': self.frequency,
@@ -109,9 +117,9 @@ class Prescription(db.Model):
 class ExamResult(db.Model):
     __tablename__ = 'exam_results'
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    medical_record_id = db.Column(db.String(36), db.ForeignKey('medical_records.id'), nullable=False)
-    exam_id = db.Column(db.String(36))  # FK a exams
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    medical_record_id = db.Column(UUID(as_uuid=True), db.ForeignKey('medical_records.id'), nullable=False)
+    exam_id = db.Column(UUID(as_uuid=True))  # FK a exams
     exam_name = db.Column(db.String(255), nullable=False)
     result_file_url = db.Column(db.Text)
     observations = db.Column(db.Text)
@@ -121,9 +129,9 @@ class ExamResult(db.Model):
 
     def to_dict(self):
         return {
-            'id': self.id,
-            'medical_record_id': self.medical_record_id,
-            'exam_id': self.exam_id,
+            'id': str(self.id),
+            'medical_record_id': str(self.medical_record_id),
+            'exam_id': str(self.exam_id) if self.exam_id else None,
             'exam_name': self.exam_name,
             'result_file_url': self.result_file_url,
             'observations': self.observations,

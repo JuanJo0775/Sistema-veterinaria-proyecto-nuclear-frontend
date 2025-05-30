@@ -1,5 +1,6 @@
 # microservices/notification_service/app/models/notification.py
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime
 
@@ -9,8 +10,8 @@ db = SQLAlchemy()
 class Notification(db.Model):
     __tablename__ = 'notifications'
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = db.Column(db.String(36), nullable=False)  # FK a users
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)  # FK a users
     type = db.Column(
         db.Enum('appointment_reminder', 'new_appointment', 'inventory_alert', 'general', name='notification_type_enum'),
         nullable=False)
@@ -28,8 +29,8 @@ class Notification(db.Model):
 
     def to_dict(self):
         return {
-            'id': self.id,
-            'user_id': self.user_id,
+            'id': str(self.id),
+            'user_id': str(self.user_id),
             'type': self.type,
             'title': self.title,
             'message': self.message,
@@ -42,6 +43,10 @@ class Notification(db.Model):
 
     @classmethod
     def get_by_user(cls, user_id, unread_only=False):
+        # Convertir string a UUID si es necesario
+        if isinstance(user_id, str):
+            user_id = uuid.UUID(user_id)
+
         query = cls.query.filter_by(user_id=user_id)
         if unread_only:
             query = query.filter_by(is_read=False)
@@ -49,6 +54,12 @@ class Notification(db.Model):
 
     @classmethod
     def mark_as_read(cls, notification_id, user_id):
+        # Convertir strings a UUID si es necesario
+        if isinstance(notification_id, str):
+            notification_id = uuid.UUID(notification_id)
+        if isinstance(user_id, str):
+            user_id = uuid.UUID(user_id)
+
         notification = cls.query.filter_by(id=notification_id, user_id=user_id).first()
         if notification:
             notification.is_read = True
@@ -58,6 +69,10 @@ class Notification(db.Model):
 
     @classmethod
     def create_notification(cls, user_id, notification_type, title, message):
+        # Convertir string a UUID si es necesario
+        if isinstance(user_id, str):
+            user_id = uuid.UUID(user_id)
+
         notification = cls(
             user_id=user_id,
             type=notification_type,

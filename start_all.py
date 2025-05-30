@@ -28,7 +28,7 @@ def start_service(service_path, service_name):
 
     try:
         process = subprocess.Popen(
-            [sys.executable, 'main_principal.py'],
+            [sys.executable, 'main.py'],
             cwd=service_path,
             env=os.environ
         )

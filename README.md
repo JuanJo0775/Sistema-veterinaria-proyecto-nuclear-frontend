@@ -169,145 +169,85 @@ veterinary_clinic_system/
 
 ```
 veterinary_clinic_system/
-├── microservices/
-│   ├── auth_service/
+├── veterinary_console_app.py          # 🎮 Aplicación principal de testing
+├── main_principal.py                  # 🚀 Gestor de microservicios (alternativo)
+├── start_all.py                      # 🔧 Iniciador simple de servicios
+├── requirements.txt                   # 📦 Dependencias globales
+├── README.md                         # 📖 Esta documentación
+│
+├── microservices/                    # 🏗️ Microservicios
+│   ├── auth_service/                 # 🔐 Servicio de Autenticación
 │   │   ├── app/
-│   │   │   ├── __init__.py
-│   │   │   ├── models/
-│   │   │   │   ├── __init__.py
-│   │   │   │   └── user.py
-│   │   │   ├── routes/
-│   │   │   │   ├── __init__.py
-│   │   │   │   └── auth_routes.py
-│   │   │   └── services/
-│   │   │       ├── __init__.py
-│   │   │       └── auth_service.py
+│   │   │   ├── models/user.py
+│   │   │   ├── routes/auth_routes.py
+│   │   │   └── services/auth_service.py
+│   │   ├── main.py
 │   │   ├── config.py
 │   │   ├── requirements.txt
-│   │   ├── main.py
 │   │   └── Dockerfile
-│   ├── appointment_service/
+│   │
+│   ├── medical_service/              # 🏥 Servicio Médico
 │   │   ├── app/
-│   │   │   ├── __init__.py
 │   │   │   ├── models/
-│   │   │   │   ├── __init__.py
+│   │   │   │   ├── pet.py
+│   │   │   │   └── medical_record.py
+│   │   │   ├── routes/medical_routes.py
+│   │   │   └── services/medical_service.py
+│   │   ├── main.py
+│   │   ├── config.py
+│   │   ├── requirements.txt
+│   │   └── Dockerfile
+│   │
+│   ├── inventory_service/            # 📦 Servicio de Inventario
+│   │   ├── app/
+│   │   │   ├── models/medication.py
+│   │   │   ├── routes/inventory_routes.py
+│   │   │   └── services/inventory_service.py
+│   │   ├── main.py
+│   │   ├── config.py
+│   │   ├── requirements.txt
+│   │   └── Dockerfile
+│   │
+│   ├── appointment_service/          # 📅 Servicio de Citas
+│   │   ├── app/
+│   │   │   ├── models/
 │   │   │   │   ├── appointment.py
 │   │   │   │   └── schedule.py
-│   │   │   ├── routes/
-│   │   │   │   ├── __init__.py
-│   │   │   │   └── appointment_routes.py
-│   │   │   └── services/
-│   │   │       ├── __init__.py
-│   │   │       └── appointment_service.py
+│   │   │   ├── routes/appointment_routes.py
+│   │   │   └── services/appointment_service.py
+│   │   ├── main.py
 │   │   ├── config.py
 │   │   ├── requirements.txt
-│   │   ├── main.py
 │   │   └── Dockerfile
-│   ├── notification_service/
-│   │   ├── app/
-│   │   │   ├── __init__.py
-│   │   │   ├── models/
-│   │   │   │   ├── __init__.py
-│   │   │   │   └── notification.py
-│   │   │   ├── routes/
-│   │   │   │   ├── __init__.py
-│   │   │   │   └── notification_routes.py
-│   │   │   └── services/
-│   │   │       ├── __init__.py
-│   │   │       ├── email_service.py
-│   │   │       └── whatsapp_service.py
-│   │   ├── config.py
-│   │   ├── requirements.txt
-│   │   ├── main.py
-│   │   └── Dockerfile
-│   ├── medical_service/
-│   │   ├── app/
-│   │   │   ├── __init__.py
-│   │   │   ├── models/
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── medical_record.py
-│   │   │   │   └── pet.py
-│   │   │   ├── routes/
-│   │   │   │   ├── __init__.py
-│   │   │   │   └── medical_routes.py
-│   │   │   └── services/
-│   │   │       ├── __init__.py
-│   │   │       └── medical_service.py
-│   │   ├── config.py
-│   │   ├── requirements.txt
-│   │   ├── main.py
-│   │   └── Dockerfile
-│   └── inventory_service/
+│   │
+│   └── notification_service/         # 📧 Servicio de Notificaciones
 │       ├── app/
-│       │   ├── __init__.py
-│       │   ├── models/
-│       │   │   ├── __init__.py
-│       │   │   └── medication.py
-│       │   ├── routes/
-│       │   │   ├── __init__.py
-│       │   │   └── inventory_routes.py
+│       │   ├── models/notification.py
+│       │   ├── routes/notification_routes.py
 │       │   └── services/
-│       │       ├── __init__.py
-│       │       └── inventory_service.py
+│       │       ├── email_service.py
+│       │       └── whatsapp_service.py
+│       ├── main.py
 │       ├── config.py
 │       ├── requirements.txt
-│       ├── main.py
 │       └── Dockerfile
-├── gateway/
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── routes/
-│   │   │   ├── __init__.py
-│   │   │   └── gateway_routes.py
-│   │   ├── templates/
-│   │   │   ├── base.html
-│   │   │   ├── index.html
-│   │   │   ├── client/
-│   │   │   │   └── dashboard.html
-│   │   │   ├── veterinarian/
-│   │   │   │   └── dashboard.html
-│   │   │   ├── receptionist/
-│   │   │   │   └── dashboard.html
-│   │   │   ├── auxiliary/
-│   │   │   │   └── dashboard.html
-│   │   │   └── admin/
-│   │   │       └── dashboard.html
-│   │   ├── static/
-│   │   │   ├── css/
-│   │   │   │   └── style.css
-│   │   │   ├── js/
-│   │   │   │   └── main.js
-│   │   │   └── images/
-│   │   └── services/
-│   │       ├── __init__.py
-│   │       └── api_client.py
-│   ├── config.py
-│   ├── requirements.txt
-│   ├── main.py
-│   └── Dockerfile
-├── database/
-│   └── init.sql
-├── scripts/
+│
+├── database/                         # 🗄️ Base de Datos
+│   └── init.sql                     # Script de inicialización
+│
+├── utils/                           # 🔧 Utilidades
+│   ├── logger.py
+│   └── health_check.py
+│
+├── scripts/                         # 📜 Scripts auxiliares
 │   ├── start_dev.sh
 │   ├── stop_dev.sh
-│   ├── clean_dev.sh
-│   ├── deploy_prod.sh
-│   ├── backup.sh
-│   └── generate_secrets.sh
-├── utils/
-│   ├── __init__.py
-│   ├── logger.py
-│   ├── health_check.py
-│   └── swagger_config.py
-├── docker-compose.yml
-├── docker-compose.dev.yml
-├── .env.development
-├── .env.production
-├── main_pincipal.py
-├── start_all.py
-├── requirements.txt
-├── Makefile
-└── README.md
+│   ├── test_*.sh
+│   └── insert_sample_data.sh
+│
+├── docker-compose.yml               # 🐳 Docker Compose producción
+├── docker-compose.dev.yml          # 🐳 Docker Compose desarrollo
+└── Makefile                        # ⚙️ Automatización de tareas
 ```
 
 ## 🚀 Inicio Rápido - 3 Pasos
