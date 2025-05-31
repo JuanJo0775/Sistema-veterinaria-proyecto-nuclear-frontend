@@ -61,6 +61,7 @@ def create_app():
     with app.app_context():
         try:
             db.create_all()
+            print("✅ Tablas de base de datos verificadas/creadas")
         except Exception as e:
             print(f"Error creando tablas: {e}")
 

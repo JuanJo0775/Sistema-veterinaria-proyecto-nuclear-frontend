@@ -1,10 +1,10 @@
 # microservices/medical_service/app/models/pet.py
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime, date
 
-db = SQLAlchemy()
+# Importar db del mismo lugar que medical_record
+from .medical_record import db
 
 
 class Pet(db.Model):
@@ -29,8 +29,8 @@ class Pet(db.Model):
     vaccination_status = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True)
 
-    # Relaciones
-    medical_records = db.relationship('MedicalRecord', backref='pet', lazy=True, cascade='all, delete-orphan')
+    # Relaciones comentadas temporalmente
+    # medical_records = db.relationship('MedicalRecord', backref='pet', lazy=True, cascade='all, delete-orphan')
 
     def to_dict(self):
         return {

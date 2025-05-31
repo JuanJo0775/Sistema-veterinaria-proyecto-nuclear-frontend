@@ -1,7 +1,9 @@
 # microservices/appointment_service/app/routes/appointment_routes.py
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta
-from ..models.appointment import Appointment, db
+from ..models.appointment import Appointment
+from ..models.schedule import VeterinarianSchedule
+from .. import db
 from ..services.appointment_service import AppointmentService
 
 appointment_bp = Blueprint('appointments', __name__)
@@ -40,7 +42,7 @@ def create_appointment():
 
         return jsonify({
             'success': True,
-            'appointment_id': appointment.id,
+            'appointment_id': str(appointment.id),
             'message': 'Cita creada exitosamente',
             'appointment': appointment.to_dict()
         }), 201
@@ -50,6 +52,209 @@ def create_appointment():
             'success': False,
             'message': str(e)
         }), 500
+
+
+@appointment_bp.route('/schedules', methods=['POST'])
+def create_schedule():
+    """Crear horario para veterinario"""
+    try:
+        data = request.get_json()
+
+        # Validaciones básicas
+        required_fields = ['veterinarian_id', 'day_of_week', 'start_time', 'end_time']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'message': f'Campo requerido: {field}'
+                }), 400
+
+        # Validar day_of_week
+        day_of_week = data.get('day_of_week')
+        if not isinstance(day_of_week, int) or day_of_week < 0 or day_of_week > 6:
+            return jsonify({
+                'success': False,
+                'message': 'day_of_week debe ser un entero entre 0 (Lunes) y 6 (Domingo)'
+            }), 400
+
+        # Verificar si ya existe un horario para ese día
+        existing_schedule = VeterinarianSchedule.query.filter_by(
+            veterinarian_id=data.get('veterinarian_id'),
+            day_of_week=day_of_week
+        ).first()
+
+        if existing_schedule:
+            return jsonify({
+                'success': False,
+                'message': 'Ya existe un horario para ese día'
+            }), 400
+
+        # Convertir horarios a objetos time
+        try:
+            start_time = datetime.strptime(data.get('start_time'), '%H:%M').time()
+            end_time = datetime.strptime(data.get('end_time'), '%H:%M').time()
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'message': 'Formato de hora inválido. Use HH:MM'
+            }), 400
+
+        # Validar que start_time sea menor que end_time
+        if start_time >= end_time:
+            return jsonify({
+                'success': False,
+                'message': 'La hora de inicio debe ser menor que la hora de fin'
+            }), 400
+
+        # Crear nuevo horario
+        schedule = VeterinarianSchedule(
+            veterinarian_id=data.get('veterinarian_id'),
+            day_of_week=day_of_week,
+            start_time=start_time,
+            end_time=end_time,
+            is_available=data.get('is_available', True)
+        )
+
+        db.session.add(schedule)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Horario creado exitosamente',
+            'schedule': schedule.to_dict()
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
+
+@appointment_bp.route('/schedules/<vet_id>', methods=['GET'])
+def get_veterinarian_schedules(vet_id):
+    """Obtener horarios de un veterinario"""
+    try:
+        schedules = VeterinarianSchedule.get_by_veterinarian(vet_id)
+
+        return jsonify({
+            'success': True,
+            'schedules': [schedule.to_dict() for schedule in schedules],
+            'veterinarian_id': vet_id
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@appointment_bp.route('/schedules', methods=['GET'])
+def get_all_schedules():
+    """Obtener todos los horarios"""
+    try:
+        schedules = VeterinarianSchedule.query.filter_by(is_available=True).all()
+
+        return jsonify({
+            'success': True,
+            'schedules': [schedule.to_dict() for schedule in schedules],
+            'total': len(schedules)
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@appointment_bp.route('/schedules/<schedule_id>', methods=['PUT'])
+def update_schedule(schedule_id):
+    """Actualizar horario"""
+    try:
+        data = request.get_json()
+
+        schedule = VeterinarianSchedule.query.get(schedule_id)
+        if not schedule:
+            return jsonify({
+                'success': False,
+                'message': 'Horario no encontrado'
+            }), 404
+
+        # Actualizar campos permitidos
+        if 'start_time' in data:
+            try:
+                schedule.start_time = datetime.strptime(data['start_time'], '%H:%M').time()
+            except ValueError:
+                return jsonify({
+                    'success': False,
+                    'message': 'Formato de hora inválido para start_time. Use HH:MM'
+                }), 400
+
+        if 'end_time' in data:
+            try:
+                schedule.end_time = datetime.strptime(data['end_time'], '%H:%M').time()
+            except ValueError:
+                return jsonify({
+                    'success': False,
+                    'message': 'Formato de hora inválido para end_time. Use HH:MM'
+                }), 400
+
+        if 'is_available' in data:
+            schedule.is_available = data['is_available']
+
+        # Validar que start_time sea menor que end_time
+        if schedule.start_time >= schedule.end_time:
+            return jsonify({
+                'success': False,
+                'message': 'La hora de inicio debe ser menor que la hora de fin'
+            }), 400
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Horario actualizado exitosamente',
+            'schedule': schedule.to_dict()
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
+
+@appointment_bp.route('/schedules/<schedule_id>', methods=['DELETE'])
+def delete_schedule(schedule_id):
+    """Eliminar/desactivar horario"""
+    try:
+        schedule = VeterinarianSchedule.query.get(schedule_id)
+        if not schedule:
+            return jsonify({
+                'success': False,
+                'message': 'Horario no encontrado'
+            }), 404
+
+        # En lugar de eliminar, desactivar
+        schedule.is_available = False
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Horario desactivado exitosamente'
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
 
 
 @appointment_bp.route('/available-slots', methods=['GET'])

@@ -25,7 +25,7 @@ def login():
                 'success': True,
                 'token': token,
                 'user': {
-                    'id': user.id,
+                    'id': str(user.id),  # ← FIX: Convertir UUID a string
                     'email': user.email,
                     'role': user.role,
                     'name': f"{user.first_name} {user.last_name}"
@@ -61,7 +61,7 @@ def register():
         return jsonify({
             'success': True,
             'message': 'Usuario creado exitosamente',
-            'user_id': user.id
+            'user_id': str(user.id)  # ← FIX: Convertir UUID a string
         }), 201
 
     except Exception as e:
@@ -81,7 +81,7 @@ def verify_token():
             return jsonify({
                 'success': True,
                 'user': {
-                    'id': user.id,
+                    'id': str(user.id),  # ← FIX: Convertir UUID a string
                     'email': user.email,
                     'role': user.role,
                     'name': f"{user.first_name} {user.last_name}"
@@ -116,7 +116,7 @@ def change_password():
         old_password = data.get('old_password')
         new_password = data.get('new_password')
 
-        if auth_service.change_password(user.id, old_password, new_password):
+        if auth_service.change_password(str(user.id), old_password, new_password):  # ← FIX: Convertir UUID a string
             return jsonify({
                 'success': True,
                 'message': 'Contraseña actualizada exitosamente'
@@ -143,7 +143,7 @@ def get_profile():
         if user:
             return jsonify({
                 'success': True,
-                'user': user.to_dict()
+                'user': user.to_dict()  # ← El método to_dict() ya maneja la conversión UUID
             }), 200
         else:
             return jsonify({
@@ -171,13 +171,13 @@ def update_profile():
             }), 401
 
         data = request.get_json()
-        updated_user = auth_service.update_user(user.id, data)
+        updated_user = auth_service.update_user(str(user.id), data)  # ← FIX: Convertir UUID a string
 
         if updated_user:
             return jsonify({
                 'success': True,
                 'message': 'Perfil actualizado exitosamente',
-                'user': updated_user.to_dict()
+                'user': updated_user.to_dict()  # ← El método to_dict() ya maneja la conversión UUID
             }), 200
         else:
             return jsonify({

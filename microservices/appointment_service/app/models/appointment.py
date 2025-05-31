@@ -4,7 +4,8 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime, date, time
 
-db = SQLAlchemy()
+# Importar db del módulo principal
+from .. import db
 
 
 class Appointment(db.Model):
@@ -72,7 +73,6 @@ class Appointment(db.Model):
         existing = cls.query.filter_by(
             veterinarian_id=vet_id,
             appointment_date=appointment_date,
-            appointment_time=appointment_time,
-            status='scheduled'
-        ).first()
+            appointment_time=appointment_time
+        ).filter(cls.status.in_(['scheduled', 'confirmed'])).first()
         return existing is None

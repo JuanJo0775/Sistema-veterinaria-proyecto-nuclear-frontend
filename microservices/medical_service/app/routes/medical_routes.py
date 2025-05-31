@@ -230,9 +230,9 @@ def get_medical_record(record_id):
 
         if medical_record:
             record_data = medical_record.to_dict()
-            # Incluir prescripciones y resultados de exámenes
-            record_data['prescriptions'] = [p.to_dict() for p in medical_record.prescriptions]
-            record_data['exam_results'] = [e.to_dict() for e in medical_record.exam_results]
+            # TEMPORAL: No incluir prescriptions y exam_results hasta arreglar relaciones
+            # record_data['prescriptions'] = [p.to_dict() for p in medical_record.prescriptions]
+            # record_data['exam_results'] = [e.to_dict() for e in medical_record.exam_results]
 
             return jsonify({
                 'success': True,
@@ -312,8 +312,9 @@ def get_medical_records_by_pet(pet_id):
         records_data = []
         for record in medical_records:
             record_data = record.to_dict()
-            record_data['prescriptions'] = [p.to_dict() for p in record.prescriptions]
-            record_data['exam_results'] = [e.to_dict() for e in record.exam_results]
+            # TEMPORAL: No incluir prescriptions y exam_results hasta arreglar relaciones
+            # record_data['prescriptions'] = [p.to_dict() for p in record.prescriptions]
+            # record_data['exam_results'] = [e.to_dict() for e in record.exam_results]
             records_data.append(record_data)
 
         return jsonify({

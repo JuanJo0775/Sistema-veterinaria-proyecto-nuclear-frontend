@@ -14,9 +14,8 @@ project_dir = os.path.dirname(os.path.dirname(service_dir))
 sys.path.insert(0, service_dir)
 sys.path.insert(0, project_dir)
 
-# Importaciones locales
-from .models import db
-from .routes import appointment_bp
+# Inicializar SQLAlchemy globalmente
+db = SQLAlchemy()
 
 
 def create_app():
@@ -54,14 +53,25 @@ def create_app():
     db.init_app(app)
     CORS(app)
 
-    # Registrar blueprints
-    app.register_blueprint(appointment_bp, url_prefix='/appointments')
-
-    # Crear tablas si no existen
+    # Crear tablas dentro del contexto de la aplicación
     with app.app_context():
         try:
-            db.create_all()
-        except Exception as e:
-            print(f"Error creando tablas: {e}")
+            # Importar modelos para que SQLAlchemy los registre
+            from .models.appointment import Appointment
+            from .models.schedule import VeterinarianSchedule
 
+            # Crear todas las tablas
+            db.create_all()
+            print("✅ Tablas de Appointment Service verificadas/creadas")
+
+        except Exception as e:
+            print(f"❌ Error creando tablas: {e}")
+            import traceback
+            traceback.print_exc()
+
+    # Registrar blueprints
+    from .routes.appointment_routes import appointment_bp
+    app.register_blueprint(appointment_bp, url_prefix='/appointments')
+
+    print("✅ Appointment Service configurado correctamente")
     return app

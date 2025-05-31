@@ -1,4 +1,4 @@
-# microservices/auth_service/app/models/user.py
+
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import UUID
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -32,7 +32,7 @@ class User(db.Model):
 
     def to_dict(self):
         return {
-            'id': str(self.id),
+            'id': str(self.id),  # ← FIX: Convertir UUID a string
             'email': self.email,
             'role': self.role,
             'first_name': self.first_name,
@@ -40,9 +40,13 @@ class User(db.Model):
             'phone': self.phone,
             'address': self.address,
             'is_active': self.is_active,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
     @staticmethod
     def health_check():
         return {'status': 'healthy', 'service': 'auth_service'}
+
+    def __repr__(self):
+        return f'<User {self.email}>'

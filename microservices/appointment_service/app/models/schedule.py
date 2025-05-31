@@ -4,7 +4,8 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import time
 
-db = SQLAlchemy()
+# Importar db del módulo principal
+from .. import db
 
 
 class VeterinarianSchedule(db.Model):

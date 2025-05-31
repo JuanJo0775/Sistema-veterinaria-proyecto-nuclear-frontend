@@ -4,6 +4,7 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime
 
+# Crear instancia local de db
 db = SQLAlchemy()
 
 
@@ -11,7 +12,8 @@ class MedicalRecord(db.Model):
     __tablename__ = 'medical_records'
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pet_id = db.Column(UUID(as_uuid=True), db.ForeignKey('pets.id'), nullable=False)
+    # TEMPORAL: Sin FK para evitar problemas
+    pet_id = db.Column(UUID(as_uuid=True), nullable=False)  # Sin FK por ahora
     veterinarian_id = db.Column(UUID(as_uuid=True), nullable=False)  # FK a users
     appointment_id = db.Column(UUID(as_uuid=True))  # FK a appointments (opcional)
 
@@ -38,9 +40,9 @@ class MedicalRecord(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relaciones
-    prescriptions = db.relationship('Prescription', backref='medical_record', lazy=True, cascade='all, delete-orphan')
-    exam_results = db.relationship('ExamResult', backref='medical_record', lazy=True, cascade='all, delete-orphan')
+    # Relaciones desactivadas temporalmente
+    # prescriptions = db.relationship('Prescription', backref='medical_record', lazy=True, cascade='all, delete-orphan')
+    # exam_results = db.relationship('ExamResult', backref='medical_record', lazy=True, cascade='all, delete-orphan')
 
     def to_dict(self):
         return {
@@ -91,7 +93,7 @@ class Prescription(db.Model):
     __tablename__ = 'prescriptions'
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    medical_record_id = db.Column(UUID(as_uuid=True), db.ForeignKey('medical_records.id'), nullable=False)
+    medical_record_id = db.Column(UUID(as_uuid=True), nullable=False)  # Sin FK temporal
     medication_id = db.Column(UUID(as_uuid=True))  # FK a medications (en inventory service)
     medication_name = db.Column(db.String(255), nullable=False)
     dosage = db.Column(db.String(100))
@@ -118,7 +120,7 @@ class ExamResult(db.Model):
     __tablename__ = 'exam_results'
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    medical_record_id = db.Column(UUID(as_uuid=True), db.ForeignKey('medical_records.id'), nullable=False)
+    medical_record_id = db.Column(UUID(as_uuid=True), nullable=False)  # Sin FK temporal
     exam_id = db.Column(UUID(as_uuid=True))  # FK a exams
     exam_name = db.Column(db.String(255), nullable=False)
     result_file_url = db.Column(db.Text)
