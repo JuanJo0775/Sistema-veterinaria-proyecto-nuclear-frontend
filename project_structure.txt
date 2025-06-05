@@ -83,12 +83,12 @@ veterinary_clinic_system/
 │       ├── requirements.txt
 │       ├── main.py
 │       └── Dockerfile
-├── gateway/
+├── frontend/
 │   ├── app/
 │   │   ├── __init__.py
 │   │   ├── routes/
 │   │   │   ├── __init__.py
-│   │   │   └── gateway_routes.py
+│   │   │   └── frontend_routes.py
 │   │   ├── templates/
 │   │   │   ├── base.html
 │   │   │   ├── index.html

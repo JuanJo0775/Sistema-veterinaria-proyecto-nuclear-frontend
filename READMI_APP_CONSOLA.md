@@ -654,7 +654,7 @@ sequenceDiagram
 
 ### API Gateway
 ```bash
-# Implementar un gateway unificado que:
+# Implementar un frontend unificado que:
 # - Enrute requests a microservicios
 # - Maneje autenticación centralizada
 # - Implemente rate limiting

@@ -46,6 +46,7 @@ def main():
 
     # Definir servicios
     services = [
+        ('frontend', 'Frontend (Puerto 3000)'),
         ('microservices/auth_service', 'Auth Service (Puerto 5001)'),
         ('microservices/appointment_service', 'Appointment Service (Puerto 5002)'),
         ('microservices/notification_service', 'Notification Service (Puerto 5003)'),
@@ -65,6 +66,7 @@ def main():
 
         print(f"\n✅ {len(processes)} servicios iniciados")
         print("\n🌐 URLs disponibles:")
+        print("  • Frontend:        http://localhost:3000")
         print("  • Auth Service:        http://localhost:5001")
         print("  • Appointment Service: http://localhost:5002")
         print("  • Notification Service: http://localhost:5003")
