@@ -99,11 +99,38 @@ class MedicalService:
     # =============== MEDICAL RECORDS ===============
 
     def create_medical_record(self, record_data):
-        """Crear nueva historia clínica"""
+        """Crear nueva historia clínica - SISTEMA UUID AUTOMÁTICO"""
+
+        # ✅ SISTEMA UUID AUTOMÁTICO para appointment_id
+        appointment_id = record_data.get('appointment_id')
+
+        if appointment_id:
+            # Limpiar el valor
+            appointment_id = str(appointment_id).strip()
+
+            # Si está vacío, establecer como None
+            if not appointment_id or appointment_id.lower() in ['', 'null', 'none', 'undefined']:
+                appointment_id = None
+            else:
+                # Validar si es un UUID válido
+                try:
+                    import uuid
+                    # Intentar convertir a UUID
+                    uuid.UUID(appointment_id)
+                    # Si llega aquí, es un UUID válido
+                    print(f"✅ appointment_id UUID válido: {appointment_id}")
+                except ValueError:
+                    # No es un UUID válido, establecer como None
+                    print(f"⚠️ appointment_id '{appointment_id}' no es UUID válido, estableciendo como None")
+                    appointment_id = None
+        else:
+            appointment_id = None
+
+        # ✅ Crear la historia clínica con campos validados
         medical_record = MedicalRecord(
             pet_id=record_data.get('pet_id'),
             veterinarian_id=record_data.get('veterinarian_id'),
-            appointment_id=record_data.get('appointment_id'),
+            appointment_id=appointment_id,  # ✅ None o UUID válido
             symptoms_description=record_data.get('symptoms_description'),
             physical_examination=record_data.get('physical_examination'),
             diagnosis=record_data.get('diagnosis'),
@@ -122,7 +149,74 @@ class MedicalService:
 
         db.session.add(medical_record)
         db.session.commit()
+
+        print(f"✅ Historia clínica creada con ID: {medical_record.id}")
+        print(f"   Mascota: {medical_record.pet_id}")
+        print(f"   Veterinario: {medical_record.veterinarian_id}")
+        print(f"   Cita asociada: {medical_record.appointment_id or 'Sin cita'}")
+
         return medical_record
+
+    def associate_appointment_to_record(self, record_id, appointment_id):
+        """Asociar una cita existente a una historia clínica"""
+        try:
+            # Validar que el appointment_id sea un UUID válido
+            import uuid
+            uuid.UUID(appointment_id)
+
+            # Buscar la historia clínica
+            medical_record = MedicalRecord.query.get(record_id)
+            if not medical_record:
+                return None
+
+            # Asociar la cita
+            medical_record.appointment_id = appointment_id
+            db.session.commit()
+
+            print(f"✅ Cita {appointment_id} asociada a historia clínica {record_id}")
+            return medical_record
+
+        except ValueError:
+            print(f"❌ appointment_id '{appointment_id}' no es un UUID válido")
+            return None
+        except Exception as e:
+            print(f"❌ Error asociando cita: {e}")
+            return None
+
+    # ✅ MÉTODO ADICIONAL: Crear historia desde cita
+    def create_medical_record_from_appointment(self, appointment_id, veterinarian_id):
+        """Crear historia clínica directamente desde una cita programada"""
+        try:
+            import uuid
+
+            # Validar UUID de la cita
+            uuid.UUID(appointment_id)
+            uuid.UUID(veterinarian_id)
+
+            # Aquí podrías obtener datos de la cita desde el Appointment Service
+            # Por ahora, crear historia básica
+
+            medical_record = MedicalRecord(
+                pet_id=None,  # Se llenará después con datos de la cita
+                veterinarian_id=veterinarian_id,
+                appointment_id=appointment_id,
+                symptoms_description="Historia creada desde cita programada",
+                status='draft',
+                is_emergency=False
+            )
+
+            db.session.add(medical_record)
+            db.session.commit()
+
+            print(f"✅ Historia clínica creada desde cita: {appointment_id}")
+            return medical_record
+
+        except ValueError:
+            print(f"❌ UUIDs inválidos: appointment_id={appointment_id}, veterinarian_id={veterinarian_id}")
+            return None
+        except Exception as e:
+            print(f"❌ Error creando historia desde cita: {e}")
+            return None
 
     def get_medical_record_by_id(self, record_id):
         """Obtener historia clínica por ID"""

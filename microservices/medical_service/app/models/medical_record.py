@@ -45,28 +45,35 @@ class MedicalRecord(db.Model):
     # exam_results = db.relationship('ExamResult', backref='medical_record', lazy=True, cascade='all, delete-orphan')
 
     def to_dict(self):
-        return {
-            'id': str(self.id),
-            'pet_id': str(self.pet_id),
-            'veterinarian_id': str(self.veterinarian_id),
-            'appointment_id': str(self.appointment_id) if self.appointment_id else None,
-            'symptoms_description': self.symptoms_description,
-            'physical_examination': self.physical_examination,
-            'diagnosis': self.diagnosis,
-            'treatment': self.treatment,
-            'medications_prescribed': self.medications_prescribed,
-            'exams_requested': self.exams_requested,
-            'observations': self.observations,
-            'next_appointment_recommendation': self.next_appointment_recommendation,
-            'weight_at_visit': float(self.weight_at_visit) if self.weight_at_visit else None,
-            'temperature': float(self.temperature) if self.temperature else None,
-            'pulse': self.pulse,
-            'respiratory_rate': self.respiratory_rate,
-            'status': self.status,
-            'is_emergency': self.is_emergency,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
+        try:
+            return {
+                'id': str(self.id) if self.id else None,
+                'pet_id': str(self.pet_id) if self.pet_id else None,
+                'veterinarian_id': str(self.veterinarian_id) if self.veterinarian_id else None,
+                'appointment_id': str(self.appointment_id) if self.appointment_id else None,
+                'symptoms_description': self.symptoms_description or '',
+                'physical_examination': self.physical_examination or '',
+                'diagnosis': self.diagnosis or '',
+                'treatment': self.treatment or '',
+                'medications_prescribed': self.medications_prescribed or '',
+                'exams_requested': self.exams_requested or '',
+                'observations': self.observations or '',
+                'next_appointment_recommendation': self.next_appointment_recommendation or '',
+                'weight_at_visit': float(self.weight_at_visit) if self.weight_at_visit is not None else None,
+                'temperature': float(self.temperature) if self.temperature is not None else None,
+                'pulse': int(self.pulse) if self.pulse is not None else None,
+                'respiratory_rate': int(self.respiratory_rate) if self.respiratory_rate is not None else None,
+                'status': self.status or 'draft',
+                'is_emergency': bool(self.is_emergency) if self.is_emergency is not None else False,
+                'created_at': self.created_at.isoformat() if self.created_at else None,
+                'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            }
+        except Exception as e:
+            print(f"❌ Error en to_dict(): {e}")
+            return {
+                'id': str(self.id) if hasattr(self, 'id') and self.id else 'unknown',
+                'error': f'Error serializing record: {str(e)}'
+            }
 
     @classmethod
     def get_by_pet(cls, pet_id):

@@ -1,0 +1,3870 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Gestión de Historias Clínicas{% endblock %}
+
+{% block page_title %}Gestión de Historias Clínicas{% endblock %}
+
+{% block custom_styles %}
+<style>
+    /* =============== MEDICAL RECORDS SPECIFIC STYLES =============== */
+    .medical-records-content {
+        padding: 30px;
+    }
+
+    .page-header {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 4px 12px rgba(8, 28, 21, 0.08);
+        margin-bottom: 30px;
+    }
+
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+
+    .header-info h1 {
+        color: #2D6A4F;
+        font-size: 2.2rem;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .header-info p {
+        color: #52B788;
+        font-size: 1.1rem;
+        margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 15px;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #52B788 0%, #38A3A5 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(82, 183, 136, 0.3);
+    }
+
+    .btn-secondary {
+        background: linear-gradient(135deg, #B7E4C7 0%, #D8F3DC 100%);
+        color: #2D6A4F;
+        border: 2px solid #B7E4C7;
+        padding: 10px 22px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-secondary:hover {
+        background: #B7E4C7;
+        transform: translateY(-2px);
+    }
+
+    /* ESTADÍSTICAS */
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+
+    .stat-item {
+        background: white;
+        padding: 25px;
+        border-radius: 15px;
+        border: 1px solid #D8F3DC;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        border-left: 4px solid;
+        transition: transform 0.3s ease;
+    }
+
+    .stat-item:hover {
+        transform: translateY(-3px);
+    }
+
+    .stat-item.total { border-left-color: #52B788; }
+    .stat-item.today { border-left-color: #38A3A5; }
+    .stat-item.emergency { border-left-color: #22577A; }
+    .stat-item.completed { border-left-color: #2D6A4F; }
+
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+    }
+
+    .stat-icon.total { background: linear-gradient(135deg, #52B788, #38A3A5); }
+    .stat-icon.today { background: linear-gradient(135deg, #38A3A5, #22577A); }
+    .stat-icon.emergency { background: linear-gradient(135deg, #22577A, #2D6A4F); }
+    .stat-icon.completed { background: linear-gradient(135deg, #2D6A4F, #081C15); }
+
+    .stat-data {
+        flex: 1;
+    }
+
+    .stat-value {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #2D6A4F;
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        color: #52B788;
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+
+    /* FILTROS Y CONTROLES */
+    .controls-section {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 4px 12px rgba(8, 28, 21, 0.08);
+        margin-bottom: 30px;
+    }
+
+    .controls-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .controls-title {
+        color: #2D6A4F;
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .controls-grid {
+        display: grid;
+        grid-template-columns: 2fr 200px 200px 200px 200px;
+        gap: 20px;
+        align-items: end;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-label {
+        color: #2D6A4F;
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+    }
+
+    .form-input,
+    .form-select {
+        padding: 12px 15px;
+        border: 2px solid #D8F3DC;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        background: white;
+        color: #2D6A4F;
+    }
+
+    .form-input:focus,
+    .form-select:focus {
+        outline: none;
+        border-color: #52B788;
+        box-shadow: 0 0 0 4px rgba(82, 183, 136, 0.1);
+    }
+
+    .search-input {
+        background: #D8F3DC;
+        border: 2px solid transparent;
+    }
+
+    .search-input:focus {
+        background: white;
+        border-color: #52B788;
+    }
+
+    /* TABLA DE HISTORIAS CLÍNICAS */
+    .records-table-section {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(8, 28, 21, 0.08);
+        overflow: hidden;
+    }
+
+    .table-header {
+        padding: 25px;
+        border-bottom: 1px solid #D8F3DC;
+        background: linear-gradient(135deg, #F8FBF9 0%, #F0F8F0 100%);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .table-title {
+        color: #2D6A4F;
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .results-info {
+        color: #52B788;
+        font-size: 0.9rem;
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .records-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .records-table th {
+        background: #D8F3DC;
+        padding: 18px 20px;
+        text-align: left;
+        font-weight: 600;
+        color: #2D6A4F;
+        border-bottom: 2px solid #B7E4C7;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .records-table td {
+        padding: 18px 20px;
+        border-bottom: 1px solid #D8F3DC;
+        vertical-align: middle;
+    }
+
+    .records-table tr {
+        transition: all 0.2s ease;
+    }
+
+    .records-table tr:hover {
+        background: rgba(183, 228, 199, 0.15);
+    }
+
+    .record-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .record-avatar {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 1.2rem;
+        border: 3px solid #B7E4C7;
+    }
+
+    .record-details {
+        flex: 1;
+    }
+
+    .record-date {
+        font-weight: 600;
+        color: #2D6A4F;
+        margin-bottom: 2px;
+        font-size: 1rem;
+    }
+
+    .record-time {
+        color: #52B788;
+        font-size: 0.85rem;
+    }
+
+    .pet-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .pet-name {
+        font-weight: 600;
+        color: #2D6A4F;
+        margin-bottom: 2px;
+    }
+
+    .pet-species {
+        color: #52B788;
+        font-size: 0.85rem;
+    }
+
+    .vet-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .vet-name {
+        font-weight: 600;
+        color: #2D6A4F;
+        margin-bottom: 2px;
+    }
+
+    .vet-specialty {
+        color: #52B788;
+        font-size: 0.85rem;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: white;
+    }
+
+    .status-badge.draft { background: linear-gradient(135deg, #6c757d, #495057); }
+    .status-badge.completed { background: linear-gradient(135deg, #52B788, #38A3A5); }
+    .status-badge.reviewed { background: linear-gradient(135deg, #38A3A5, #22577A); }
+
+    .priority-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .priority-badge.normal { background: #d4edda; color: #155724; }
+    .priority-badge.emergency { background: #f8d7da; color: #721c24; }
+
+    .actions-group {
+        display: flex;
+        gap: 8px;
+    }
+
+    .action-btn {
+        padding: 8px 12px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .action-btn.view {
+        background: #22577A;
+        color: white;
+    }
+
+    .action-btn.edit {
+        background: #52B788;
+        color: white;
+    }
+
+    .action-btn.complete {
+        background: #38A3A5;
+        color: white;
+    }
+
+    .action-btn.print {
+        background: #2D6A4F;
+        color: white;
+    }
+
+    .action-btn.delete {
+        background: #dc3545;
+        color: white;
+    }
+
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    /* MODAL STYLES */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(8, 28, 21, 0.8);
+        backdrop-filter: blur(5px);
+    }
+
+    .modal.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 20px;
+        width: 90%;
+        max-width: 1000px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 40px rgba(8, 28, 21, 0.3);
+        animation: modalSlideIn 0.3s ease;
+        position: relative;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-50px) scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .modal-header {
+        padding: 25px 30px 0;
+        border-bottom: 1px solid #D8F3DC;
+        margin-bottom: 25px;
+    }
+
+    .modal-title {
+        color: #2D6A4F;
+        font-size: 1.6rem;
+        font-weight: 600;
+        margin: 0 0 10px 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .modal-subtitle {
+        color: #52B788;
+        font-size: 1rem;
+        margin: 0 0 20px 0;
+    }
+
+    .modal-close {
+        position: absolute;
+        top: 20px;
+        right: 25px;
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: #52B788;
+        cursor: pointer;
+        padding: 5px;
+        border-radius: 50%;
+        transition: all 0.3s ease;
+    }
+
+    .modal-close:hover {
+        background: #D8F3DC;
+        color: #2D6A4F;
+    }
+
+    .modal-body {
+        padding: 0 30px 30px;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .form-row.full {
+        grid-template-columns: 1fr;
+    }
+
+    .form-row.thirds {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .form-textarea {
+        padding: 12px 15px;
+        border: 2px solid #D8F3DC;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        background: white;
+        color: #2D6A4F;
+        resize: vertical;
+        min-height: 100px;
+        font-family: inherit;
+    }
+
+    .form-textarea:focus {
+        outline: none;
+        border-color: #52B788;
+        box-shadow: 0 0 0 4px rgba(82, 183, 136, 0.1);
+    }
+
+    .modal-actions {
+        padding: 20px 30px;
+        border-top: 1px solid #D8F3DC;
+        display: flex;
+        justify-content: flex-end;
+        gap: 15px;
+        background: #F8FBF9;
+        border-bottom-left-radius: 20px;
+        border-bottom-right-radius: 20px;
+    }
+
+    .btn-cancel {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-cancel:hover {
+        background: #5a6268;
+        transform: translateY(-2px);
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, #52B788 0%, #38A3A5 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(82, 183, 136, 0.3);
+    }
+
+    .btn-save:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    /* SECCIÓN DE PRESCRIPCIONES */
+    .prescriptions-section {
+        background: #D8F3DC;
+        padding: 20px;
+        border-radius: 15px;
+        margin: 20px 0;
+    }
+
+    .prescriptions-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .prescription-item {
+        background: white;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        border-left: 4px solid #52B788;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .prescription-details {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .medication-name {
+        font-weight: 600;
+        color: #2D6A4F;
+        margin-bottom: 3px;
+    }
+
+    .medication-dosage {
+        color: #52B788;
+        font-size: 0.9rem;
+    }
+
+    .prescription-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    /* SECCIÓN DE EXÁMENES */
+    .exams-section {
+        background: #F8FBF9;
+        padding: 20px;
+        border-radius: 15px;
+        margin: 20px 0;
+        border-left: 4px solid #38A3A5;
+    }
+
+    .exam-item {
+        background: white;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .exam-info {
+        flex: 1;
+    }
+
+    .exam-name {
+        font-weight: 600;
+        color: #2D6A4F;
+        margin-bottom: 3px;
+    }
+
+    .exam-date {
+        color: #52B788;
+        font-size: 0.9rem;
+    }
+
+    .exam-file {
+        color: #22577A;
+        font-size: 0.85rem;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .exam-file:hover {
+        text-decoration: underline;
+    }
+
+    /* EMPTY STATE */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #52B788;
+    }
+
+    .empty-state h3 {
+        color: #2D6A4F;
+        margin-bottom: 15px;
+        font-size: 1.4rem;
+    }
+
+    .empty-state p {
+        margin-bottom: 25px;
+        font-size: 1rem;
+    }
+
+    /* LOADING STATE */
+    .table-loading {
+        text-align: center;
+        padding: 40px;
+        color: #52B788;
+    }
+
+    .table-loading .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #D8F3DC;
+        border-top: 4px solid #52B788;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 15px;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 1024px) {
+        .controls-grid {
+            grid-template-columns: 2fr 180px 180px 180px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .medical-records-content {
+            padding: 20px 15px;
+        }
+
+        .header-content {
+            flex-direction: column;
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .header-actions {
+            justify-content: center;
+        }
+
+        .stats-row {
+            grid-template-columns: 1fr;
+        }
+
+        .controls-grid {
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+
+        .form-row.thirds {
+            grid-template-columns: 1fr;
+        }
+
+        .modal-content {
+            width: 95%;
+            margin: 20px;
+        }
+
+        .records-table {
+            font-size: 0.85rem;
+        }
+
+        .records-table th,
+        .records-table td {
+            padding: 12px 10px;
+        }
+
+        .actions-group {
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .prescription-details {
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="medical-records-content">
+    <!-- HEADER -->
+    <div class="page-header">
+        <div class="header-content">
+            <div class="header-info">
+                <h1>
+                    <span>📄</span>
+                    Gestión de Historias Clínicas
+                </h1>
+                <p>Administra las historias clínicas y registros médicos de las mascotas</p>
+            </div>
+            <div class="header-actions">
+                <button onclick="exportRecords('pdf')" class="btn-secondary">
+                    📄 Reporte PDF
+                </button>
+                <button onclick="exportRecords('excel')" class="btn-secondary">
+                    📊 Exportar Excel
+                </button>
+                <button onclick="openRecordModal()" class="btn-primary">
+                    ➕ Nueva Historia Clínica
+                </button>
+            </div>
+        </div>
+
+        <!-- ESTADÍSTICAS -->
+        <div class="stats-row">
+            <div class="stat-item total">
+                <div class="stat-icon total">📋</div>
+                <div class="stat-data">
+                    <div class="stat-value" id="recordsTotal">-</div>
+                    <div class="stat-label">Total Historias</div>
+                </div>
+            </div>
+            <div class="stat-item today">
+                <div class="stat-icon today">📅</div>
+                <div class="stat-data">
+                    <div class="stat-value" id="recordsToday">-</div>
+                    <div class="stat-label">Registros Hoy</div>
+                </div>
+            </div>
+            <div class="stat-item emergency">
+                <div class="stat-icon emergency">🚨</div>
+                <div class="stat-data">
+                    <div class="stat-value" id="emergencyRecords">-</div>
+                    <div class="stat-label">Emergencias</div>
+                </div>
+            </div>
+            <div class="stat-item completed">
+                <div class="stat-icon completed">✅</div>
+                <div class="stat-data">
+                    <div class="stat-value" id="completedRecords">-</div>
+                    <div class="stat-label">Completadas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTROLES Y FILTROS -->
+    <div class="controls-section">
+        <div class="controls-header">
+            <h3 class="controls-title">🔍 Filtros y Controles</h3>
+            <button onclick="resetFilters()" class="btn-secondary">
+                🔄 Limpiar Filtros
+            </button>
+        </div>
+        <div class="controls-grid">
+            <div class="form-group">
+                <label for="searchInput" class="form-label">Buscar Historia Clínica</label>
+                <input type="text" id="searchInput" class="form-input search-input"
+                       placeholder="Nombre de mascota, propietario, veterinario..."
+                       onkeyup="filterRecords()">
+            </div>
+            <div class="form-group">
+                <label for="petFilter" class="form-label">Filtrar por Mascota</label>
+                <select id="petFilter" class="form-select" onchange="filterRecords()">
+                    <option value="">Todas las mascotas</option>
+                    <!-- Se llenará dinámicamente -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="vetFilter" class="form-label">Filtrar por Veterinario</label>
+                <select id="vetFilter" class="form-select" onchange="filterRecords()">
+                    <option value="">Todos los veterinarios</option>
+                    <!-- Se llenará dinámicamente -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="statusFilter" class="form-label">Filtrar por Estado</label>
+                <select id="statusFilter" class="form-select" onchange="filterRecords()">
+                    <option value="">Todos los estados</option>
+                    <option value="draft">📝 Borrador</option>
+                    <option value="completed">✅ Completada</option>
+                    <option value="reviewed">👁️ Revisada</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="sortBy" class="form-label">Ordenar por</label>
+                <select id="sortBy" class="form-select" onchange="sortRecords()">
+                    <option value="created_at_desc">Más recientes</option>
+                    <option value="created_at">Más antiguas</option>
+                    <option value="pet_name">Nombre mascota A-Z</option>
+                    <option value="veterinarian">Veterinario A-Z</option>
+                    <option value="status">Estado</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA DE HISTORIAS CLÍNICAS -->
+    <div class="records-table-section">
+        <div class="table-header">
+            <h3 class="table-title">
+                📋 Lista de Historias Clínicas
+            </h3>
+            <div class="results-info" id="resultsInfo">
+                Cargando historias clínicas...
+            </div>
+        </div>
+        <div class="table-container">
+            <div id="recordsTableContainer">
+                <div class="table-loading">
+                    <div class="spinner"></div>
+                    <span>Cargando historias clínicas desde el servidor...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PARA CREAR/EDITAR HISTORIA CLÍNICA -->
+<div class="modal" id="recordModal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeRecordModal()">✖</button>
+        <div class="modal-header">
+            <h2 class="modal-title" id="modalTitle">
+                <span id="modalIcon">📄</span>
+                <span id="modalTitleText">Nueva Historia Clínica</span>
+            </h2>
+            <p class="modal-subtitle" id="modalSubtitle">Completa la información de la consulta médica</p>
+        </div>
+        <div class="modal-body">
+            <form id="recordForm">
+                <input type="hidden" id="recordId">
+
+                <!-- INFORMACIÓN BÁSICA -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="petId" class="form-label">Mascota *</label>
+                        <select id="petId" name="pet_id" class="form-select" required onchange="updatePetInfo()">
+                            <option value="">Seleccionar mascota</option>
+                            <!-- Se llenará dinámicamente -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="veterinarianId" class="form-label">Veterinario *</label>
+                        <select id="veterinarianId" name="veterinarian_id" class="form-select" required>
+                            <option value="">Seleccionar veterinario</option>
+                            <!-- Se llenará dinámicamente -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="appointmentId" class="form-label">Cita Asociada (Opcional)</label>
+                        <div style="display: flex; gap: 10px; align-items: end;">
+                            <select id="appointmentId" name="appointment_id" class="form-select" onchange="handleAppointmentSelection()">
+                                <option value="">Sin cita asociada</option>
+                                <option value="search">🔍 Buscar cita existente</option>
+                                <!-- Se llenará dinámicamente con citas -->
+                            </select>
+                            <button type="button" onclick="clearAppointment()" class="btn-secondary" style="padding: 12px; min-width: auto;">
+                                🗑️
+                            </button>
+                        </div>
+                        <small style="color: #52B788; font-size: 0.8rem; margin-top: 5px; display: block;">
+                            ℹ️ Deja vacío para historia clínica independiente, o selecciona una cita programada
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="isEmergency" class="form-label">Tipo de Consulta</label>
+                        <select id="isEmergency" name="is_emergency" class="form-select">
+                            <option value="false">🟢 Consulta Normal</option>
+                            <option value="true">🚨 Emergencia</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Información de cita seleccionada (solo se muestra si hay cita) -->
+                <div id="appointmentInfo" style="display: none; background: #e3f2fd; padding: 15px; border-radius: 10px; margin: 15px 0; border-left: 4px solid #2196f3;">
+                    <h5 style="color: #1976d2; margin: 0 0 10px 0;">📅 Información de Cita Asociada</h5>
+                    <div id="appointmentDetails" style="color: #1565c0;">
+                        <!-- Se llenará dinámicamente -->
+                    </div>
+                    <button type="button" onclick="loadAppointmentData()" class="btn-secondary" style="margin-top: 10px; font-size: 0.8rem;">
+                        📥 Cargar datos de la cita
+                    </button>
+                </div>
+
+                <!-- EXAMEN FÍSICO Y SIGNOS VITALES -->
+                <div class="form-row thirds">
+                    <div class="form-group">
+                        <label for="weightAtVisit" class="form-label">Peso en Consulta (kg)</label>
+                        <input type="number" id="weightAtVisit" name="weight_at_visit" class="form-input"
+                               step="0.1" min="0" placeholder="0.0">
+                    </div>
+                    <div class="form-group">
+                        <label for="temperature" class="form-label">Temperatura (°C)</label>
+                        <input type="number" id="temperature" name="temperature" class="form-input"
+                               step="0.1" min="30" max="45" placeholder="38.5">
+                    </div>
+                    <div class="form-group">
+                        <label for="pulse" class="form-label">Pulso (lat/min)</label>
+                        <input type="number" id="pulse" name="pulse" class="form-input"
+                               min="0" max="300" placeholder="80">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="respiratoryRate" class="form-label">Frecuencia Respiratoria (resp/min)</label>
+                        <input type="number" id="respiratoryRate" name="respiratory_rate" class="form-input"
+                               min="0" max="100" placeholder="20">
+                    </div>
+                    <div class="form-group">
+                        <label for="recordStatus" class="form-label">Estado del Registro</label>
+                        <select id="recordStatus" name="status" class="form-select">
+                            <option value="draft">📝 Borrador</option>
+                            <option value="completed">✅ Completada</option>
+                            <option value="reviewed">👁️ Revisada</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- DESCRIPCIÓN DE SÍNTOMAS -->
+                <div class="form-row full">
+                    <div class="form-group">
+                        <label for="symptomsDescription" class="form-label">Descripción de Síntomas</label>
+                        <textarea id="symptomsDescription" name="symptoms_description" class="form-textarea"
+                                  placeholder="Describe los síntomas reportados por el propietario..."></textarea>
+                    </div>
+                </div>
+
+                <!-- EXAMEN FÍSICO -->
+                <div class="form-row full">
+                    <div class="form-group">
+                        <label for="physicalExamination" class="form-label">Examen Físico</label>
+                        <textarea id="physicalExamination" name="physical_examination" class="form-textarea"
+                                  placeholder="Resultados del examen físico realizado..."></textarea>
+                    </div>
+                </div>
+
+                <!-- DIAGNÓSTICO -->
+                <div class="form-row full">
+                    <div class="form-group">
+                        <label for="diagnosis" class="form-label">Diagnóstico</label>
+                        <textarea id="diagnosis" name="diagnosis" class="form-textarea"
+                                  placeholder="Diagnóstico clínico..."></textarea>
+                    </div>
+                </div>
+
+                <!-- TRATAMIENTO -->
+                <div class="form-row full">
+                    <div class="form-group">
+                        <label for="treatment" class="form-label">Tratamiento</label>
+                        <textarea id="treatment" name="treatment" class="form-textarea"
+                                  placeholder="Plan de tratamiento recomendado..."></textarea>
+                    </div>
+                </div>
+
+                <!-- MEDICAMENTOS PRESCRITOS -->
+                <div class="form-row full">
+                    <div class="form-group">
+                        <label for="medicationsPrescribed" class="form-label">Medicamentos Prescritos</label>
+                        <textarea id="medicationsPrescribed" name="medications_prescribed" class="form-textarea"
+                                  placeholder="Lista de medicamentos prescritos..."></textarea>
+                    </div>
+                </div>
+
+                <!-- EXÁMENES SOLICITADOS -->
+                <div class="form-row full">
+                    <div class="form-group">
+                        <label for="examsRequested" class="form-label">Exámenes Solicitados</label>
+                        <textarea id="examsRequested" name="exams_requested" class="form-textarea"
+                                  placeholder="Exámenes de laboratorio, radiografías, etc..."></textarea>
+                    </div>
+                </div>
+
+                <!-- OBSERVACIONES -->
+                <div class="form-row full">
+                    <div class="form-group">
+                        <label for="observations" class="form-label">Observaciones</label>
+                        <textarea id="observations" name="observations" class="form-textarea"
+                                  placeholder="Observaciones adicionales..."></textarea>
+                    </div>
+                </div>
+
+                <!-- PRÓXIMA CITA -->
+                <div class="form-row full">
+                    <div class="form-group">
+                        <label for="nextAppointment" class="form-label">Recomendación para Próxima Cita</label>
+                        <textarea id="nextAppointment" name="next_appointment_recommendation" class="form-textarea"
+                                  placeholder="Recomendaciones para el seguimiento..."></textarea>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-actions">
+            <button type="button" onclick="closeRecordModal()" class="btn-cancel">
+                Cancelar
+            </button>
+            <button type="button" onclick="saveRecord()" class="btn-save" id="saveBtn">
+                <span id="saveBtnIcon">💾</span>
+                <span id="saveBtnText">Guardar Historia</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PARA VER DETALLES DE HISTORIA CLÍNICA -->
+<div class="modal" id="recordDetailsModal">
+    <div class="modal-content" style="max-width: 1200px;">
+        <button class="modal-close" onclick="closeRecordDetailsModal()">✖</button>
+        <div class="modal-header">
+            <h2 class="modal-title" id="detailsModalTitle">
+                <span>📄</span>
+                <span id="detailsRecordTitle">Detalles de Historia Clínica</span>
+            </h2>
+            <p class="modal-subtitle" id="detailsModalSubtitle">Información completa del registro médico</p>
+        </div>
+        <div class="modal-body" id="recordDetailsContent">
+            <!-- Se llenará dinámicamente -->
+        </div>
+        <div class="modal-actions">
+            <button type="button" onclick="closeRecordDetailsModal()" class="btn-cancel">
+                Cerrar
+            </button>
+            <button type="button" onclick="editRecordFromDetails()" class="btn-primary" id="editFromDetailsBtn">
+                ✏️ Editar Registro
+            </button>
+            <button type="button" onclick="printRecord()" class="btn-secondary" id="printRecordBtn">
+                🖨️ Imprimir
+            </button>
+            <button type="button" onclick="addPrescription()" class="btn-primary" id="addPrescriptionBtn">
+                💊 Agregar Prescripción
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PARA AGREGAR PRESCRIPCIÓN -->
+<div class="modal" id="prescriptionModal">
+    <div class="modal-content" style="max-width: 800px;">
+        <button class="modal-close" onclick="closePrescriptionModal()">✖</button>
+        <div class="modal-header">
+            <h2 class="modal-title">
+                <span>💊</span>
+                <span>Agregar Prescripción</span>
+            </h2>
+            <p class="modal-subtitle" id="prescriptionModalSubtitle">Agregar medicamento a la historia clínica</p>
+        </div>
+        <div class="modal-body">
+            <form id="prescriptionForm">
+                <input type="hidden" id="prescriptionRecordId">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="medicationId" class="form-label">Medicamento</label>
+                        <select id="medicationId" name="medication_id" class="form-select" onchange="updateMedicationInfo()">
+                            <option value="">Seleccionar medicamento</option>
+                            <!-- Se llenará dinámicamente -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="medicationName" class="form-label">Nombre del Medicamento *</label>
+                        <input type="text" id="medicationName" name="medication_name" class="form-input" required
+                               placeholder="Nombre del medicamento">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="dosage" class="form-label">Dosis</label>
+                        <input type="text" id="dosage" name="dosage" class="form-input"
+                               placeholder="Ej: 250mg, 2 comprimidos">
+                    </div>
+                    <div class="form-group">
+                        <label for="frequency" class="form-label">Frecuencia</label>
+                        <input type="text" id="frequency" name="frequency" class="form-input"
+                               placeholder="Ej: Cada 8 horas, 2 veces al día">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="duration" class="form-label">Duración</label>
+                        <input type="text" id="duration" name="duration" class="form-input"
+                               placeholder="Ej: 7 días, 2 semanas">
+                    </div>
+                    <div class="form-group">
+                        <label for="quantityPrescribed" class="form-label">Cantidad</label>
+                        <input type="number" id="quantityPrescribed" name="quantity_prescribed" class="form-input"
+                               min="1" placeholder="Cantidad a dispensar">
+                    </div>
+                </div>
+
+                <div class="form-row full">
+                    <div class="form-group">
+                        <label for="prescriptionInstructions" class="form-label">Instrucciones</label>
+                        <textarea id="prescriptionInstructions" name="instructions" class="form-textarea"
+                                  placeholder="Instrucciones específicas para el propietario..."></textarea>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-actions">
+            <button type="button" onclick="closePrescriptionModal()" class="btn-cancel">
+                Cancelar
+            </button>
+            <button type="button" onclick="savePrescription()" class="btn-save">
+                💾 Agregar Prescripción
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE CONFIRMACIÓN -->
+<div class="modal" id="confirmModal">
+    <div class="modal-content" style="max-width: 450px;">
+        <button class="modal-close" onclick="closeConfirmModal()">✖</button>
+        <div class="modal-header">
+            <h2 class="modal-title" id="confirmTitle">
+                <span id="confirmIcon">❓</span>
+                Confirmar Acción
+            </h2>
+        </div>
+        <div class="modal-body">
+            <p id="confirmMessage">¿Estás seguro de realizar esta acción?</p>
+        </div>
+        <div class="modal-actions">
+            <button type="button" onclick="closeConfirmModal()" class="btn-cancel">
+                Cancelar
+            </button>
+            <button type="button" onclick="executeConfirmAction()" class="btn-save" id="confirmBtn">
+                <span id="confirmBtnText">Confirmar</span>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // =============== VARIABLES GLOBALES ===============
+    let allRecords = [];
+    let filteredRecords = [];
+    let allPets = [];
+    let allVeterinarians = [];
+    let allMedications = [];
+    let currentEditingRecord = null;
+    let currentViewingRecord = null;
+    let confirmAction = null;
+
+    // =============== INICIALIZACIÓN ===============
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Inicializando Gestión de Historias Clínicas...');
+        loadInitialData();
+    });
+
+    // =============== CARGA DE DATOS INICIAL ===============
+    async function loadInitialData() {
+        try {
+            await Promise.all([
+                loadPetsData(),
+                loadVeterinariansData(),
+                loadMedicationsData(),
+                loadRecordsData()
+            ]);
+        } catch (error) {
+            console.error('❌ Error cargando datos iniciales:', error);
+            showMessage('Error cargando datos del sistema', 'error');
+        }
+    }
+
+    // =============== CARGA DE MASCOTAS ===============
+    async function loadPetsData() {
+        try {
+            console.log('📡 Obteniendo mascotas del Medical Service...');
+
+            const response = await fetch('/api/admin/pets', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.pets) {
+                    allPets = data.pets;
+                    populatePetSelects();
+                    console.log(`✅ ${allPets.length} mascotas cargadas`);
+                    return;
+                }
+            }
+
+            throw new Error('No se pudo conectar con Medical Service');
+
+        } catch (error) {
+            console.error('❌ Error obteniendo mascotas:', error);
+            // Datos de ejemplo
+            allPets = getExamplePets();
+            populatePetSelects();
+            showMessage('Usando datos de mascotas de ejemplo', 'warning');
+        }
+    }
+
+    function getExamplePets() {
+        return [
+            {
+                id: '1',
+                name: 'Max',
+                species: 'perro',
+                breed: 'Golden Retriever',
+                owner_name: 'Carlos López',
+                owner_id: '1'
+            },
+            {
+                id: '2',
+                name: 'Luna',
+                species: 'gato',
+                breed: 'Siamés',
+                owner_name: 'María González',
+                owner_id: '2'
+            },
+            {
+                id: '3',
+                name: 'Rocky',
+                species: 'perro',
+                breed: 'Bulldog Francés',
+                owner_name: 'Carlos López',
+                owner_id: '1'
+            }
+        ];
+    }
+
+    function populatePetSelects() {
+        const petSelect = document.getElementById('petId');
+        const petFilter = document.getElementById('petFilter');
+
+        // Limpiar opciones existentes
+        petSelect.innerHTML = '<option value="">Seleccionar mascota</option>';
+        petFilter.innerHTML = '<option value="">Todas las mascotas</option>';
+
+        // Llenar opciones
+        allPets.forEach(pet => {
+            const petInfo = `${pet.name} (${pet.species}) - ${pet.owner_name}`;
+
+            // Para select de creación/edición
+            const option1 = document.createElement('option');
+            option1.value = pet.id;
+            option1.textContent = petInfo;
+            petSelect.appendChild(option1);
+
+            // Para filtro
+            const option2 = document.createElement('option');
+            option2.value = pet.id;
+            option2.textContent = petInfo;
+            petFilter.appendChild(option2);
+        });
+    }
+
+    // =============== CARGA DE VETERINARIOS ===============
+    async function loadVeterinariansData() {
+        try {
+            console.log('📡 Obteniendo veterinarios del Auth Service...');
+
+            const response = await fetch('/api/admin/users', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.users) {
+                    // Filtrar solo veterinarios activos
+                    allVeterinarians = data.users.filter(user =>
+                        user.role === 'veterinarian' && user.is_active === true
+                    );
+                    populateVeterinarianSelects();
+                    console.log(`✅ ${allVeterinarians.length} veterinarios cargados`);
+                    return;
+                }
+            }
+
+            throw new Error('No se pudo obtener veterinarios');
+
+        } catch (error) {
+            console.error('❌ Error obteniendo veterinarios:', error);
+            // Datos de ejemplo
+            allVeterinarians = [
+                {
+                    id: 'vet1',
+                    first_name: 'Dr. Juan',
+                    last_name: 'Pérez',
+                    email: 'vet@veterinariaclinic.com',
+                    role: 'veterinarian'
+                }
+            ];
+            populateVeterinarianSelects();
+            showMessage('Usando datos de veterinarios de ejemplo', 'warning');
+        }
+    }
+
+    function populateVeterinarianSelects() {
+        const vetSelect = document.getElementById('veterinarianId');
+        const vetFilter = document.getElementById('vetFilter');
+
+        // Limpiar opciones existentes
+        vetSelect.innerHTML = '<option value="">Seleccionar veterinario</option>';
+        vetFilter.innerHTML = '<option value="">Todos los veterinarios</option>';
+
+        // Llenar opciones
+        allVeterinarians.forEach(vet => {
+            const vetName = `${vet.first_name} ${vet.last_name}`;
+
+            // Para select de creación/edición
+            const option1 = document.createElement('option');
+            option1.value = vet.id;
+            option1.textContent = vetName;
+            vetSelect.appendChild(option1);
+
+            // Para filtro
+            const option2 = document.createElement('option');
+            option2.value = vet.id;
+            option2.textContent = vetName;
+            vetFilter.appendChild(option2);
+        });
+    }
+
+    // =============== CARGA DE MEDICAMENTOS ===============
+    async function loadMedicationsData() {
+        try {
+            console.log('📡 Obteniendo medicamentos del Inventory Service...');
+
+            const response = await fetch('/api/admin/inventory/medications', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.medications) {
+                    allMedications = data.medications;
+                    populateMedicationSelects();
+                    console.log(`✅ ${allMedications.length} medicamentos cargados`);
+                    return;
+                }
+            }
+
+            throw new Error('No se pudo conectar con Inventory Service');
+
+        } catch (error) {
+            console.error('❌ Error obteniendo medicamentos:', error);
+            // Datos de ejemplo
+            allMedications = getExampleMedications();
+            populateMedicationSelects();
+            showMessage('Usando datos de medicamentos de ejemplo', 'warning');
+        }
+    }
+
+    function getExampleMedications() {
+        return [
+            {
+                id: 'med1',
+                name: 'Amoxicilina',
+                concentration: '250mg',
+                presentation: 'Comprimidos',
+                stock_quantity: 50
+            },
+            {
+                id: 'med2',
+                name: 'Meloxicam',
+                concentration: '15mg',
+                presentation: 'Comprimidos',
+                stock_quantity: 30
+            },
+            {
+                id: 'med3',
+                name: 'Prednisona',
+                concentration: '5mg',
+                presentation: 'Comprimidos',
+                stock_quantity: 25
+            }
+        ];
+    }
+
+    function populateMedicationSelects() {
+        const medicationSelect = document.getElementById('medicationId');
+
+        // Limpiar opciones existentes
+        medicationSelect.innerHTML = '<option value="">Seleccionar medicamento</option>';
+
+        // Llenar opciones
+        allMedications.forEach(med => {
+            const medInfo = `${med.name} ${med.concentration} - ${med.presentation} (Stock: ${med.stock_quantity})`;
+
+            const option = document.createElement('option');
+            option.value = med.id;
+            option.textContent = medInfo;
+            option.dataset.name = med.name;
+            option.dataset.concentration = med.concentration;
+            medicationSelect.appendChild(option);
+        });
+    }
+
+    // =============== CARGA DE HISTORIAS CLÍNICAS ===============
+    async function loadRecordsData() {
+        try {
+            console.log('📡 Obteniendo historias clínicas del Medical Service...');
+
+            // Intentar obtener todas las historias clínicas
+            // Por ahora simularemos la llamada ya que necesitaríamos un endpoint específico
+            // const response = await fetch('/api/admin/medical-records', ...);
+
+            // Usar datos de ejemplo
+            allRecords = getExampleRecords();
+            filteredRecords = [...allRecords];
+            displayRecordsData();
+            updateStatistics();
+            showMessage('Usando datos de historias clínicas de ejemplo', 'warning');
+
+        } catch (error) {
+            console.error('❌ Error obteniendo historias clínicas:', error);
+            allRecords = getExampleRecords();
+            filteredRecords = [...allRecords];
+            displayRecordsData();
+            updateStatistics();
+            showMessage('Error de conexión - usando datos de ejemplo', 'warning');
+        }
+    }
+
+    function getExampleRecords() {
+        return [
+            {
+                id: '1',
+                pet_id: '1',
+                pet_name: 'Max',
+                pet_species: 'perro',
+                owner_name: 'Carlos López',
+                veterinarian_id: 'vet1',
+                veterinarian_name: 'Dr. Juan Pérez',
+                appointment_id: null,
+                symptoms_description: 'Mascota presenta letargo y pérdida de apetito desde hace 2 días',
+                physical_examination: 'Temperatura normal, mucosas rosadas, abdomen blando',
+                diagnosis: 'Gastritis leve posiblemente por cambio de dieta',
+                treatment: 'Dieta blanda por 3 días, ayuno de 12 horas',
+                medications_prescribed: 'Omeprazol 10mg cada 12 horas por 5 días',
+                exams_requested: 'Ninguno por el momento',
+                observations: 'Revisar evolución en 3 días',
+                next_appointment_recommendation: 'Control en una semana si no mejora',
+                weight_at_visit: 25.5,
+                temperature: 38.2,
+                pulse: 85,
+                respiratory_rate: 22,
+                status: 'completed',
+                is_emergency: false,
+                created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+                updated_at: new Date(Date.now() - 86400000 * 2).toISOString()
+            },
+            {
+                id: '2',
+                pet_id: '2',
+                pet_name: 'Luna',
+                pet_species: 'gato',
+                owner_name: 'María González',
+                veterinarian_id: 'vet1',
+                veterinarian_name: 'Dr. Juan Pérez',
+                appointment_id: null,
+                symptoms_description: 'Dificultad para respirar y tos ocasional',
+                physical_examination: 'Auscultación cardiopulmonar con ruidos anormales',
+                diagnosis: 'Pendiente - requiere radiografía torácica',
+                treatment: 'Broncodilatador de rescate',
+                medications_prescribed: 'Salbutamol inhalado según necesidad',
+                exams_requested: 'Radiografía de tórax, hemograma completo',
+                observations: 'Posible asma felino, requiere seguimiento cercano',
+                next_appointment_recommendation: 'Control en 48 horas con resultados',
+                weight_at_visit: 4.2,
+                temperature: 38.8,
+                pulse: 160,
+                respiratory_rate: 35,
+                status: 'draft',
+                is_emergency: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            },
+            {
+                id: '3',
+                pet_id: '3',
+                pet_name: 'Rocky',
+                pet_species: 'perro',
+                owner_name: 'Carlos López',
+                veterinarian_id: 'vet1',
+                veterinarian_name: 'Dr. Juan Pérez',
+                appointment_id: null,
+                symptoms_description: 'Consulta de rutina y vacunación anual',
+                physical_examination: 'Examen físico completo sin alteraciones',
+                diagnosis: 'Animal sano',
+                treatment: 'Vacunación múltiple, desparasitación',
+                medications_prescribed: 'Ninguno',
+                exams_requested: 'Ninguno',
+                observations: 'Mantener rutina de ejercicio moderado',
+                next_appointment_recommendation: 'Próxima vacunación en 12 meses',
+                weight_at_visit: 12.8,
+                temperature: 38.5,
+                pulse: 90,
+                respiratory_rate: 25,
+                status: 'completed',
+                is_emergency: false,
+                created_at: new Date(Date.now() - 86400000 * 30).toISOString(),
+                updated_at: new Date(Date.now() - 86400000 * 30).toISOString()
+            }
+        ];
+    }
+
+    // =============== ACTUALIZACIÓN DE ESTADÍSTICAS ===============
+    function updateStatistics() {
+        const totalRecords = allRecords.length;
+        const today = new Date().toDateString();
+        const recordsToday = allRecords.filter(r =>
+            new Date(r.created_at).toDateString() === today
+        ).length;
+        const emergencyRecords = allRecords.filter(r => r.is_emergency).length;
+        const completedRecords = allRecords.filter(r => r.status === 'completed').length;
+
+        document.getElementById('recordsTotal').textContent = totalRecords;
+        document.getElementById('recordsToday').textContent = recordsToday;
+        document.getElementById('emergencyRecords').textContent = emergencyRecords;
+        document.getElementById('completedRecords').textContent = completedRecords;
+    }
+
+    // =============== MOSTRAR DATOS EN TABLA ===============
+    function displayRecordsData() {
+        const container = document.getElementById('recordsTableContainer');
+        const resultsInfo = document.getElementById('resultsInfo');
+
+        // Actualizar información de resultados
+        resultsInfo.textContent = `Mostrando ${filteredRecords.length} de ${allRecords.length} historias clínicas`;
+
+        if (filteredRecords.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h3>📄 No se encontraron historias clínicas</h3>
+                    <p>No hay historias clínicas que coincidan con los filtros aplicados.</p>
+                    <button onclick="resetFilters()" class="btn-primary">
+                        🔄 Limpiar Filtros
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <table class="records-table">
+                <thead>
+                    <tr>
+                        <th>Fecha/Hora</th>
+                        <th>Mascota</th>
+                        <th>Propietario</th>
+                        <th>Veterinario</th>
+                        <th>Diagnóstico</th>
+                        <th>Estado</th>
+                        <th>Prioridad</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${filteredRecords.map(record => `
+                        <tr>
+                            <td>
+                                <div class="record-info">
+                                    <div class="record-avatar">📄</div>
+                                    <div class="record-details">
+                                        <div class="record-date">${formatDate(record.created_at)}</div>
+                                        <div class="record-time">${formatTime(record.created_at)}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="pet-info">
+                                    <div class="pet-name">${record.pet_name || 'Sin nombre'}</div>
+                                    <div class="pet-species">${getSpeciesLabel(record.pet_species)} ${record.weight_at_visit ? `• ${record.weight_at_visit}kg` : ''}</div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="owner-info">
+                                    <div class="owner-name">${record.owner_name || 'Propietario desconocido'}</div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="vet-info">
+                                    <div class="vet-name">${record.veterinarian_name || 'Veterinario desconocido'}</div>
+                                    <div class="vet-specialty">Medicina Veterinaria</div>
+                                </div>
+                            </td>
+                            <td style="max-width: 200px;">
+                                <div style="color: #2D6A4F; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    ${record.diagnosis || 'Pendiente de diagnóstico'}
+                                </div>
+                                ${record.symptoms_description ? `<div style="color: #52B788; font-size: 0.85rem; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${record.symptoms_description}</div>` : ''}
+                            </td>
+                            <td style="text-align: center;">
+                                ${getStatusBadge(record.status)}
+                            </td>
+                            <td style="text-align: center;">
+                                ${getPriorityBadge(record.is_emergency)}
+                            </td>
+                            <td>
+                                <div class="actions-group">
+                                    <button onclick="viewRecord('${record.id}')" class="action-btn view" title="Ver detalles">
+                                        👁️ Ver
+                                    </button>
+                                    <button onclick="editRecord('${record.id}')" class="action-btn edit" title="Editar">
+                                        ✏️ Editar
+                                    </button>
+                                    ${record.status !== 'completed' ? `
+                                        <button onclick="completeRecord('${record.id}')" class="action-btn complete" title="Marcar como completada">
+                                            ✅ Completar
+                                        </button>
+                                    ` : ''}
+                                    <button onclick="printRecord('${record.id}')" class="action-btn print" title="Imprimir">
+                                        🖨️ Imprimir
+                                    </button>
+                                    <button onclick="deleteRecord('${record.id}')" class="action-btn delete" title="Eliminar">
+                                        🗑️ Eliminar
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    // =============== FILTROS Y BÚSQUEDA ===============
+    function filterRecords() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const petFilter = document.getElementById('petFilter').value;
+        const vetFilter = document.getElementById('vetFilter').value;
+        const statusFilter = document.getElementById('statusFilter').value;
+
+        filteredRecords = allRecords.filter(record => {
+            // Filtro de búsqueda
+            const matchesSearch = !searchTerm ||
+                (record.pet_name && record.pet_name.toLowerCase().includes(searchTerm)) ||
+                (record.owner_name && record.owner_name.toLowerCase().includes(searchTerm)) ||
+                (record.veterinarian_name && record.veterinarian_name.toLowerCase().includes(searchTerm)) ||
+                (record.diagnosis && record.diagnosis.toLowerCase().includes(searchTerm)) ||
+                (record.symptoms_description && record.symptoms_description.toLowerCase().includes(searchTerm));
+
+            // Filtro de mascota
+            const matchesPet = !petFilter || record.pet_id === petFilter;
+
+            // Filtro de veterinario
+            const matchesVet = !vetFilter || record.veterinarian_id === vetFilter;
+
+            // Filtro de estado
+            const matchesStatus = !statusFilter || record.status === statusFilter;
+
+            return matchesSearch && matchesPet && matchesVet && matchesStatus;
+        });
+
+        displayRecordsData();
+    }
+
+    function sortRecords() {
+        const sortBy = document.getElementById('sortBy').value;
+
+        filteredRecords.sort((a, b) => {
+            switch (sortBy) {
+                case 'created_at':
+                    return new Date(a.created_at) - new Date(b.created_at);
+                case 'created_at_desc':
+                    return new Date(b.created_at) - new Date(a.created_at);
+                case 'pet_name':
+                    return (a.pet_name || '').localeCompare(b.pet_name || '');
+                case 'veterinarian':
+                    return (a.veterinarian_name || '').localeCompare(b.veterinarian_name || '');
+                case 'status':
+                    return (a.status || '').localeCompare(b.status || '');
+                default:
+                    return 0;
+            }
+        });
+
+        displayRecordsData();
+    }
+
+    function resetFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('petFilter').value = '';
+        document.getElementById('vetFilter').value = '';
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('sortBy').value = 'created_at_desc';
+
+        filteredRecords = [...allRecords];
+        displayRecordsData();
+        showMessage('Filtros restablecidos', 'info');
+    }
+
+    // =============== MODAL DE HISTORIA CLÍNICA ===============
+    function openRecordModal(recordId = null) {
+        const modal = document.getElementById('recordModal');
+        const form = document.getElementById('recordForm');
+
+        // Reset form
+        form.reset();
+        document.getElementById('recordId').value = '';
+        currentEditingRecord = null;
+
+        if (recordId) {
+            // Modo edición
+            const record = allRecords.find(r => r.id === recordId);
+            if (!record) {
+                showMessage('Historia clínica no encontrada', 'error');
+                return;
+            }
+
+            currentEditingRecord = record;
+
+            // Llenar formulario
+            document.getElementById('petId').value = record.pet_id || '';
+            document.getElementById('veterinarianId').value = record.veterinarian_id || '';
+            document.getElementById('appointmentId').value = record.appointment_id || '';
+            document.getElementById('isEmergency').value = record.is_emergency ? 'true' : 'false';
+            document.getElementById('weightAtVisit').value = record.weight_at_visit || '';
+            document.getElementById('temperature').value = record.temperature || '';
+            document.getElementById('pulse').value = record.pulse || '';
+            document.getElementById('respiratoryRate').value = record.respiratory_rate || '';
+            document.getElementById('recordStatus').value = record.status || 'draft';
+            document.getElementById('symptomsDescription').value = record.symptoms_description || '';
+            document.getElementById('physicalExamination').value = record.physical_examination || '';
+            document.getElementById('diagnosis').value = record.diagnosis || '';
+            document.getElementById('treatment').value = record.treatment || '';
+            document.getElementById('medicationsPrescribed').value = record.medications_prescribed || '';
+            document.getElementById('examsRequested').value = record.exams_requested || '';
+            document.getElementById('observations').value = record.observations || '';
+            document.getElementById('nextAppointment').value = record.next_appointment_recommendation || '';
+            document.getElementById('recordId').value = record.id;
+
+            // Actualizar UI del modal
+            document.getElementById('modalIcon').textContent = '✏️';
+            document.getElementById('modalTitleText').textContent = 'Editar Historia Clínica';
+            document.getElementById('modalSubtitle').textContent = `Modificando registro de: ${record.pet_name}`;
+            document.getElementById('saveBtnIcon').textContent = '💾';
+            document.getElementById('saveBtnText').textContent = 'Actualizar Historia';
+        } else {
+            // Modo creación
+            document.getElementById('modalIcon').textContent = '📄';
+            document.getElementById('modalTitleText').textContent = 'Nueva Historia Clínica';
+            document.getElementById('modalSubtitle').textContent = 'Completa la información de la consulta médica';
+            document.getElementById('saveBtnIcon').textContent = '💾';
+            document.getElementById('saveBtnText').textContent = 'Crear Historia';
+        }
+
+        modal.classList.add('active');
+    }
+
+    function closeRecordModal() {
+        const modal = document.getElementById('recordModal');
+        modal.classList.remove('active');
+        currentEditingRecord = null;
+    }
+
+    // =============== GUARDAR HISTORIA CLÍNICA ===============
+    async function saveRecord() {
+        const form = document.getElementById('recordForm');
+        const saveBtn = document.getElementById('saveBtn');
+
+        // Validar formulario
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        // Validar que la mascota y veterinario estén seleccionados
+        const petId = document.getElementById('petId').value;
+        const veterinarianId = document.getElementById('veterinarianId').value;
+
+        if (!petId) {
+            showMessage('Debe seleccionar una mascota', 'error');
+            return;
+        }
+
+        if (!veterinarianId) {
+            showMessage('Debe seleccionar un veterinario', 'error');
+            return;
+        }
+
+        // Recopilar datos de la historia clínica
+        const recordData = {
+            pet_id: petId,
+            veterinarian_id: veterinarianId,
+            appointment_id: document.getElementById('appointmentId').value || null,
+            symptoms_description: document.getElementById('symptomsDescription').value,
+            physical_examination: document.getElementById('physicalExamination').value,
+            diagnosis: document.getElementById('diagnosis').value,
+            treatment: document.getElementById('treatment').value,
+            medications_prescribed: document.getElementById('medicationsPrescribed').value,
+            exams_requested: document.getElementById('examsRequested').value,
+            observations: document.getElementById('observations').value,
+            next_appointment_recommendation: document.getElementById('nextAppointment').value,
+            weight_at_visit: parseFloat(document.getElementById('weightAtVisit').value) || null,
+            temperature: parseFloat(document.getElementById('temperature').value) || null,
+            pulse: parseInt(document.getElementById('pulse').value) || null,
+            respiratory_rate: parseInt(document.getElementById('respiratoryRate').value) || null,
+            is_emergency: document.getElementById('isEmergency').value === 'true',
+            status: document.getElementById('recordStatus').value
+        };
+
+        // Deshabilitar botón
+        saveBtn.disabled = true;
+        document.getElementById('saveBtnText').textContent = 'Guardando...';
+
+        try {
+            let response;
+            let recordId;
+
+            if (currentEditingRecord) {
+                // Actualizar historia clínica existente
+                recordId = currentEditingRecord.id;
+
+                // Simular llamada al Medical Service
+                // response = await fetch(`/api/admin/medical-records/${recordId}`, {
+                //     method: 'PUT',
+                //     headers: { 'Content-Type': 'application/json' },
+                //     credentials: 'include',
+                //     body: JSON.stringify(recordData)
+                // });
+
+                // Simulación para demo
+                const updatedRecord = { ...currentEditingRecord, ...recordData };
+                // Agregar información de mascota y veterinario
+                const pet = allPets.find(p => p.id === recordData.pet_id);
+                const vet = allVeterinarians.find(v => v.id === recordData.veterinarian_id);
+
+                updatedRecord.pet_name = pet?.name;
+                updatedRecord.pet_species = pet?.species;
+                updatedRecord.owner_name = pet?.owner_name;
+                updatedRecord.veterinarian_name = vet ? `${vet.first_name} ${vet.last_name}` : 'Veterinario desconocido';
+                updatedRecord.updated_at = new Date().toISOString();
+
+                // Actualizar en datos locales
+                const index = allRecords.findIndex(r => r.id === recordId);
+                if (index !== -1) {
+                    allRecords[index] = updatedRecord;
+                    filteredRecords = [...allRecords];
+                    displayRecordsData();
+                    updateStatistics();
+                }
+
+                showMessage('Historia clínica actualizada exitosamente', 'success');
+            } else {
+                // Crear nueva historia clínica
+
+                // Simular llamada al Medical Service
+                // response = await fetch('/api/admin/medical-records', {
+                //     method: 'POST',
+                //     headers: { 'Content-Type': 'application/json' },
+                //     credentials: 'include',
+                //     body: JSON.stringify(recordData)
+                // });
+
+                // Simulación para demo
+                const newRecord = {
+                    id: `record_${Date.now()}`,
+                    ...recordData,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+
+                // Agregar información de mascota y veterinario
+                const pet = allPets.find(p => p.id === recordData.pet_id);
+                const vet = allVeterinarians.find(v => v.id === recordData.veterinarian_id);
+
+                newRecord.pet_name = pet?.name;
+                newRecord.pet_species = pet?.species;
+                newRecord.owner_name = pet?.owner_name;
+                newRecord.veterinarian_name = vet ? `${vet.first_name} ${vet.last_name}` : 'Veterinario desconocido';
+
+                // Agregar a datos locales
+                allRecords.unshift(newRecord);
+                filteredRecords = [...allRecords];
+                displayRecordsData();
+                updateStatistics();
+
+                showMessage('Historia clínica creada exitosamente', 'success');
+            }
+
+            closeRecordModal();
+
+        } catch (error) {
+            console.error('❌ Error guardando historia clínica:', error);
+            showMessage('Error al guardar historia clínica', 'error');
+        } finally {
+            // Rehabilitar botón
+            saveBtn.disabled = false;
+            document.getElementById('saveBtnText').textContent =
+                currentEditingRecord ? 'Actualizar Historia' : 'Crear Historia';
+        }
+    }
+
+    // =============== ACCIONES DE HISTORIA CLÍNICA ===============
+    function viewRecord(recordId) {
+        const record = allRecords.find(r => r.id === recordId);
+        if (!record) {
+            showMessage('Historia clínica no encontrada', 'error');
+            return;
+        }
+
+        showRecordDetailsModal(record);
+    }
+
+    function showRecordDetailsModal(record) {
+        currentViewingRecord = record;
+        const modal = document.getElementById('recordDetailsModal');
+
+        // Actualizar título
+        document.getElementById('detailsRecordTitle').textContent = `Historia Clínica - ${record.pet_name}`;
+        document.getElementById('detailsModalSubtitle').textContent =
+            `${getSpeciesLabel(record.pet_species)} • Veterinario: ${record.veterinarian_name} • ${formatDateTime(record.created_at)}`;
+
+        // Generar contenido
+        const content = `
+            <div style="display: grid; gap: 25px;">
+                <!-- INFO BÁSICA DE LA CONSULTA -->
+                <div style="background: #D8F3DC; padding: 20px; border-radius: 15px;">
+                    <h4 style="color: #2D6A4F; margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
+                        📋 Información de la Consulta
+                    </h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <strong style="color: #2D6A4F;">Mascota:</strong><br>
+                            <span style="color: #52B788;">${record.pet_name} (${getSpeciesLabel(record.pet_species)})</span>
+                        </div>
+                        <div>
+                            <strong style="color: #2D6A4F;">Propietario:</strong><br>
+                            <span style="color: #52B788;">${record.owner_name}</span>
+                        </div>
+                        <div>
+                            <strong style="color: #2D6A4F;">Veterinario:</strong><br>
+                            <span style="color: #52B788;">${record.veterinarian_name}</span>
+                        </div>
+                        <div>
+                            <strong style="color: #2D6A4F;">Estado:</strong><br>
+                            ${getStatusBadge(record.status)}
+                        </div>
+                        <div>
+                            <strong style="color: #2D6A4F;">Prioridad:</strong><br>
+                            ${getPriorityBadge(record.is_emergency)}
+                        </div>
+                        <div>
+                            <strong style="color: #2D6A4F;">Fecha:</strong><br>
+                            <span style="color: #52B788;">${formatDateTime(record.created_at)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SIGNOS VITALES -->
+                <div style="background: #F8FBF9; padding: 20px; border-radius: 15px; border-left: 4px solid #38A3A5;">
+                    <h4 style="color: #2D6A4F; margin: 0 0 15px 0;">🩺 Signos Vitales</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                        <div style="text-align: center; background: white; padding: 15px; border-radius: 10px;">
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #2D6A4F; margin-bottom: 5px;">
+                                ${record.weight_at_visit || 'N/R'}
+                            </div>
+                            <div style="color: #52B788; font-size: 0.9rem;">Peso (kg)</div>
+                        </div>
+                        <div style="text-align: center; background: white; padding: 15px; border-radius: 10px;">
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #2D6A4F; margin-bottom: 5px;">
+                                ${record.temperature || 'N/R'}
+                            </div>
+                            <div style="color: #52B788; font-size: 0.9rem;">Temperatura (°C)</div>
+                        </div>
+                        <div style="text-align: center; background: white; padding: 15px; border-radius: 10px;">
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #2D6A4F; margin-bottom: 5px;">
+                                ${record.pulse || 'N/R'}
+                            </div>
+                            <div style="color: #52B788; font-size: 0.9rem;">Pulso (lat/min)</div>
+                        </div>
+                        <div style="text-align: center; background: white; padding: 15px; border-radius: 10px;">
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #2D6A4F; margin-bottom: 5px;">
+                                ${record.respiratory_rate || 'N/R'}
+                            </div>
+                            <div style="color: #52B788; font-size: 0.9rem;">Freq. Resp. (resp/min)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- INFORMACIÓN CLÍNICA -->
+                <div style="display: grid; gap: 20px;">
+                    <div style="background: white; padding: 20px; border-radius: 15px; border-left: 4px solid #52B788;">
+                        <h5 style="color: #2D6A4F; margin: 0 0 10px 0;">🩺 Síntomas Reportados</h5>
+                        <p style="color: #2D6A4F; margin: 0; line-height: 1.6;">
+                            ${record.symptoms_description || 'No se reportaron síntomas específicos'}
+                        </p>
+                    </div>
+
+                    <div style="background: white; padding: 20px; border-radius: 15px; border-left: 4px solid #38A3A5;">
+                        <h5 style="color: #2D6A4F; margin: 0 0 10px 0;">🔍 Examen Físico</h5>
+                        <p style="color: #2D6A4F; margin: 0; line-height: 1.6;">
+                            ${record.physical_examination || 'Examen físico pendiente'}
+                        </p>
+                    </div>
+
+                    <div style="background: white; padding: 20px; border-radius: 15px; border-left: 4px solid #22577A;">
+                        <h5 style="color: #2D6A4F; margin: 0 0 10px 0;">🎯 Diagnóstico</h5>
+                        <p style="color: #2D6A4F; margin: 0; line-height: 1.6; font-weight: 600;">
+                            ${record.diagnosis || 'Diagnóstico pendiente'}
+                        </p>
+                    </div>
+
+                    <div style="background: white; padding: 20px; border-radius: 15px; border-left: 4px solid #2D6A4F;">
+                        <h5 style="color: #2D6A4F; margin: 0 0 10px 0;">💊 Tratamiento</h5>
+                        <p style="color: #2D6A4F; margin: 0; line-height: 1.6;">
+                            ${record.treatment || 'Tratamiento no especificado'}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- MEDICAMENTOS Y EXÁMENES -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div style="background: #e8f5e8; padding: 20px; border-radius: 15px;">
+                        <h5 style="color: #2D6A4F; margin: 0 0 15px 0;">💊 Medicamentos Prescritos</h5>
+                        <div style="background: white; padding: 15px; border-radius: 10px; min-height: 100px;">
+                            ${record.medications_prescribed || 'No se prescribieron medicamentos'}
+                        </div>
+                    </div>
+                    <div style="background: #f0f8ff; padding: 20px; border-radius: 15px;">
+                        <h5 style="color: #2D6A4F; margin: 0 0 15px 0;">🔬 Exámenes Solicitados</h5>
+                        <div style="background: white; padding: 15px; border-radius: 10px; min-height: 100px;">
+                            ${record.exams_requested || 'No se solicitaron exámenes'}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OBSERVACIONES Y SEGUIMIENTO -->
+                <div style="background: #fff3e0; padding: 20px; border-radius: 15px;">
+                    <h5 style="color: #2D6A4F; margin: 0 0 15px 0;">📝 Observaciones</h5>
+                    <div style="background: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                        ${record.observations || 'Sin observaciones adicionales'}
+                    </div>
+                    <h5 style="color: #2D6A4F; margin: 0 0 10px 0;">📅 Recomendaciones para Próxima Cita</h5>
+                    <div style="background: white; padding: 15px; border-radius: 10px;">
+                        ${record.next_appointment_recommendation || 'No se especificaron recomendaciones de seguimiento'}
+                    </div>
+                </div>
+
+                <!-- INFORMACIÓN DEL SISTEMA -->
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 10px; border-left: 4px solid #2196f3;">
+                    <h5 style="color: #1976d2; margin: 0 0 10px 0;">ℹ️ Información del Sistema</h5>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 0.9rem;">
+                        <div>
+                            <strong style="color: #1976d2;">Fecha de Creación:</strong><br>
+                            <span style="color: #1565c0;">${formatDateTime(record.created_at)}</span>
+                        </div>
+                        <div>
+                            <strong style="color: #1976d2;">Última Actualización:</strong><br>
+                            <span style="color: #1565c0;">${formatDateTime(record.updated_at)}</span>
+                        </div>
+                        <div>
+                            <strong style="color: #1976d2;">ID del Registro:</strong><br>
+                            <span style="color: #1565c0; font-family: monospace;">${record.id}</span>
+                        </div>
+                        <div>
+                            <strong style="color: #1976d2;">ID de Cita:</strong><br>
+                            <span style="color: #1565c0; font-family: monospace;">${record.appointment_id || 'N/A'}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('recordDetailsContent').innerHTML = content;
+
+        // Configurar botones
+        document.getElementById('editFromDetailsBtn').onclick = () => editRecordFromDetails(record.id);
+        document.getElementById('printRecordBtn').onclick = () => printRecordFromDetails(record.id);
+        document.getElementById('addPrescriptionBtn').onclick = () => addPrescriptionFromDetails(record.id);
+
+        modal.classList.add('active');
+    }
+
+    function closeRecordDetailsModal() {
+        const modal = document.getElementById('recordDetailsModal');
+        modal.classList.remove('active');
+        currentViewingRecord = null;
+    }
+
+    function editRecordFromDetails(recordId) {
+        closeRecordDetailsModal();
+        editRecord(recordId);
+    }
+
+    function editRecord(recordId) {
+        openRecordModal(recordId);
+    }
+
+    // =============== PRESCRIPCIONES ===============
+    function addPrescription() {
+        if (currentViewingRecord) {
+            addPrescriptionFromDetails(currentViewingRecord.id);
+        }
+    }
+
+    function addPrescriptionFromDetails(recordId) {
+        const record = allRecords.find(r => r.id === recordId);
+        if (!record) {
+            showMessage('Historia clínica no encontrada', 'error');
+            return;
+        }
+
+        openPrescriptionModal(recordId);
+    }
+
+    function openPrescriptionModal(recordId) {
+        const modal = document.getElementById('prescriptionModal');
+        const form = document.getElementById('prescriptionForm');
+
+        // Reset form
+        form.reset();
+        document.getElementById('prescriptionRecordId').value = recordId;
+
+        // Actualizar subtítulo
+        const record = allRecords.find(r => r.id === recordId);
+        document.getElementById('prescriptionModalSubtitle').textContent =
+            `Para: ${record?.pet_name} - ${record?.owner_name}`;
+
+        modal.classList.add('active');
+    }
+
+    function closePrescriptionModal() {
+        const modal = document.getElementById('prescriptionModal');
+        modal.classList.remove('active');
+    }
+
+    function updateMedicationInfo() {
+        const select = document.getElementById('medicationId');
+        const nameInput = document.getElementById('medicationName');
+
+        if (select.value) {
+            const selectedOption = select.options[select.selectedIndex];
+            nameInput.value = selectedOption.dataset.name + ' ' + selectedOption.dataset.concentration;
+        }
+    }
+
+    async function savePrescription() {
+        const form = document.getElementById('prescriptionForm');
+
+        // Validar formulario
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const prescriptionData = {
+            medical_record_id: document.getElementById('prescriptionRecordId').value,
+            medication_id: document.getElementById('medicationId').value || null,
+            medication_name: document.getElementById('medicationName').value,
+            dosage: document.getElementById('dosage').value,
+            frequency: document.getElementById('frequency').value,
+            duration: document.getElementById('duration').value,
+            quantity_prescribed: parseInt(document.getElementById('quantityPrescribed').value) || null,
+            instructions: document.getElementById('prescriptionInstructions').value
+        };
+
+        try {
+            // Simular llamada al Medical Service
+            // const response = await fetch('/api/admin/prescriptions', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     credentials: 'include',
+            //     body: JSON.stringify(prescriptionData)
+            // });
+
+            showMessage('Prescripción agregada exitosamente', 'success');
+            closePrescriptionModal();
+
+            // Actualizar vista de detalles si está abierta
+            if (currentViewingRecord && currentViewingRecord.id === prescriptionData.medical_record_id) {
+                // Aquí se podría recargar los detalles de la historia clínica
+                showMessage('Prescripción agregada - Actualice la vista para ver los cambios', 'info');
+            }
+
+        } catch (error) {
+            console.error('❌ Error guardando prescripción:', error);
+            showMessage('Error al agregar prescripción', 'error');
+        }
+    }
+
+    // =============== COMPLETAR HISTORIA CLÍNICA ===============
+    async function completeRecord(recordId) {
+        const record = allRecords.find(r => r.id === recordId);
+        if (!record) {
+            showMessage('Historia clínica no encontrada', 'error');
+            return;
+        }
+
+        confirmAction = () => executeCompleteRecord(recordId);
+        showConfirmModal(
+            '✅ Completar Historia Clínica',
+            `¿Estás seguro de marcar como completada la historia clínica de ${record.pet_name}?`,
+            'Completar',
+            '✅'
+        );
+    }
+
+    async function executeCompleteRecord(recordId) {
+        try {
+            // Llamada al Medical Service
+            const response = await fetch(`/api/admin/medical-records/${recordId}/complete`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    // Actualizar registro local
+                    const recordIndex = allRecords.findIndex(r => r.id === recordId);
+                    if (recordIndex !== -1) {
+                        allRecords[recordIndex].status = 'completed';
+                        allRecords[recordIndex].updated_at = new Date().toISOString();
+                        filteredRecords = [...allRecords];
+                        displayRecordsData();
+                        updateStatistics();
+                    }
+
+                    showMessage('Historia clínica marcada como completada', 'success');
+                    closeConfirmModal();
+                    return;
+                }
+            }
+
+            throw new Error('Error del servidor');
+
+        } catch (error) {
+            console.error('❌ Error completando historia clínica:', error);
+
+            // Fallback: actualizar localmente
+            const recordIndex = allRecords.findIndex(r => r.id === recordId);
+            if (recordIndex !== -1) {
+                allRecords[recordIndex].status = 'completed';
+                filteredRecords = [...allRecords];
+                displayRecordsData();
+                updateStatistics();
+            }
+
+            showMessage('Historia clínica completada (modo local)', 'warning');
+            closeConfirmModal();
+        }
+    }
+
+    // =============== ELIMINAR HISTORIA CLÍNICA ===============
+    function deleteRecord(recordId) {
+        const record = allRecords.find(r => r.id === recordId);
+        if (!record) {
+            showMessage('Historia clínica no encontrada', 'error');
+            return;
+        }
+
+        confirmAction = () => executeDeleteRecord(recordId);
+        showConfirmModal(
+            '🗑️ Eliminar Historia Clínica',
+            `¿Estás seguro de eliminar permanentemente la historia clínica de ${record.pet_name}? Esta acción no se puede deshacer.`,
+            'Eliminar',
+            '🗑️'
+        );
+    }
+
+    async function executeDeleteRecord(recordId) {
+        try {
+            // Llamada al Medical Service
+            const response = await fetch(`/api/admin/medical-records/${recordId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    // Eliminar de datos locales
+                    allRecords = allRecords.filter(r => r.id !== recordId);
+                    filteredRecords = [...allRecords];
+                    displayRecordsData();
+                    updateStatistics();
+
+                    showMessage('Historia clínica eliminada exitosamente', 'success');
+                    closeConfirmModal();
+                    return;
+                }
+            }
+
+            throw new Error('Error del servidor');
+
+        } catch (error) {
+            console.error('❌ Error eliminando historia clínica:', error);
+
+            // Fallback: eliminar localmente
+            allRecords = allRecords.filter(r => r.id !== recordId);
+            filteredRecords = [...allRecords];
+            displayRecordsData();
+            updateStatistics();
+
+            showMessage('Historia clínica eliminada (modo local)', 'warning');
+            closeConfirmModal();
+        }
+    }
+
+    // =============== IMPRIMIR HISTORIA CLÍNICA ===============
+    function printRecord(recordId) {
+        const record = allRecords.find(r => r.id === recordId);
+        if (!record) {
+            showMessage('Historia clínica no encontrada', 'error');
+            return;
+        }
+
+        printRecordData(record);
+    }
+
+    function printRecordFromDetails(recordId) {
+        printRecord(recordId);
+    }
+
+    function printRecordData(record) {
+        // Crear ventana de impresión
+        const printWindow = window.open('', '_blank');
+
+        const printContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Historia Clínica - ${record.pet_name}</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        line-height: 1.4;
+                        color: #333;
+                        max-width: 800px;
+                        margin: 0 auto;
+                        padding: 20px;
+                    }
+                    .header {
+                        text-align: center;
+                        border-bottom: 2px solid #52B788;
+                        padding-bottom: 20px;
+                        margin-bottom: 30px;
+                    }
+                    .clinic-name {
+                        font-size: 24px;
+                        font-weight: bold;
+                        color: #2D6A4F;
+                        margin-bottom: 5px;
+                    }
+                    .clinic-subtitle {
+                        color: #52B788;
+                        margin-bottom: 10px;
+                    }
+                    .record-title {
+                        font-size: 20px;
+                        color: #2D6A4F;
+                        margin-top: 15px;
+                    }
+                    .section {
+                        margin-bottom: 25px;
+                        page-break-inside: avoid;
+                    }
+                    .section-title {
+                        background: #D8F3DC;
+                        color: #2D6A4F;
+                        padding: 10px;
+                        margin-bottom: 10px;
+                        font-weight: bold;
+                        border-left: 4px solid #52B788;
+                    }
+                    .info-grid {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 15px;
+                        margin-bottom: 15px;
+                    }
+                    .info-item {
+                        margin-bottom: 10px;
+                    }
+                    .info-label {
+                        font-weight: bold;
+                        color: #2D6A4F;
+                    }
+                    .info-value {
+                        color: #333;
+                        margin-left: 10px;
+                    }
+                    .vitals-grid {
+                        display: grid;
+                        grid-template-columns: repeat(4, 1fr);
+                        gap: 15px;
+                        text-align: center;
+                    }
+                    .vital-item {
+                        border: 1px solid #B7E4C7;
+                        padding: 10px;
+                        border-radius: 5px;
+                    }
+                    .vital-value {
+                        font-size: 18px;
+                        font-weight: bold;
+                        color: #2D6A4F;
+                    }
+                    .vital-label {
+                        color: #52B788;
+                        font-size: 12px;
+                    }
+                    .text-content {
+                        background: #F8FBF9;
+                        padding: 15px;
+                        border-radius: 5px;
+                        border-left: 3px solid #52B788;
+                        min-height: 50px;
+                    }
+                    .footer {
+                        margin-top: 40px;
+                        text-align: center;
+                        color: #666;
+                        font-size: 12px;
+                        border-top: 1px solid #ddd;
+                        padding-top: 20px;
+                    }
+                    .signature-section {
+                        margin-top: 40px;
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 40px;
+                    }
+                    .signature {
+                        text-align: center;
+                        border-top: 1px solid #333;
+                        padding-top: 10px;
+                        margin-top: 40px;
+                    }
+                    @media print {
+                        body { print-color-adjust: exact; }
+                        .header { break-after: avoid; }
+                        .section { break-inside: avoid; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="clinic-name">CLÍNICA VETERINARIA</div>
+                    <div class="clinic-subtitle">Sistema de Gestión Médica</div>
+                    <div class="record-title">HISTORIA CLÍNICA</div>
+                </div>
+
+                <!-- INFORMACIÓN GENERAL -->
+                <div class="section">
+                    <div class="section-title">📋 INFORMACIÓN GENERAL</div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Mascota:</span>
+                            <span class="info-value">${record.pet_name} (${getSpeciesLabel(record.pet_species)})</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Propietario:</span>
+                            <span class="info-value">${record.owner_name}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Veterinario:</span>
+                            <span class="info-value">${record.veterinarian_name}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Fecha:</span>
+                            <span class="info-value">${formatDateTime(record.created_at)}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Estado:</span>
+                            <span class="info-value">${getStatusText(record.status)}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Prioridad:</span>
+                            <span class="info-value">${record.is_emergency ? 'EMERGENCIA' : 'Normal'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SIGNOS VITALES -->
+                <div class="section">
+                    <div class="section-title">🩺 SIGNOS VITALES</div>
+                    <div class="vitals-grid">
+                        <div class="vital-item">
+                            <div class="vital-value">${record.weight_at_visit || 'N/R'}</div>
+                            <div class="vital-label">Peso (kg)</div>
+                        </div>
+                        <div class="vital-item">
+                            <div class="vital-value">${record.temperature || 'N/R'}</div>
+                            <div class="vital-label">Temperatura (°C)</div>
+                        </div>
+                        <div class="vital-item">
+                            <div class="vital-value">${record.pulse || 'N/R'}</div>
+                            <div class="vital-label">Pulso (lat/min)</div>
+                        </div>
+                        <div class="vital-item">
+                            <div class="vital-value">${record.respiratory_rate || 'N/R'}</div>
+                            <div class="vital-label">Freq. Resp.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SÍNTOMAS -->
+                <div class="section">
+                    <div class="section-title">🩺 SÍNTOMAS REPORTADOS</div>
+                    <div class="text-content">
+                        ${record.symptoms_description || 'No se reportaron síntomas específicos'}
+                    </div>
+                </div>
+
+                <!-- EXAMEN FÍSICO -->
+                <div class="section">
+                    <div class="section-title">🔍 EXAMEN FÍSICO</div>
+                    <div class="text-content">
+                        ${record.physical_examination || 'Examen físico pendiente'}
+                    </div>
+                </div>
+
+                <!-- DIAGNÓSTICO -->
+                <div class="section">
+                    <div class="section-title">🎯 DIAGNÓSTICO</div>
+                    <div class="text-content">
+                        ${record.diagnosis || 'Diagnóstico pendiente'}
+                    </div>
+                </div>
+
+                <!-- TRATAMIENTO -->
+                <div class="section">
+                    <div class="section-title">💊 TRATAMIENTO</div>
+                    <div class="text-content">
+                        ${record.treatment || 'Tratamiento no especificado'}
+                    </div>
+                </div>
+
+                <!-- MEDICAMENTOS -->
+                <div class="section">
+                    <div class="section-title">💊 MEDICAMENTOS PRESCRITOS</div>
+                    <div class="text-content">
+                        ${record.medications_prescribed || 'No se prescribieron medicamentos'}
+                    </div>
+                </div>
+
+                <!-- EXÁMENES -->
+                <div class="section">
+                    <div class="section-title">🔬 EXÁMENES SOLICITADOS</div>
+                    <div class="text-content">
+                        ${record.exams_requested || 'No se solicitaron exámenes'}
+                    </div>
+                </div>
+
+                <!-- OBSERVACIONES -->
+                <div class="section">
+                    <div class="section-title">📝 OBSERVACIONES</div>
+                    <div class="text-content">
+                        ${record.observations || 'Sin observaciones adicionales'}
+                    </div>
+                </div>
+
+                <!-- PRÓXIMA CITA -->
+                <div class="section">
+                    <div class="section-title">📅 RECOMENDACIONES PARA PRÓXIMA CITA</div>
+                    <div class="text-content">
+                        ${record.next_appointment_recommendation || 'No se especificaron recomendaciones de seguimiento'}
+                    </div>
+                </div>
+
+                <!-- FIRMAS -->
+                <div class="signature-section">
+                    <div>
+                        <div class="signature">
+                            <div>Firma del Propietario</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="signature">
+                            <div>Firma del Veterinario</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="footer">
+                    Historia Clínica generada el ${new Date().toLocaleDateString('es-CO')} - ID: ${record.id}
+                </div>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+
+        // Esperar a que cargue e imprimir
+        printWindow.onload = function() {
+            printWindow.print();
+            // Cerrar ventana después de imprimir (opcional)
+            setTimeout(() => {
+                printWindow.close();
+            }, 1000);
+        };
+    }
+
+    // =============== EXPORTAR REPORTES ===============
+    async function exportRecords(format) {
+        try {
+            if (format === 'pdf') {
+                exportToPDF();
+            } else if (format === 'excel') {
+                exportToExcel();
+            }
+        } catch (error) {
+            console.error('❌ Error exportando:', error);
+            showMessage('Error al exportar reporte', 'error');
+        }
+    }
+
+    function exportToPDF() {
+        // Crear contenido para PDF
+        const printWindow = window.open('', '_blank');
+
+        const reportContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Reporte de Historias Clínicas</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #52B788; padding-bottom: 20px; }
+                    .title { font-size: 24px; color: #2D6A4F; margin-bottom: 10px; }
+                    .subtitle { color: #52B788; margin-bottom: 20px; }
+                    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
+                    .summary-item { text-align: center; padding: 15px; background: #D8F3DC; border-radius: 10px; }
+                    .summary-value { font-size: 20px; font-weight: bold; color: #2D6A4F; }
+                    .summary-label { color: #52B788; margin-top: 5px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { padding: 10px; border: 1px solid #B7E4C7; text-align: left; }
+                    th { background: #D8F3DC; color: #2D6A4F; font-weight: bold; }
+                    tr:nth-child(even) { background: #F8FBF9; }
+                    .status-completed { color: #2D6A4F; font-weight: bold; }
+                    .status-draft { color: #666; }
+                    .status-reviewed { color: #22577A; font-weight: bold; }
+                    .emergency { color: #dc3545; font-weight: bold; }
+                    .footer { margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="title">REPORTE DE HISTORIAS CLÍNICAS</div>
+                    <div class="subtitle">Clínica Veterinaria - ${new Date().toLocaleDateString('es-CO')}</div>
+                </div>
+
+                <div class="summary">
+                    <div class="summary-item">
+                        <div class="summary-value">${allRecords.length}</div>
+                        <div class="summary-label">Total Historias</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-value">${allRecords.filter(r => r.status === 'completed').length}</div>
+                        <div class="summary-label">Completadas</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-value">${allRecords.filter(r => r.is_emergency).length}</div>
+                        <div class="summary-label">Emergencias</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-value">${allRecords.filter(r => {
+                            const today = new Date().toDateString();
+                            return new Date(r.created_at).toDateString() === today;
+                        }).length}</div>
+                        <div class="summary-label">Hoy</div>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Mascota</th>
+                            <th>Propietario</th>
+                            <th>Veterinario</th>
+                            <th>Diagnóstico</th>
+                            <th>Estado</th>
+                            <th>Prioridad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredRecords.map(record => `
+                            <tr>
+                                <td>${formatDate(record.created_at)}</td>
+                                <td>${record.pet_name} (${getSpeciesLabel(record.pet_species)})</td>
+                                <td>${record.owner_name}</td>
+                                <td>${record.veterinarian_name}</td>
+                                <td>${record.diagnosis || 'Pendiente'}</td>
+                                <td class="status-${record.status}">${getStatusText(record.status)}</td>
+                                <td class="${record.is_emergency ? 'emergency' : ''}">${record.is_emergency ? 'EMERGENCIA' : 'Normal'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <div class="footer">
+                    Reporte generado el ${new Date().toLocaleString('es-CO')} - Total de registros: ${filteredRecords.length}
+                </div>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(reportContent);
+        printWindow.document.close();
+
+        printWindow.onload = function() {
+            printWindow.print();
+        };
+
+        showMessage('Generando reporte PDF...', 'info');
+    }
+
+    function exportToExcel() {
+        // Preparar datos para Excel
+        const excelData = filteredRecords.map(record => ({
+            'Fecha': formatDate(record.created_at),
+            'Hora': formatTime(record.created_at),
+            'Mascota': record.pet_name,
+            'Especie': getSpeciesLabel(record.pet_species),
+            'Propietario': record.owner_name,
+            'Veterinario': record.veterinarian_name,
+            'Síntomas': record.symptoms_description || '',
+            'Examen Físico': record.physical_examination || '',
+            'Diagnóstico': record.diagnosis || '',
+            'Tratamiento': record.treatment || '',
+            'Medicamentos': record.medications_prescribed || '',
+            'Exámenes Solicitados': record.exams_requested || '',
+            'Peso (kg)': record.weight_at_visit || '',
+            'Temperatura (°C)': record.temperature || '',
+            'Pulso': record.pulse || '',
+            'Freq. Respiratoria': record.respiratory_rate || '',
+            'Estado': getStatusText(record.status),
+            'Prioridad': record.is_emergency ? 'EMERGENCIA' : 'Normal',
+            'Observaciones': record.observations || '',
+            'Próxima Cita': record.next_appointment_recommendation || '',
+            'ID': record.id
+        }));
+
+        // Convertir a CSV (como alternativa simple a Excel)
+        const csvContent = convertToCSV(excelData);
+        downloadCSV(csvContent, `historias_clinicas_${new Date().toISOString().split('T')[0]}.csv`);
+
+        showMessage('Archivo Excel descargado exitosamente', 'success');
+    }
+
+    function convertToCSV(data) {
+        if (data.length === 0) return '';
+
+        const headers = Object.keys(data[0]);
+        const csvHeaders = headers.join(',');
+
+        const csvRows = data.map(row =>
+            headers.map(header => {
+                const value = row[header] || '';
+                // Escapar comillas y encerrar en comillas si contiene comas
+                return `"${value.toString().replace(/"/g, '""')}"`;
+            }).join(',')
+        );
+
+        return [csvHeaders, ...csvRows].join('\n');
+    }
+
+    function downloadCSV(content, filename) {
+        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+
+    // =============== MODALES DE CONFIRMACIÓN ===============
+    function showConfirmModal(title, message, buttonText, icon) {
+        const modal = document.getElementById('confirmModal');
+
+        document.getElementById('confirmIcon').textContent = icon;
+        document.getElementById('confirmTitle').innerHTML = `<span>${icon}</span> ${title}`;
+        document.getElementById('confirmMessage').textContent = message;
+        document.getElementById('confirmBtnText').textContent = buttonText;
+
+        modal.classList.add('active');
+    }
+
+    function closeConfirmModal() {
+        const modal = document.getElementById('confirmModal');
+        modal.classList.remove('active');
+        confirmAction = null;
+    }
+
+    function executeConfirmAction() {
+        if (confirmAction && typeof confirmAction === 'function') {
+            confirmAction();
+        }
+    }
+
+    // =============== FUNCIONES DE UTILIDAD ===============
+    function getStatusBadge(status) {
+        const badges = {
+            'draft': '<span class="status-badge draft">📝 Borrador</span>',
+            'completed': '<span class="status-badge completed">✅ Completada</span>',
+            'reviewed': '<span class="status-badge reviewed">👁️ Revisada</span>'
+        };
+        return badges[status] || '<span class="status-badge draft">❓ Desconocido</span>';
+    }
+
+    function getStatusText(status) {
+        const texts = {
+            'draft': 'Borrador',
+            'completed': 'Completada',
+            'reviewed': 'Revisada'
+        };
+        return texts[status] || 'Desconocido';
+    }
+
+    function getPriorityBadge(isEmergency) {
+        return isEmergency ?
+            '<span class="priority-badge emergency">🚨 EMERGENCIA</span>' :
+            '<span class="priority-badge normal">🟢 Normal</span>';
+    }
+
+    function getSpeciesLabel(species) {
+        const labels = {
+            'perro': '🐕 Perro',
+            'gato': '🐱 Gato',
+            'ave': '🦜 Ave',
+            'conejo': '🐰 Conejo',
+            'hamster': '🐹 Hámster',
+            'otro': '🐾 Otro'
+        };
+        return labels[species] || '🐾 Desconocido';
+    }
+
+    function formatTime(dateString) {
+        if (!dateString) return 'N/A';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleTimeString('es-CO', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch {
+            return 'N/A';
+        }
+    }
+
+    function updatePetInfo() {
+        const petSelect = document.getElementById('petId');
+        if (petSelect.value) {
+            const pet = allPets.find(p => p.id === petSelect.value);
+            if (pet && pet.weight) {
+                document.getElementById('weightAtVisit').value = pet.weight;
+            }
+        }
+    }
+
+    // =============== CARGA DE DATOS REALES ===============
+    async function loadRecordsFromMedicalService() {
+        try {
+            console.log('📡 Intentando obtener historias clínicas del Medical Service...');
+
+            // Obtener todas las mascotas y luego sus historias clínicas
+            const recordsPromises = allPets.map(async (pet) => {
+                try {
+                    const response = await fetch(`/api/admin/pets/${pet.id}/medical-records`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'include'
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success && data.medical_records) {
+                            return data.medical_records.map(record => ({
+                                ...record,
+                                pet_name: pet.name,
+                                pet_species: pet.species,
+                                owner_name: pet.owner_name,
+                                owner_id: pet.owner_id
+                            }));
+                        }
+                    }
+                    return [];
+                } catch (error) {
+                    console.warn(`⚠️ Error obteniendo historias de ${pet.name}:`, error);
+                    return [];
+                }
+            });
+
+            const recordsArrays = await Promise.all(recordsPromises);
+            const allMedicalRecords = recordsArrays.flat();
+
+            if (allMedicalRecords.length > 0) {
+                // Enriquecer con datos de veterinarios
+                allMedicalRecords.forEach(record => {
+                    const vet = allVeterinarians.find(v => v.id === record.veterinarian_id);
+                    record.veterinarian_name = vet ? `${vet.first_name} ${vet.last_name}` : 'Veterinario desconocido';
+                });
+
+                allRecords = allMedicalRecords;
+                filteredRecords = [...allRecords];
+                displayRecordsData();
+                updateStatistics();
+
+                console.log(`✅ ${allRecords.length} historias clínicas cargadas desde Medical Service`);
+                showMessage(`${allRecords.length} historias clínicas cargadas exitosamente`, 'success');
+                return;
+            }
+
+            throw new Error('No se encontraron historias clínicas');
+
+        } catch (error) {
+            console.error('❌ Error obteniendo historias clínicas del Medical Service:', error);
+
+            // Usar datos de ejemplo si falla
+            allRecords = getExampleRecords();
+            filteredRecords = [...allRecords];
+            displayRecordsData();
+            updateStatistics();
+            showMessage('Usando datos de historias clínicas de ejemplo', 'warning');
+        }
+    }
+
+      async function loadRecordsFromBackend() {
+        try {
+            console.log('📡 Cargando historias clínicas desde backend...');
+
+            const response = await fetch('/api/admin/medical-records', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.medical_records) {
+                    allRecords = data.medical_records;
+                    filteredRecords = [...allRecords];
+                    displayRecordsData();
+                    updateStatistics();
+
+                    console.log(`✅ ${allRecords.length} historias clínicas cargadas desde backend`);
+                    showMessage(`${allRecords.length} historias clínicas cargadas exitosamente`, 'success');
+                    return;
+                }
+            }
+
+            throw new Error('No se pudieron cargar las historias clínicas');
+
+        } catch (error) {
+            console.error('❌ Error cargando historias clínicas desde backend:', error);
+
+            // Usar datos de ejemplo si falla
+            allRecords = getExampleRecords();
+            filteredRecords = [...allRecords];
+            displayRecordsData();
+            updateStatistics();
+            showMessage('Usando datos de historias clínicas de ejemplo', 'warning');
+        }
+    }
+
+    // Actualizar función loadRecordsData para usar backend real
+    async function loadRecordsData() {
+        await loadRecordsFromBackend();
+    }
+
+    // =============== GUARDAR HISTORIA CLÍNICA REAL ===============
+    async function saveRecordToBackend(recordData) {
+        try {
+            let response;
+            let url;
+
+            if (currentEditingRecord) {
+                // Actualizar historia clínica existente
+                url = `/api/admin/medical-records/${currentEditingRecord.id}`;
+                response = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify(recordData)
+                });
+            } else {
+                // Crear nueva historia clínica
+                url = '/api/admin/medical-records';
+                response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify(recordData)
+                });
+            }
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    return {
+                        success: true,
+                        record: data.medical_record,
+                        message: data.message
+                    };
+                }
+            }
+
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Error del servidor: ${response.status}`);
+
+        } catch (error) {
+            console.error('❌ Error guardando en backend:', error);
+            throw error;
+        }
+    }
+
+    // Actualizar función saveRecord para usar backend real
+    async function saveRecord() {
+        const form = document.getElementById('recordForm');
+        const saveBtn = document.getElementById('saveBtn');
+
+        // Validar formulario
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        // Validar que la mascota y veterinario estén seleccionados
+        const petId = document.getElementById('petId').value;
+        const veterinarianId = document.getElementById('veterinarianId').value;
+
+        if (!petId) {
+            showMessage('Debe seleccionar una mascota', 'error');
+            return;
+        }
+
+        if (!veterinarianId) {
+            showMessage('Debe seleccionar un veterinario', 'error');
+            return;
+        }
+
+        // Recopilar datos de la historia clínica
+        const recordData = {
+            pet_id: petId,
+            veterinarian_id: veterinarianId,
+            appointment_id: document.getElementById('appointmentId').value || null,
+            symptoms_description: document.getElementById('symptomsDescription').value,
+            physical_examination: document.getElementById('physicalExamination').value,
+            diagnosis: document.getElementById('diagnosis').value,
+            treatment: document.getElementById('treatment').value,
+            medications_prescribed: document.getElementById('medicationsPrescribed').value,
+            exams_requested: document.getElementById('examsRequested').value,
+            observations: document.getElementById('observations').value,
+            next_appointment_recommendation: document.getElementById('nextAppointment').value,
+            weight_at_visit: parseFloat(document.getElementById('weightAtVisit').value) || null,
+            temperature: parseFloat(document.getElementById('temperature').value) || null,
+            pulse: parseInt(document.getElementById('pulse').value) || null,
+            respiratory_rate: parseInt(document.getElementById('respiratoryRate').value) || null,
+            is_emergency: document.getElementById('isEmergency').value === 'true',
+            status: document.getElementById('recordStatus').value
+        };
+
+        // Deshabilitar botón
+        saveBtn.disabled = true;
+        document.getElementById('saveBtnText').textContent = 'Guardando...';
+
+        try {
+            // Intentar guardar en backend
+            const result = await saveRecordToBackend(recordData);
+
+            if (result.success) {
+                // Actualizar datos locales
+                if (currentEditingRecord) {
+                    const index = allRecords.findIndex(r => r.id === currentEditingRecord.id);
+                    if (index !== -1) {
+                        allRecords[index] = result.record;
+                    }
+                } else {
+                    allRecords.unshift(result.record);
+                }
+
+                filteredRecords = [...allRecords];
+                displayRecordsData();
+                updateStatistics();
+
+                showMessage(result.message || 'Historia clínica guardada exitosamente', 'success');
+                closeRecordModal();
+                return;
+            }
+
+        } catch (error) {
+            console.error('❌ Error guardando en backend:', error);
+            showMessage(`Error al guardar: ${error.message}`, 'error');
+
+            // Fallback: guardar localmente
+            console.log('🔄 Intentando guardar localmente como fallback...');
+            await saveRecordLocally(recordData);
+        } finally {
+            // Rehabilitar botón
+            saveBtn.disabled = false;
+            document.getElementById('saveBtnText').textContent =
+                currentEditingRecord ? 'Actualizar Historia' : 'Crear Historia';
+        }
+    }
+
+    // Función de fallback para guardar localmente
+    async function saveRecordLocally(recordData) {
+        try {
+            if (currentEditingRecord) {
+                // Actualizar historia clínica existente
+                const updatedRecord = { ...currentEditingRecord, ...recordData };
+
+                // Agregar información de mascota y veterinario
+                const pet = allPets.find(p => p.id === recordData.pet_id);
+                const vet = allVeterinarians.find(v => v.id === recordData.veterinarian_id);
+
+                updatedRecord.pet_name = pet?.name;
+                updatedRecord.pet_species = pet?.species;
+                updatedRecord.owner_name = pet?.owner_name;
+                updatedRecord.veterinarian_name = vet ? `${vet.first_name} ${vet.last_name}` : 'Veterinario desconocido';
+                updatedRecord.updated_at = new Date().toISOString();
+
+                // Actualizar en datos locales
+                const index = allRecords.findIndex(r => r.id === currentEditingRecord.id);
+                if (index !== -1) {
+                    allRecords[index] = updatedRecord;
+                    filteredRecords = [...allRecords];
+                    displayRecordsData();
+                    updateStatistics();
+                }
+
+                showMessage('Historia clínica actualizada localmente', 'warning');
+            } else {
+                // Crear nueva historia clínica
+                const newRecord = {
+                    id: `record_${Date.now()}`,
+                    ...recordData,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+
+                // Agregar información de mascota y veterinario
+                const pet = allPets.find(p => p.id === recordData.pet_id);
+                const vet = allVeterinarians.find(v => v.id === recordData.veterinarian_id);
+
+                newRecord.pet_name = pet?.name;
+                newRecord.pet_species = pet?.species;
+                newRecord.owner_name = pet?.owner_name;
+                newRecord.veterinarian_name = vet ? `${vet.first_name} ${vet.last_name}` : 'Veterinario desconocido';
+
+                // Agregar a datos locales
+                allRecords.unshift(newRecord);
+                filteredRecords = [...allRecords];
+                displayRecordsData();
+                updateStatistics();
+
+                showMessage('Historia clínica creada localmente', 'warning');
+            }
+
+            closeRecordModal();
+
+        } catch (error) {
+            console.error('❌ Error en fallback local:', error);
+            showMessage('Error al guardar historia clínica', 'error');
+        }
+    }
+
+    // =============== CARGAR MEDICAMENTOS DESDE INVENTORY SERVICE ===============
+    async function loadMedicationsFromInventory() {
+        try {
+            console.log('📡 Obteniendo medicamentos del Inventory Service...');
+
+            const response = await fetch('/api/admin/inventory/medications', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.medications) {
+                    allMedications = data.medications;
+                    populateMedicationSelects();
+                    console.log(`✅ ${allMedications.length} medicamentos cargados desde Inventory Service`);
+                    return;
+                }
+            }
+
+            throw new Error('No se pudo conectar con Inventory Service');
+
+        } catch (error) {
+            console.error('❌ Error obteniendo medicamentos del Inventory Service:', error);
+            // Usar datos de ejemplo
+            allMedications = getExampleMedications();
+            populateMedicationSelects();
+            showMessage('Usando datos de medicamentos de ejemplo', 'warning');
+        }
+    }
+
+    // Actualizar función loadMedicationsData para usar backend real
+    async function loadMedicationsData() {
+        await loadMedicationsFromInventory();
+    }
+
+    // =============== GUARDAR PRESCRIPCIÓN REAL ===============
+    async function savePrescriptionToBackend(prescriptionData) {
+        try {
+            const response = await fetch('/api/admin/prescriptions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify(prescriptionData)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    return {
+                        success: true,
+                        prescription: data.prescription,
+                        message: data.message
+                    };
+                }
+            }
+
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Error del servidor: ${response.status}`);
+
+        } catch (error) {
+            console.error('❌ Error guardando prescripción en backend:', error);
+            throw error;
+        }
+    }
+
+    // Completar función savePrescription
+    async function savePrescription() {
+        const form = document.getElementById('prescriptionForm');
+
+        // Validar formulario
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const prescriptionData = {
+            medical_record_id: document.getElementById('prescriptionRecordId').value,
+            medication_id: document.getElementById('medicationId').value || null,
+            medication_name: document.getElementById('medicationName').value,
+            dosage: document.getElementById('dosage').value,
+            frequency: document.getElementById('frequency').value,
+            duration: document.getElementById('duration').value,
+            quantity_prescribed: parseInt(document.getElementById('quantityPrescribed').value) || null,
+            instructions: document.getElementById('prescriptionInstructions').value
+        };
+
+        try {
+            // Intentar guardar en backend
+            const result = await savePrescriptionToBackend(prescriptionData);
+
+            if (result.success) {
+                showMessage(result.message || 'Prescripción agregada exitosamente', 'success');
+                closePrescriptionModal();
+
+                // Actualizar vista de detalles si está abierta
+                if (currentViewingRecord && currentViewingRecord.id === prescriptionData.medical_record_id) {
+                    showMessage('Prescripción agregada - Recargue la vista para ver los cambios', 'info');
+                }
+                return;
+            }
+
+        } catch (error) {
+            console.error('❌ Error guardando prescripción en backend:', error);
+            showMessage(`Error al agregar prescripción: ${error.message}`, 'error');
+
+            // Fallback: mostrar mensaje de que se agregó localmente
+            showMessage('Prescripción agregada localmente (modo offline)', 'warning');
+            closePrescriptionModal();
+        }
+    }
+
+    // =============== CONECTAR CON APIS REALES ===============
+
+    // Actualizar la función de carga inicial para conectar con APIs reales
+    async function loadInitialData() {
+        try {
+            console.log('🚀 Cargando datos desde microservicios...');
+
+            // Cargar en paralelo para mejor performance
+            await Promise.allSettled([
+                loadPetsData(),
+                loadVeterinariansData(),
+                loadMedicationsData(),
+                loadRecordsData()
+            ]);
+
+            console.log('✅ Carga inicial completada');
+
+        } catch (error) {
+            console.error('❌ Error en carga inicial:', error);
+            showMessage('Error cargando datos del sistema', 'error');
+        }
+    }
+
+    // =============== FUNCIONES DE GESTIÓN DE ESTADOS ===============
+
+    function updateRecordInLocalData(updatedRecord) {
+        const index = allRecords.findIndex(r => r.id === updatedRecord.id);
+        if (index !== -1) {
+            allRecords[index] = updatedRecord;
+            filteredRecords = [...allRecords];
+            displayRecordsData();
+            updateStatistics();
+        }
+    }
+
+    function removeRecordFromLocalData(recordId) {
+        allRecords = allRecords.filter(r => r.id !== recordId);
+        filteredRecords = [...allRecords];
+        displayRecordsData();
+        updateStatistics();
+    }
+
+    function addRecordToLocalData(newRecord) {
+        allRecords.unshift(newRecord);
+        filteredRecords = [...allRecords];
+        displayRecordsData();
+        updateStatistics();
+    }
+
+    // =============== FUNCIONES DE VALIDACIÓN ===============
+
+    function validateRecordData(recordData) {
+        const errors = [];
+
+        if (!recordData.pet_id) {
+            errors.push('Debe seleccionar una mascota');
+        }
+
+        if (!recordData.veterinarian_id) {
+            errors.push('Debe seleccionar un veterinario');
+        }
+
+        if (recordData.weight_at_visit && (recordData.weight_at_visit < 0 || recordData.weight_at_visit > 1000)) {
+            errors.push('El peso debe estar entre 0 y 1000 kg');
+        }
+
+        if (recordData.temperature && (recordData.temperature < 30 || recordData.temperature > 45)) {
+            errors.push('La temperatura debe estar entre 30 y 45 °C');
+        }
+
+        if (recordData.pulse && (recordData.pulse < 0 || recordData.pulse > 300)) {
+            errors.push('El pulso debe estar entre 0 y 300 latidos por minuto');
+        }
+
+        if (recordData.respiratory_rate && (recordData.respiratory_rate < 0 || recordData.respiratory_rate > 100)) {
+            errors.push('La frecuencia respiratoria debe estar entre 0 y 100 respiraciones por minuto');
+        }
+
+        return errors;
+    }
+
+    function validatePrescriptionData(prescriptionData) {
+        const errors = [];
+
+        if (!prescriptionData.medication_name) {
+            errors.push('Debe especificar el nombre del medicamento');
+        }
+
+        if (prescriptionData.quantity_prescribed && prescriptionData.quantity_prescribed < 1) {
+            errors.push('La cantidad debe ser mayor a 0');
+        }
+
+        return errors;
+    }
+
+    // =============== FUNCIONES DE NOTIFICACIÓN ===============
+
+    function showLoadingMessage(message) {
+        const container = document.getElementById('recordsTableContainer');
+        container.innerHTML = `
+            <div class="table-loading">
+                <div class="spinner"></div>
+                <span>${message}</span>
+            </div>
+        `;
+    }
+
+    function showErrorMessage(message) {
+        const container = document.getElementById('recordsTableContainer');
+        container.innerHTML = `
+            <div class="empty-state">
+                <h3>❌ Error</h3>
+                <p>${message}</p>
+                <button onclick="loadRecordsData()" class="btn-primary">
+                    🔄 Reintentar
+                </button>
+            </div>
+        `;
+    }
+
+    // =============== FUNCIONES DE REFRESCO DE DATOS ===============
+
+    async function refreshData() {
+        try {
+            showLoadingMessage('Actualizando datos...');
+            await loadRecordsData();
+            showMessage('Datos actualizados exitosamente', 'success');
+        } catch (error) {
+            console.error('❌ Error refrescando datos:', error);
+            showMessage('Error al actualizar datos', 'error');
+        }
+    }
+
+    async function refreshMedications() {
+        try {
+            await loadMedicationsData();
+            console.log('✅ Medicamentos actualizados');
+        } catch (error) {
+            console.error('❌ Error refrescando medicamentos:', error);
+        }
+    }
+
+    // =============== FUNCIONES DE CONFIGURACIÓN DE EVENTOS ===============
+
+    function setupEventListeners() {
+        // Listener para cambios en la selección de mascotas
+        document.getElementById('petId').addEventListener('change', updatePetInfo);
+
+        // Listener para cambios en la selección de medicamentos
+        document.getElementById('medicationId').addEventListener('change', updateMedicationInfo);
+
+        // Listeners para validación en tiempo real
+        document.getElementById('weightAtVisit').addEventListener('input', validateWeightInput);
+        document.getElementById('temperature').addEventListener('input', validateTemperatureInput);
+        document.getElementById('pulse').addEventListener('input', validatePulseInput);
+        document.getElementById('respiratoryRate').addEventListener('input', validateRespiratoryRateInput);
+
+        // Listeners para modales
+        document.addEventListener('keydown', handleKeyboardEvents);
+
+        // Listener para cambios en filtros
+        document.getElementById('searchInput').addEventListener('input', debounce(filterRecords, 300));
+    }
+
+    function handleKeyboardEvents(event) {
+        // Cerrar modales con Escape
+        if (event.key === 'Escape') {
+            if (document.getElementById('recordModal').classList.contains('active')) {
+                closeRecordModal();
+            } else if (document.getElementById('recordDetailsModal').classList.contains('active')) {
+                closeRecordDetailsModal();
+            } else if (document.getElementById('prescriptionModal').classList.contains('active')) {
+                closePrescriptionModal();
+            } else if (document.getElementById('confirmModal').classList.contains('active')) {
+                closeConfirmModal();
+            }
+        }
+    }
+
+    // =============== FUNCIONES DE VALIDACIÓN EN TIEMPO REAL ===============
+
+    function validateWeightInput(event) {
+        const value = parseFloat(event.target.value);
+        if (value && (value < 0 || value > 1000)) {
+            event.target.setCustomValidity('El peso debe estar entre 0 y 1000 kg');
+        } else {
+            event.target.setCustomValidity('');
+        }
+    }
+
+    function validateTemperatureInput(event) {
+        const value = parseFloat(event.target.value);
+        if (value && (value < 30 || value > 45)) {
+            event.target.setCustomValidity('La temperatura debe estar entre 30 y 45 °C');
+        } else {
+            event.target.setCustomValidity('');
+        }
+    }
+
+    function validatePulseInput(event) {
+        const value = parseInt(event.target.value);
+        if (value && (value < 0 || value > 300)) {
+            event.target.setCustomValidity('El pulso debe estar entre 0 y 300 latidos por minuto');
+        } else {
+            event.target.setCustomValidity('');
+        }
+    }
+
+    function validateRespiratoryRateInput(event) {
+        const value = parseInt(event.target.value);
+        if (value && (value < 0 || value > 100)) {
+            event.target.setCustomValidity('La frecuencia respiratoria debe estar entre 0 y 100 respiraciones por minuto');
+        } else {
+            event.target.setCustomValidity('');
+        }
+    }
+
+    // =============== FUNCIÓN DE DEBOUNCE PARA BÚSQUEDA ===============
+
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // =============== FUNCIONES DE CLEANUP ===============
+
+    function cleanupEventListeners() {
+        // Limpiar listeners si es necesario
+        document.removeEventListener('keydown', handleKeyboardEvents);
+    }
+
+    // =============== INICIALIZACIÓN MEJORADA ===============
+
+    // Actualizar el evento DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Inicializando Gestión de Historias Clínicas...');
+
+        // Configurar event listeners
+        setupEventListeners();
+
+        // Cargar datos iniciales
+        loadInitialData();
+
+        // Mensaje de bienvenida
+        showMessage('Sistema de Historias Clínicas cargado', 'info');
+    });
+
+
+    function validateAppointmentId(appointmentId) {
+    if (!appointmentId || appointmentId.trim() === '') {
+        return { valid: true, value: null }; // Vacío es válido (NULL)
+    }
+
+    // Patrón UUID
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    if (uuidPattern.test(appointmentId.trim())) {
+        return { valid: true, value: appointmentId.trim() };
+    } else {
+        return { valid: false, value: null };
+    }
+}
+
+
+// =============== AGREGAR SOLO ESTA FUNCIÓN ===============
+// Agregar ANTES de la función saveRecord()
+
+function validateAppointmentId(appointmentId) {
+    if (!appointmentId || appointmentId.trim() === '') {
+        return { valid: true, value: null }; // Vacío es válido (NULL)
+    }
+
+    // Patrón UUID
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    if (uuidPattern.test(appointmentId.trim())) {
+        return { valid: true, value: appointmentId.trim() };
+    } else {
+        return { valid: false, value: null };
+    }
+}
+
+
+// =============== MODIFICAR FUNCIÓN saveRecord ===============
+
+async function saveRecord() {
+    const form = document.getElementById('recordForm');
+    const saveBtn = document.getElementById('saveBtn');
+
+    // Validar formulario básico
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    // Validar campos requeridos
+    const petId = document.getElementById('petId').value;
+    const veterinarianId = document.getElementById('veterinarianId').value;
+
+    if (!petId) {
+        showMessage('Debe seleccionar una mascota', 'error');
+        return;
+    }
+
+    if (!veterinarianId) {
+        showMessage('Debe seleccionar un veterinario', 'error');
+        return;
+    }
+
+    // ✅ VALIDAR APPOINTMENT_ID CON SISTEMA UUID
+    const appointmentIdRaw = document.getElementById('appointmentId').value;
+    const appointmentValidation = validateAppointmentId(appointmentIdRaw);
+
+    if (!appointmentValidation.valid) {
+        showMessage('ID de cita debe ser un UUID válido o estar vacío', 'error');
+        return;
+    }
+
+    // Recopilar datos con appointment_id validado
+    const recordData = {
+        pet_id: petId,
+        veterinarian_id: veterinarianId,
+        appointment_id: appointmentValidation.value, // ✅ null o UUID válido
+        symptoms_description: document.getElementById('symptomsDescription').value || null,
+        physical_examination: document.getElementById('physicalExamination').value || null,
+        diagnosis: document.getElementById('diagnosis').value || null,
+        treatment: document.getElementById('treatment').value || null,
+        medications_prescribed: document.getElementById('medicationsPrescribed').value || null,
+        exams_requested: document.getElementById('examsRequested').value || null,
+        observations: document.getElementById('observations').value || null,
+        next_appointment_recommendation: document.getElementById('nextAppointment').value || null,
+        weight_at_visit: parseFloat(document.getElementById('weightAtVisit').value) || null,
+        temperature: parseFloat(document.getElementById('temperature').value) || null,
+        pulse: parseInt(document.getElementById('pulse').value) || null,
+        respiratory_rate: parseInt(document.getElementById('respiratoryRate').value) || null,
+        is_emergency: document.getElementById('isEmergency').value === 'true',
+        status: document.getElementById('recordStatus').value
+    };
+
+    console.log('📡 Datos a enviar:', recordData);
+
+    // Deshabilitar botón
+    saveBtn.disabled = true;
+    document.getElementById('saveBtnText').textContent = 'Guardando...';
+
+    try {
+        let response;
+        let endpoint = '/api/admin/medical-records';
+        let method = 'POST';
+
+        if (currentEditingRecord) {
+            // Actualizar historia clínica existente
+            endpoint = `/api/admin/medical-records/${currentEditingRecord.id}`;
+            method = 'PUT';
+        }
+
+        response = await fetch(endpoint, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(recordData)
+        });
+
+        const responseData = await response.json();
+
+        if (response.ok && responseData.success) {
+            showMessage(
+                currentEditingRecord ? 'Historia clínica actualizada exitosamente' : 'Historia clínica creada exitosamente',
+                'success'
+            );
+
+            closeRecordModal();
+
+            // Recargar datos
+            await loadRecordsData();
+
+        } else {
+            showMessage(responseData.message || 'Error al guardar historia clínica', 'error');
+        }
+
+    } catch (error) {
+        console.error('❌ Error guardando historia clínica:', error);
+        showMessage('Error de conexión al guardar historia clínica', 'error');
+    } finally {
+        // Rehabilitar botón
+        saveBtn.disabled = false;
+        document.getElementById('saveBtnText').textContent =
+            currentEditingRecord ? 'Actualizar Historia' : 'Crear Historia';
+    }
+}
+
+    // =============== FUNCIONES GLOBALES PARA USO EN HTML ===============
+
+    // Hacer funciones disponibles globalmente para los onclick en HTML
+    window.openRecordModal = openRecordModal;
+    window.closeRecordModal = closeRecordModal;
+    window.saveRecord = saveRecord;
+    window.viewRecord = viewRecord;
+    window.editRecord = editRecord;
+    window.deleteRecord = deleteRecord;
+    window.completeRecord = completeRecord;
+    window.printRecord = printRecord;
+    window.filterRecords = filterRecords;
+    window.sortRecords = sortRecords;
+    window.resetFilters = resetFilters;
+    window.exportRecords = exportRecords;
+    window.refreshData = refreshData;
+    window.closeRecordDetailsModal = closeRecordDetailsModal;
+    window.editRecordFromDetails = editRecordFromDetails;
+    window.printRecordFromDetails = printRecordFromDetails;
+    window.addPrescription = addPrescription;
+    window.addPrescriptionFromDetails = addPrescriptionFromDetails;
+    window.openPrescriptionModal = openPrescriptionModal;
+    window.closePrescriptionModal = closePrescriptionModal;
+    window.savePrescription = savePrescription;
+    window.updateMedicationInfo = updateMedicationInfo;
+    window.updatePetInfo = updatePetInfo;
+    window.showConfirmModal = showConfirmModal;
+    window.closeConfirmModal = closeConfirmModal;
+    window.executeConfirmAction = executeConfirmAction;
+
+    console.log('✅ Gestión de Historias Clínicas - JavaScript cargado completamente');
+    </script>
+{% endblock %}
