@@ -613,7 +613,7 @@
                 <div class="menu-section-title">Gestión Clínica</div>
                 <ul>
                     <li class="menu-item">
-                        <a href="#medical-records" class="menu-link">
+                        <a href="{{ url_for('frontend.admin_appointments') }}" class="menu-link {% if request.endpoint == 'frontend.admin_appointments' %}active{% endif %}">
                             <span class="menu-icon">📋</span>
                             <span>Citas Médicas</span>
                         </a>
@@ -631,7 +631,7 @@
                         </a>
                     </li>
                     <li class="menu-item">
-                        <a href="#clients" class="menu-link">
+                        <a href="{{ url_for('frontend.admin_clients') }}" class="menu-link {% if request.endpoint == 'frontend.admin_clients' %}active{% endif %}">
                             <span class="menu-icon">👤</span>
                             <span>Clientes</span>
                         </a>

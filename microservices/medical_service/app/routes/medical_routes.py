@@ -419,7 +419,7 @@ def update_medical_record():
 
 
 @medical_bp.route('/records/<record_id>/complete', methods=['PUT'])
-def complete_medical_record():
+def complete_medical_record(record_id):
     """Marcar historia clínica como completada - VERSIÓN CORREGIDA"""
     try:
         record_id = str(record_id)

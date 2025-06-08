@@ -1,0 +1,2206 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Gestión de Clientes{% endblock %}
+
+{% block page_title %}Gestión de Clientes{% endblock %}
+
+{% block custom_styles %}
+<style>
+    /* =============== CLIENTS MANAGEMENT SPECIFIC STYLES =============== */
+    .clients-content {
+        padding: 30px;
+    }
+
+    .page-header {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 4px 12px rgba(8, 28, 21, 0.08);
+        margin-bottom: 30px;
+    }
+
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+
+    .header-info h1 {
+        color: #2D6A4F;
+        font-size: 2.2rem;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .header-info p {
+        color: #52B788;
+        font-size: 1.1rem;
+        margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 15px;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #52B788 0%, #38A3A5 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(82, 183, 136, 0.3);
+    }
+
+    .btn-secondary {
+        background: linear-gradient(135deg, #B7E4C7 0%, #D8F3DC 100%);
+        color: #2D6A4F;
+        border: 2px solid #B7E4C7;
+        padding: 10px 22px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-secondary:hover {
+        background: #B7E4C7;
+        transform: translateY(-2px);
+    }
+
+    /* ESTADÍSTICAS */
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+
+    .stat-item {
+        background: white;
+        padding: 25px;
+        border-radius: 15px;
+        border: 1px solid #D8F3DC;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        border-left: 4px solid;
+        transition: transform 0.3s ease;
+    }
+
+    .stat-item:hover {
+        transform: translateY(-3px);
+    }
+
+    .stat-item.total { border-left-color: #52B788; }
+    .stat-item.active { border-left-color: #38A3A5; }
+    .stat-item.new { border-left-color: #22577A; }
+    .stat-item.pets { border-left-color: #2D6A4F; }
+
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+    }
+
+    .stat-icon.total { background: linear-gradient(135deg, #52B788, #38A3A5); }
+    .stat-icon.active { background: linear-gradient(135deg, #38A3A5, #22577A); }
+    .stat-icon.new { background: linear-gradient(135deg, #22577A, #2D6A4F); }
+    .stat-icon.pets { background: linear-gradient(135deg, #2D6A4F, #081C15); }
+
+    .stat-data {
+        flex: 1;
+    }
+
+    .stat-value {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #2D6A4F;
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        color: #52B788;
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+
+    /* FILTROS Y CONTROLES */
+    .controls-section {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 4px 12px rgba(8, 28, 21, 0.08);
+        margin-bottom: 30px;
+    }
+
+    .controls-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .controls-title {
+        color: #2D6A4F;
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .controls-grid {
+        display: grid;
+        grid-template-columns: 2fr 200px 200px 150px;
+        gap: 20px;
+        align-items: end;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-label {
+        color: #2D6A4F;
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+    }
+
+    .form-input,
+    .form-select {
+        padding: 12px 15px;
+        border: 2px solid #D8F3DC;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        background: white;
+        color: #2D6A4F;
+    }
+
+    .form-input:focus,
+    .form-select:focus {
+        outline: none;
+        border-color: #52B788;
+        box-shadow: 0 0 0 4px rgba(82, 183, 136, 0.1);
+    }
+
+    .search-input {
+        background: #D8F3DC;
+        border: 2px solid transparent;
+    }
+
+    .search-input:focus {
+        background: white;
+        border-color: #52B788;
+    }
+
+    /* VISTA DE TARJETAS DE CLIENTES */
+    .clients-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+
+    .client-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(8, 28, 21, 0.08);
+        transition: all 0.3s ease;
+        border: 1px solid #D8F3DC;
+        overflow: hidden;
+    }
+
+    .client-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 30px rgba(8, 28, 21, 0.15);
+    }
+
+    .client-card-header {
+        background: linear-gradient(135deg, #D8F3DC 0%, #B7E4C7 100%);
+        padding: 20px;
+        border-bottom: 1px solid #B7E4C7;
+    }
+
+    .client-info {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .client-avatar {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 1.5rem;
+        border: 3px solid white;
+        box-shadow: 0 4px 8px rgba(82, 183, 136, 0.3);
+    }
+
+    .client-details {
+        flex: 1;
+    }
+
+    .client-name {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #2D6A4F;
+        margin-bottom: 5px;
+    }
+
+    .client-email {
+        color: #52B788;
+        font-size: 0.9rem;
+        margin-bottom: 3px;
+    }
+
+    .client-phone {
+        color: #22577A;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .client-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .client-status.active {
+        background: rgba(82, 183, 136, 0.2);
+        color: #2D6A4F;
+    }
+
+    .client-status.inactive {
+        background: rgba(108, 117, 125, 0.2);
+        color: #6c757d;
+    }
+
+    .client-card-body {
+        padding: 20px;
+    }
+
+    .client-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .client-stat {
+        text-align: center;
+        padding: 12px;
+        background: #F8FBF9;
+        border-radius: 10px;
+        border-left: 3px solid #52B788;
+    }
+
+    .client-stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2D6A4F;
+        margin-bottom: 3px;
+    }
+
+    .client-stat-label {
+        font-size: 0.8rem;
+        color: #52B788;
+        font-weight: 500;
+    }
+
+    .client-pets-preview {
+        margin-bottom: 20px;
+    }
+
+    .pets-preview-title {
+        color: #2D6A4F;
+        font-weight: 600;
+        margin-bottom: 10px;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .pets-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .pet-tag {
+        background: linear-gradient(135deg, #B7E4C7, #D8F3DC);
+        color: #2D6A4F;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        border: 1px solid #B7E4C7;
+    }
+
+    .client-card-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: stretch;
+    }
+
+    .action-btn {
+        flex: 1;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+
+    .action-btn.view {
+        background: #22577A;
+        color: white;
+    }
+
+    .action-btn.edit {
+        background: #52B788;
+        color: white;
+    }
+
+    .action-btn.pets {
+        background: #38A3A5;
+        color: white;
+    }
+
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    /* EMPTY STATE */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #52B788;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(8, 28, 21, 0.08);
+    }
+
+    .empty-state h3 {
+        color: #2D6A4F;
+        margin-bottom: 15px;
+        font-size: 1.4rem;
+    }
+
+    .empty-state p {
+        margin-bottom: 25px;
+        font-size: 1rem;
+    }
+
+    .empty-state-icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+
+    /* LOADING STATE */
+    .loading-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        gap: 25px;
+    }
+
+    .client-card-skeleton {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(8, 28, 21, 0.08);
+        overflow: hidden;
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .skeleton-header {
+        background: #D8F3DC;
+        padding: 20px;
+        height: 100px;
+    }
+
+    .skeleton-body {
+        padding: 20px;
+        height: 200px;
+        background: #F8FBF9;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+
+    /* MODAL STYLES */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(8, 28, 21, 0.8);
+        backdrop-filter: blur(5px);
+    }
+
+    .modal.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 20px;
+        width: 90%;
+        max-width: 900px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 40px rgba(8, 28, 21, 0.3);
+        animation: modalSlideIn 0.3s ease;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-50px) scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .modal-header {
+        padding: 25px 30px;
+        border-bottom: 1px solid #D8F3DC;
+        background: linear-gradient(135deg, #F8FBF9 0%, #F0F8F0 100%);
+    }
+
+    .modal-title {
+        color: #2D6A4F;
+        font-size: 1.6rem;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .modal-close {
+        position: absolute;
+        top: 20px;
+        right: 25px;
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: #52B788;
+        cursor: pointer;
+        padding: 5px;
+        border-radius: 50%;
+        transition: all 0.3s ease;
+    }
+
+    .modal-close:hover {
+        background: #D8F3DC;
+        color: #2D6A4F;
+    }
+
+    .modal-body {
+        padding: 30px;
+    }
+
+    /* PERFIL DEL CLIENTE EN MODAL */
+    .client-profile {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 30px;
+        margin-bottom: 30px;
+    }
+
+    .profile-sidebar {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 20px;
+        background: #F8FBF9;
+        border-radius: 15px;
+        border-left: 4px solid #52B788;
+    }
+
+    .profile-avatar {
+        width: 100px;
+        height: 100px;
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        border: 4px solid white;
+        box-shadow: 0 8px 20px rgba(82, 183, 136, 0.3);
+    }
+
+    .profile-name {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2D6A4F;
+        margin-bottom: 10px;
+    }
+
+    .profile-role {
+        background: rgba(82, 183, 136, 0.2);
+        color: #2D6A4F;
+        padding: 6px 15px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 20px;
+    }
+
+    .profile-stats {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .profile-stat {
+        background: white;
+        padding: 15px;
+        border-radius: 10px;
+        border-left: 3px solid #38A3A5;
+    }
+
+    .profile-stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2D6A4F;
+        margin-bottom: 3px;
+    }
+
+    .profile-stat-label {
+        font-size: 0.8rem;
+        color: #52B788;
+        font-weight: 500;
+    }
+
+    .profile-main {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .info-section {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        border: 1px solid #D8F3DC;
+    }
+
+    .info-section-title {
+        color: #2D6A4F;
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .info-label {
+        font-weight: 600;
+        color: #2D6A4F;
+        font-size: 0.9rem;
+    }
+
+    .info-value {
+        color: #52B788;
+        font-size: 1rem;
+        padding: 8px 12px;
+        background: #F8FBF9;
+        border-radius: 8px;
+        border-left: 3px solid #B7E4C7;
+    }
+
+    /* MASCOTAS DEL CLIENTE */
+    .client-pets-section {
+        margin-top: 30px;
+    }
+
+    .pets-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .pet-card {
+        background: white;
+        border-radius: 15px;
+        border: 1px solid #D8F3DC;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .pet-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(8, 28, 21, 0.15);
+    }
+
+    .pet-card-header {
+        background: linear-gradient(135deg, #D8F3DC 0%, #B7E4C7 100%);
+        padding: 15px;
+        text-align: center;
+        position: relative;
+    }
+
+    .pet-photo {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid white;
+        box-shadow: 0 4px 12px rgba(82, 183, 136, 0.3);
+        margin-bottom: 10px;
+    }
+
+    .pet-photo-placeholder {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: white;
+        border: 4px solid white;
+        box-shadow: 0 4px 12px rgba(82, 183, 136, 0.3);
+        margin: 0 auto 10px;
+    }
+
+    .pet-name {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #2D6A4F;
+        margin-bottom: 5px;
+    }
+
+    .pet-species {
+        color: #52B788;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .pet-card-body {
+        padding: 15px;
+    }
+
+    .pet-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+
+    .pet-info-item {
+        text-align: center;
+        padding: 8px;
+        background: #F8FBF9;
+        border-radius: 8px;
+    }
+
+    .pet-info-value {
+        font-weight: 700;
+        color: #2D6A4F;
+        font-size: 0.9rem;
+    }
+
+    .pet-info-label {
+        font-size: 0.7rem;
+        color: #52B788;
+        margin-top: 2px;
+    }
+
+    .pet-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .pet-action-btn {
+        flex: 1;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.75rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+    }
+
+    .pet-action-btn.medical {
+        background: #22577A;
+        color: white;
+    }
+
+    .pet-action-btn.edit {
+        background: #52B788;
+        color: white;
+    }
+
+    .pet-action-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 1024px) {
+        .controls-grid {
+            grid-template-columns: 2fr 180px 150px;
+        }
+
+        .clients-grid {
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .clients-content {
+            padding: 20px 15px;
+        }
+
+        .header-content {
+            flex-direction: column;
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .header-actions {
+            justify-content: center;
+        }
+
+        .stats-row {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .controls-grid {
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        .clients-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .client-profile {
+            grid-template-columns: 1fr;
+        }
+
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .pets-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .modal-content {
+            width: 95%;
+            margin: 20px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="clients-content">
+    <!-- HEADER -->
+    <div class="page-header">
+        <div class="header-content">
+            <div class="header-info">
+                <h1>
+                    <span>👤</span>
+                    Gestión de Clientes
+                </h1>
+                <p>Administra los perfiles de clientes y sus mascotas</p>
+            </div>
+            <div class="header-actions">
+                <button onclick="exportClientsReport('pdf')" class="btn-secondary">
+                    📄 Reporte PDF
+                </button>
+                <button onclick="exportClientsReport('excel')" class="btn-secondary">
+                    📊 Exportar Excel
+                </button>
+                <button onclick="refreshClients()" class="btn-secondary">
+                    🔄 Actualizar
+                </button>
+                <a href="#" onclick="redirectToUsers()" class="btn-primary">
+                    ➕ Nuevo Cliente
+                </a>
+            </div>
+        </div>
+
+        <!-- ESTADÍSTICAS -->
+        <div class="stats-row">
+            <div class="stat-item total">
+                <div class="stat-icon total">👥</div>
+                <div class="stat-data">
+                    <div class="stat-value" id="clientsTotal">-</div>
+                    <div class="stat-label">Total Clientes</div>
+                </div>
+            </div>
+            <div class="stat-item active">
+                <div class="stat-icon active">✅</div>
+                <div class="stat-data">
+                    <div class="stat-value" id="clientsActive">-</div>
+                    <div class="stat-label">Clientes Activos</div>
+                </div>
+            </div>
+            <div class="stat-item new">
+                <div class="stat-icon new">🆕</div>
+                <div class="stat-data">
+                    <div class="stat-value" id="clientsNew">-</div>
+                    <div class="stat-label">Nuevos (30 días)</div>
+                </div>
+            </div>
+            <div class="stat-item pets">
+                <div class="stat-icon pets">🐾</div>
+                <div class="stat-data">
+                    <div class="stat-value" id="totalPets">-</div>
+                    <div class="stat-label">Total Mascotas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTROLES Y FILTROS -->
+    <div class="controls-section">
+        <div class="controls-header">
+            <h3 class="controls-title">🔍 Buscar y Filtrar Clientes</h3>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="resetFilters()" class="btn-secondary">
+                    🔄 Limpiar Filtros
+                </button>
+            </div>
+        </div>
+        <div class="controls-grid">
+            <div class="form-group">
+                <label for="searchInput" class="form-label">Buscar Cliente</label>
+                <input type="text" id="searchInput" class="form-input search-input"
+                       placeholder="Nombre, email, teléfono..."
+                       onkeyup="filterClients()">
+            </div>
+            <div class="form-group">
+                <label for="statusFilter" class="form-label">Estado</label>
+                <select id="statusFilter" class="form-select" onchange="filterClients()">
+                    <option value="">Todos los estados</option>
+                    <option value="active">✅ Activos</option>
+                    <option value="inactive">❌ Inactivos</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="petsFilter" class="form-label">Con Mascotas</label>
+                <select id="petsFilter" class="form-select" onchange="filterClients()">
+                    <option value="">Todos</option>
+                    <option value="with_pets">Con mascotas</option>
+                    <option value="without_pets">Sin mascotas</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="sortBy" class="form-label">Ordenar por</label>
+                <select id="sortBy" class="form-select" onchange="sortClients()">
+                    <option value="name_asc">Nombre A-Z</option>
+                    <option value="name_desc">Nombre Z-A</option>
+                    <option value="date_desc">Más recientes</option>
+                    <option value="date_asc">Más antiguos</option>
+                    <option value="pets_desc">Más mascotas</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- GRID DE CLIENTES -->
+    <div id="clientsContainer">
+        <div class="loading-grid">
+            <div class="client-card-skeleton">
+                <div class="skeleton-header"></div>
+                <div class="skeleton-body"></div>
+            </div>
+            <div class="client-card-skeleton">
+                <div class="skeleton-header"></div>
+                <div class="skeleton-body"></div>
+            </div>
+            <div class="client-card-skeleton">
+                <div class="skeleton-header"></div>
+                <div class="skeleton-body"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PARA VER PERFIL DEL CLIENTE -->
+<div class="modal" id="clientProfileModal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeClientProfileModal()">✖</button>
+        <div class="modal-header">
+            <h2 class="modal-title" id="profileModalTitle">
+                <span>👤</span>
+                <span id="profileClientName">Perfil del Cliente</span>
+            </h2>
+        </div>
+        <div class="modal-body" id="clientProfileContent">
+            <!-- Se llenará dinámicamente -->
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PARA VER HISTORIAL MÉDICO -->
+<div class="modal" id="medicalHistoryModal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeMedicalHistoryModal()">✖</button>
+        <div class="modal-header">
+            <h2 class="modal-title" id="medicalHistoryTitle">
+                <span>📄</span>
+                <span id="medicalHistoryPetName">Historial Médico</span>
+            </h2>
+        </div>
+        <div class="modal-body" id="medicalHistoryContent">
+            <!-- Se llenará dinámicamente -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // =============== VARIABLES GLOBALES ===============
+    let allClients = [];
+    let filteredClients = [];
+    let allPets = [];
+    let currentViewingClient = null;
+    let currentViewingPet = null;
+
+    // =============== INICIALIZACIÓN ===============
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Inicializando Gestión de Clientes...');
+        loadInitialData();
+    });
+
+    // =============== CARGA DE DATOS INICIAL ===============
+    async function loadInitialData() {
+        try {
+            showLoadingMessage('Cargando datos del sistema...');
+
+            await Promise.all([
+                loadClientsData(),
+                loadPetsData()
+            ]);
+
+            console.log('✅ Todos los datos cargados exitosamente');
+            displayClientsData();
+            updateStatistics();
+        } catch (error) {
+            console.error('❌ Error cargando datos iniciales:', error);
+            showMessage('Error cargando datos del sistema', 'error');
+        }
+    }
+
+    // =============== CARGA DE CLIENTES ===============
+    async function loadClientsData() {
+        try {
+            console.log('📡 Obteniendo clientes del Auth Service...');
+
+            const response = await fetch('/api/admin/users', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.users) {
+                    // Filtrar solo clientes activos e inactivos
+                    allClients = data.users.filter(user => user.role === 'client');
+                    console.log(`✅ ${allClients.length} clientes cargados`);
+                    return;
+                }
+            }
+
+            throw new Error('No se pudo obtener clientes');
+
+        } catch (error) {
+            console.error('❌ Error obteniendo clientes:', error);
+            // Datos de ejemplo como fallback
+            allClients = getExampleClients();
+            showMessage('Usando datos de clientes de ejemplo', 'warning');
+        }
+    }
+
+    function getExampleClients() {
+        return [
+            {
+                id: 'client1',
+                first_name: 'Carlos',
+                last_name: 'López',
+                email: 'carlos@example.com',
+                phone: '+1234567893',
+                address: 'Calle 123 #45-67, Bogotá',
+                role: 'client',
+                is_active: true,
+                created_at: '2024-01-15T10:30:00Z'
+            },
+            {
+                id: 'client2',
+                first_name: 'María',
+                last_name: 'González',
+                email: 'maria@example.com',
+                phone: '+1234567894',
+                address: 'Carrera 45 #12-34, Medellín',
+                role: 'client',
+                is_active: true,
+                created_at: '2024-02-20T14:15:00Z'
+            },
+            {
+                id: 'client3',
+                first_name: 'Ana',
+                last_name: 'Martínez',
+                email: 'ana@example.com',
+                phone: '+1234567895',
+                address: 'Avenida 68 #23-45, Cali',
+                role: 'client',
+                is_active: false,
+                created_at: '2024-03-10T09:45:00Z'
+            },
+            {
+                id: 'client4',
+                first_name: 'Luis',
+                last_name: 'Rodríguez',
+                email: 'luis@example.com',
+                phone: '+1234567896',
+                address: 'Calle 85 #15-30, Barranquilla',
+                role: 'client',
+                is_active: true,
+                created_at: '2024-11-01T16:20:00Z'
+            }
+        ];
+    }
+
+    // =============== CARGA DE MASCOTAS ===============
+    async function loadPetsData() {
+        try {
+            console.log('📡 Obteniendo mascotas del Medical Service...');
+
+            const response = await fetch('/api/admin/pets', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.pets) {
+                    allPets = data.pets;
+                    console.log(`✅ ${allPets.length} mascotas cargadas`);
+                    return;
+                }
+            }
+
+            throw new Error('No se pudo conectar con Medical Service');
+
+        } catch (error) {
+            console.error('❌ Error obteniendo mascotas:', error);
+            // Datos de ejemplo como fallback
+            allPets = getExamplePets();
+            showMessage('Usando datos de mascotas de ejemplo', 'warning');
+        }
+    }
+
+    function getExamplePets() {
+        return [
+            {
+                id: '1',
+                name: 'Max',
+                species: 'perro',
+                breed: 'Golden Retriever',
+                birth_date: '2020-05-15',
+                weight: 25.5,
+                vaccination_status: 'completo',
+                owner_id: 'client1',
+                is_active: true
+            },
+            {
+                id: '2',
+                name: 'Luna',
+                species: 'gato',
+                breed: 'Siamés',
+                birth_date: '2021-08-22',
+                weight: 4.2,
+                vaccination_status: 'completo',
+                owner_id: 'client1',
+                is_active: true
+            },
+            {
+                id: '3',
+                name: 'Rocky',
+                species: 'perro',
+                breed: 'Bulldog Francés',
+                birth_date: '2019-12-03',
+                weight: 12.8,
+                vaccination_status: 'parcial',
+                owner_id: 'client2',
+                is_active: true
+            },
+            {
+                id: '4',
+                name: 'Mila',
+                species: 'gato',
+                breed: 'Persa',
+                birth_date: '2022-03-10',
+                weight: 3.8,
+                vaccination_status: 'pendiente',
+                owner_id: 'client3',
+                is_active: true
+            },
+            {
+                id: '5',
+                name: 'Bobby',
+                species: 'perro',
+                breed: 'Labrador',
+                birth_date: '2023-01-20',
+                weight: 8.5,
+                vaccination_status: 'parcial',
+                owner_id: 'client4',
+                is_active: true
+            }
+        ];
+    }
+
+    // =============== MOSTRAR DATOS ===============
+    function displayClientsData() {
+        const container = document.getElementById('clientsContainer');
+
+        if (filteredClients.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">👤</div>
+                    <h3>No se encontraron clientes</h3>
+                    <p>No hay clientes que coincidan con los filtros aplicados.</p>
+                    <button onclick="resetFilters()" class="btn-primary">
+                        🔄 Limpiar Filtros
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        // Enriquecer clientes con datos de mascotas
+        const enrichedClients = filteredClients.map(client => {
+            const clientPets = allPets.filter(pet => pet.owner_id === client.id);
+            return {
+                ...client,
+                pets: clientPets,
+                petsCount: clientPets.length
+            };
+        });
+
+        container.innerHTML = `
+            <div class="clients-grid">
+                ${enrichedClients.map(client => createClientCard(client)).join('')}
+            </div>
+        `;
+    }
+
+    function createClientCard(client) {
+        const clientInitial = client.first_name ? client.first_name[0].toUpperCase() : 'C';
+        const fullName = `${client.first_name || ''} ${client.last_name || ''}`.trim() || 'Cliente';
+        const statusClass = client.is_active ? 'active' : 'inactive';
+        const statusText = client.is_active ? '✅ Activo' : '❌ Inactivo';
+
+        // Calcular estadísticas del cliente
+        const totalPets = client.pets.length;
+        const activePets = client.pets.filter(pet => pet.is_active).length;
+        const completedVaccinations = client.pets.filter(pet => pet.vaccination_status === 'completo').length;
+
+        // Calcular días desde registro
+        const createdDate = new Date(client.created_at);
+        const daysSinceRegistration = Math.floor((new Date() - createdDate) / (1000 * 60 * 60 * 24));
+
+        return `
+            <div class="client-card">
+                <div class="client-card-header">
+                    <div class="client-info">
+                        <div class="client-avatar">${clientInitial}</div>
+                        <div class="client-details">
+                            <div class="client-name">${fullName}</div>
+                            <div class="client-email">${client.email || 'Sin email'}</div>
+                            <div class="client-phone">${client.phone || 'Sin teléfono'}</div>
+                        </div>
+                        <div class="client-status ${statusClass}">${statusText}</div>
+                    </div>
+                </div>
+
+                <div class="client-card-body">
+                    <div class="client-stats">
+                        <div class="client-stat">
+                            <div class="client-stat-value">${totalPets}</div>
+                            <div class="client-stat-label">Mascotas</div>
+                        </div>
+                        <div class="client-stat">
+                            <div class="client-stat-value">${completedVaccinations}</div>
+                            <div class="client-stat-label">Vacunadas</div>
+                        </div>
+                        <div class="client-stat">
+                            <div class="client-stat-value">${daysSinceRegistration}</div>
+                            <div class="client-stat-label">Días</div>
+                        </div>
+                    </div>
+
+                    ${totalPets > 0 ? `
+                        <div class="client-pets-preview">
+                            <div class="pets-preview-title">
+                                <span>🐾</span>
+                                Sus Mascotas
+                            </div>
+                            <div class="pets-list">
+                                ${client.pets.slice(0, 3).map(pet => `
+                                    <div class="pet-tag" title="${pet.name} - ${getSpeciesLabel(pet.species)}">
+                                        ${getSpeciesIcon(pet.species)} ${pet.name}
+                                    </div>
+                                `).join('')}
+                                ${totalPets > 3 ? `<div class="pet-tag">+${totalPets - 3} más</div>` : ''}
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="client-pets-preview">
+                            <div style="text-align: center; color: #52B788; padding: 15px; font-style: italic;">
+                                Este cliente no tiene mascotas registradas
+                            </div>
+                        </div>
+                    `}
+
+                    <div class="client-card-actions">
+                        <button onclick="viewClientProfile('${client.id}')" class="action-btn view" title="Ver perfil completo">
+                            👁️ Ver Perfil
+                        </button>
+                        <button onclick="editClient('${client.id}')" class="action-btn edit" title="Editar cliente">
+                            ✏️ Editar
+                        </button>
+                        <button onclick="viewClientPets('${client.id}')" class="action-btn pets" title="Gestionar mascotas">
+                            🐾 Mascotas
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // =============== ACTUALIZACIÓN DE ESTADÍSTICAS ===============
+    function updateStatistics() {
+        const totalClients = allClients.length;
+        const activeClients = allClients.filter(c => c.is_active).length;
+        const totalPets = allPets.length;
+
+        // Calcular clientes nuevos (últimos 30 días)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const newClients = allClients.filter(client => {
+            const createdDate = new Date(client.created_at);
+            return createdDate >= thirtyDaysAgo;
+        }).length;
+
+        document.getElementById('clientsTotal').textContent = totalClients;
+        document.getElementById('clientsActive').textContent = activeClients;
+        document.getElementById('clientsNew').textContent = newClients;
+        document.getElementById('totalPets').textContent = totalPets;
+    }
+
+    // =============== FILTROS Y BÚSQUEDA ===============
+    function filterClients() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
+        const petsFilter = document.getElementById('petsFilter').value;
+
+        filteredClients = allClients.filter(client => {
+            // Filtro de búsqueda
+            const matchesSearch = !searchTerm ||
+                (client.first_name && client.first_name.toLowerCase().includes(searchTerm)) ||
+                (client.last_name && client.last_name.toLowerCase().includes(searchTerm)) ||
+                (client.email && client.email.toLowerCase().includes(searchTerm)) ||
+                (client.phone && client.phone.toLowerCase().includes(searchTerm));
+
+            // Filtro de estado
+            const matchesStatus = !statusFilter ||
+                (statusFilter === 'active' && client.is_active) ||
+                (statusFilter === 'inactive' && !client.is_active);
+
+            // Filtro de mascotas
+            let matchesPets = true;
+            if (petsFilter) {
+                const clientPets = allPets.filter(pet => pet.owner_id === client.id);
+                if (petsFilter === 'with_pets') {
+                    matchesPets = clientPets.length > 0;
+                } else if (petsFilter === 'without_pets') {
+                    matchesPets = clientPets.length === 0;
+                }
+            }
+
+            return matchesSearch && matchesStatus && matchesPets;
+        });
+
+        displayClientsData();
+    }
+
+    function sortClients() {
+        const sortBy = document.getElementById('sortBy').value;
+
+        filteredClients.sort((a, b) => {
+            switch (sortBy) {
+                case 'name_asc':
+                    return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`);
+                case 'name_desc':
+                    return `${b.first_name} ${b.last_name}`.localeCompare(`${a.first_name} ${a.last_name}`);
+                case 'date_desc':
+                    return new Date(b.created_at) - new Date(a.created_at);
+                case 'date_asc':
+                    return new Date(a.created_at) - new Date(b.created_at);
+                case 'pets_desc':
+                    const aPets = allPets.filter(pet => pet.owner_id === a.id).length;
+                    const bPets = allPets.filter(pet => pet.owner_id === b.id).length;
+                    return bPets - aPets;
+                default:
+                    return 0;
+            }
+        });
+
+        displayClientsData();
+    }
+
+    function resetFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('petsFilter').value = '';
+        document.getElementById('sortBy').value = 'name_asc';
+
+        filteredClients = [...allClients];
+        displayClientsData();
+        showMessage('Filtros restablecidos', 'info');
+    }
+
+    // =============== ACCIONES DE CLIENTE ===============
+    function viewClientProfile(clientId) {
+        const client = allClients.find(c => c.id === clientId);
+        if (!client) {
+            showMessage('Cliente no encontrado', 'error');
+            return;
+        }
+
+        currentViewingClient = client;
+        showClientProfileModal(client);
+    }
+
+    function showClientProfileModal(client) {
+        const modal = document.getElementById('clientProfileModal');
+        const clientInitial = client.first_name ? client.first_name[0].toUpperCase() : 'C';
+        const fullName = `${client.first_name || ''} ${client.last_name || ''}`.trim() || 'Cliente';
+
+        // Obtener mascotas del cliente
+        const clientPets = allPets.filter(pet => pet.owner_id === client.id);
+
+        // Calcular estadísticas
+        const totalPets = clientPets.length;
+        const activePets = clientPets.filter(pet => pet.is_active).length;
+        const daysSinceRegistration = Math.floor((new Date() - new Date(client.created_at)) / (1000 * 60 * 60 * 24));
+
+        document.getElementById('profileClientName').textContent = fullName;
+
+        const profileContent = `
+            <div class="client-profile">
+                <div class="profile-sidebar">
+                    <div class="profile-avatar">${clientInitial}</div>
+                    <div class="profile-name">${fullName}</div>
+                    <div class="profile-role">Cliente</div>
+
+                    <div class="profile-stats">
+                        <div class="profile-stat">
+                            <div class="profile-stat-value">${totalPets}</div>
+                            <div class="profile-stat-label">Mascotas Registradas</div>
+                        </div>
+                        <div class="profile-stat">
+                            <div class="profile-stat-value">${activePets}</div>
+                            <div class="profile-stat-label">Mascotas Activas</div>
+                        </div>
+                        <div class="profile-stat">
+                            <div class="profile-stat-value">${daysSinceRegistration}</div>
+                            <div class="profile-stat-label">Días como Cliente</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profile-main">
+                    <div class="info-section">
+                        <div class="info-section-title">
+                            <span>📞</span>
+                            Información de Contacto
+                        </div>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <div class="info-label">Correo Electrónico</div>
+                                <div class="info-value">${client.email || 'No especificado'}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Teléfono</div>
+                                <div class="info-value">${client.phone || 'No especificado'}</div>
+                            </div>
+                            <div class="info-item" style="grid-column: 1 / -1;">
+                                <div class="info-label">Dirección</div>
+                                <div class="info-value">${client.address || 'No especificada'}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-section">
+                        <div class="info-section-title">
+                            <span>ℹ️</span>
+                            Información del Sistema
+                        </div>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <div class="info-label">Estado</div>
+                                <div class="info-value">${client.is_active ? '✅ Activo' : '❌ Inactivo'}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Fecha de Registro</div>
+                                <div class="info-value">${formatDate(client.created_at)}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">ID del Cliente</div>
+                                <div class="info-value">${client.id}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Última Actualización</div>
+                                <div class="info-value">${formatDate(client.updated_at || client.created_at)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            ${totalPets > 0 ? `
+                <div class="client-pets-section">
+                    <div class="info-section-title">
+                        <span>🐾</span>
+                        Mascotas del Cliente (${totalPets})
+                    </div>
+                    <div class="pets-grid">
+                        ${clientPets.map(pet => createPetCard(pet)).join('')}
+                    </div>
+                </div>
+            ` : `
+                <div class="client-pets-section">
+                    <div class="info-section-title">
+                        <span>🐾</span>
+                        Mascotas del Cliente
+                    </div>
+                    <div style="text-align: center; padding: 30px; color: #52B788; background: #F8FBF9; border-radius: 10px; border-left: 4px solid #B7E4C7;">
+                        <div style="font-size: 2rem; margin-bottom: 10px;">🐾</div>
+                        <div style="font-weight: 600; margin-bottom: 5px;">Sin mascotas registradas</div>
+                        <div style="font-size: 0.9rem;">Este cliente aún no tiene mascotas en el sistema</div>
+                    </div>
+                </div>
+            `}
+        `;
+
+        document.getElementById('clientProfileContent').innerHTML = profileContent;
+        modal.classList.add('active');
+    }
+
+    function createPetCard(pet) {
+        const petAge = calculateAge(pet.birth_date);
+        const vaccinationColor = getVaccinationColor(pet.vaccination_status);
+
+        return `
+            <div class="pet-card">
+                <div class="pet-card-header">
+                    <div class="pet-photo-placeholder">${getSpeciesIcon(pet.species)}</div>
+                    <div class="pet-name">${pet.name}</div>
+                    <div class="pet-species">${getSpeciesLabel(pet.species)} ${pet.breed ? `• ${pet.breed}` : ''}</div>
+                </div>
+                <div class="pet-card-body">
+                    <div class="pet-info-grid">
+                        <div class="pet-info-item">
+                            <div class="pet-info-value">${petAge}</div>
+                            <div class="pet-info-label">Edad</div>
+                        </div>
+                        <div class="pet-info-item">
+                            <div class="pet-info-value">${pet.weight || 'N/A'} kg</div>
+                            <div class="pet-info-label">Peso</div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-bottom: 15px; padding: 8px; background: ${vaccinationColor.bg}; color: ${vaccinationColor.text}; border-radius: 8px; font-size: 0.8rem; font-weight: 600;">
+                        ${getVaccinationLabel(pet.vaccination_status)}
+                    </div>
+                    <div class="pet-actions">
+                        <button onclick="viewPetMedicalHistory('${pet.id}')" class="pet-action-btn medical" title="Ver historial médico">
+                            📄 Historial
+                        </button>
+                        <button onclick="editPet('${pet.id}')" class="pet-action-btn edit" title="Editar mascota">
+                            ✏️ Editar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function closeClientProfileModal() {
+        const modal = document.getElementById('clientProfileModal');
+        modal.classList.remove('active');
+        currentViewingClient = null;
+    }
+
+    // =============== ACCIONES CON MASCOTAS ===============
+    function viewClientPets(clientId) {
+        // Redirigir a la página de mascotas con filtro de cliente
+        window.location.href = `/admin/pets?client=${clientId}`;
+    }
+
+    function editClient(clientId) {
+        // Redirigir a la página de usuarios para editar
+        window.location.href = `/admin/users?edit=${clientId}`;
+    }
+
+    function editPet(petId) {
+        // Redirigir a la página de mascotas para editar
+        window.location.href = `/admin/pets?edit=${petId}`;
+    }
+
+    async function viewPetMedicalHistory(petId) {
+        const pet = allPets.find(p => p.id === petId);
+        if (!pet) {
+            showMessage('Mascota no encontrada', 'error');
+            return;
+        }
+
+        currentViewingPet = pet;
+
+        try {
+            // Obtener historial médico de la mascota
+            const response = await fetch(`/api/admin/pets/${petId}/medical-records`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            let medicalRecords = [];
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    medicalRecords = data.records || [];
+                }
+            }
+
+            showMedicalHistoryModal(pet, medicalRecords);
+
+        } catch (error) {
+            console.error('❌ Error obteniendo historial médico:', error);
+            showMedicalHistoryModal(pet, []);
+        }
+    }
+
+    function showMedicalHistoryModal(pet, medicalRecords) {
+        const modal = document.getElementById('medicalHistoryModal');
+
+        document.getElementById('medicalHistoryPetName').textContent = `${pet.name} - Historial Médico`;
+
+        const historyContent = `
+            <div style="margin-bottom: 20px; padding: 20px; background: #F8FBF9; border-radius: 10px; border-left: 4px solid #52B788;">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #52B788, #38A3A5); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white;">
+                        ${getSpeciesIcon(pet.species)}
+                    </div>
+                    <div>
+                        <div style="font-size: 1.3rem; font-weight: 700; color: #2D6A4F; margin-bottom: 5px;">${pet.name}</div>
+                        <div style="color: #52B788; font-size: 0.9rem;">${getSpeciesLabel(pet.species)} ${pet.breed ? `• ${pet.breed}` : ''}</div>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px;">
+                    <div style="text-align: center;">
+                        <div style="font-weight: 700; color: #2D6A4F; font-size: 1.1rem;">${calculateAge(pet.birth_date)}</div>
+                        <div style="color: #52B788; font-size: 0.8rem;">Edad</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-weight: 700; color: #2D6A4F; font-size: 1.1rem;">${pet.weight || 'N/A'} kg</div>
+                        <div style="color: #52B788; font-size: 0.8rem;">Peso</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-weight: 700; color: #2D6A4F; font-size: 1.1rem;">${getVaccinationLabel(pet.vaccination_status)}</div>
+                        <div style="color: #52B788; font-size: 0.8rem;">Vacunación</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-weight: 700; color: #2D6A4F; font-size: 1.1rem;">${medicalRecords.length}</div>
+                        <div style="color: #52B788; font-size: 0.8rem;">Consultas</div>
+                    </div>
+                </div>
+            </div>
+
+            ${medicalRecords.length > 0 ? `
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    ${medicalRecords.map(record => `
+                        <div style="border: 1px solid #D8F3DC; border-radius: 10px; overflow: hidden;">
+                            <div style="background: linear-gradient(135deg, #D8F3DC, #B7E4C7); padding: 15px; border-bottom: 1px solid #B7E4C7;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <div style="font-weight: 700; color: #2D6A4F; font-size: 1.1rem; margin-bottom: 5px;">
+                                            Consulta - ${formatDate(record.created_at)}
+                                        </div>
+                                        <div style="color: #52B788; font-size: 0.9rem;">
+                                            Dr. ${record.veterinarian_name || 'Veterinario'} • ${record.is_emergency ? '🚨 Emergencia' : '📅 Consulta Regular'}
+                                        </div>
+                                    </div>
+                                    <div style="background: ${getStatusColor(record.status).bg}; color: ${getStatusColor(record.status).text}; padding: 6px 12px; border-radius: 15px; font-size: 0.8rem; font-weight: 600;">
+                                        ${getStatusLabel(record.status)}
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="padding: 20px;">
+                                ${record.symptoms_description ? `
+                                    <div style="margin-bottom: 15px;">
+                                        <div style="font-weight: 600; color: #2D6A4F; margin-bottom: 8px;">🔍 Síntomas Reportados:</div>
+                                        <div style="color: #52B788; padding: 10px; background: #F8FBF9; border-radius: 8px; border-left: 3px solid #B7E4C7;">
+                                            ${record.symptoms_description}
+                                        </div>
+                                    </div>
+                                ` : ''}
+
+                                ${record.physical_examination ? `
+                                    <div style="margin-bottom: 15px;">
+                                        <div style="font-weight: 600; color: #2D6A4F; margin-bottom: 8px;">🩺 Examen Físico:</div>
+                                        <div style="color: #52B788; padding: 10px; background: #F8FBF9; border-radius: 8px; border-left: 3px solid #B7E4C7;">
+                                            ${record.physical_examination}
+                                        </div>
+                                    </div>
+                                ` : ''}
+
+                                ${record.diagnosis ? `
+                                    <div style="margin-bottom: 15px;">
+                                        <div style="font-weight: 600; color: #2D6A4F; margin-bottom: 8px;">🎯 Diagnóstico:</div>
+                                        <div style="color: #52B788; padding: 10px; background: #F8FBF9; border-radius: 8px; border-left: 3px solid #38A3A5;">
+                                            ${record.diagnosis}
+                                        </div>
+                                    </div>
+                                ` : ''}
+
+                                ${record.treatment ? `
+                                    <div style="margin-bottom: 15px;">
+                                        <div style="font-weight: 600; color: #2D6A4F; margin-bottom: 8px;">💊 Tratamiento:</div>
+                                        <div style="color: #52B788; padding: 10px; background: #F8FBF9; border-radius: 8px; border-left: 3px solid #22577A;">
+                                            ${record.treatment}
+                                        </div>
+                                    </div>
+                                ` : ''}
+
+                                ${record.medications_prescribed ? `
+                                    <div style="margin-bottom: 15px;">
+                                        <div style="font-weight: 600; color: #2D6A4F; margin-bottom: 8px;">💉 Medicamentos Prescritos:</div>
+                                        <div style="color: #52B788; padding: 10px; background: #F8FBF9; border-radius: 8px; border-left: 3px solid #52B788;">
+                                            ${record.medications_prescribed}
+                                        </div>
+                                    </div>
+                                ` : ''}
+
+                                ${record.observations ? `
+                                    <div style="margin-bottom: 15px;">
+                                        <div style="font-weight: 600; color: #2D6A4F; margin-bottom: 8px;">📝 Observaciones:</div>
+                                        <div style="color: #52B788; padding: 10px; background: #F8FBF9; border-radius: 8px; border-left: 3px solid #2D6A4F;">
+                                            ${record.observations}
+                                        </div>
+                                    </div>
+                                ` : ''}
+
+                                ${record.weight_at_visit || record.temperature || record.pulse || record.respiratory_rate ? `
+                                    <div style="margin-bottom: 15px;">
+                                        <div style="font-weight: 600; color: #2D6A4F; margin-bottom: 8px;">📊 Signos Vitales:</div>
+                                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px;">
+                                            ${record.weight_at_visit ? `
+                                                <div style="text-align: center; padding: 8px; background: #F8FBF9; border-radius: 6px;">
+                                                    <div style="font-weight: 700; color: #2D6A4F;">${record.weight_at_visit} kg</div>
+                                                    <div style="font-size: 0.8rem; color: #52B788;">Peso</div>
+                                                </div>
+                                            ` : ''}
+                                            ${record.temperature ? `
+                                                <div style="text-align: center; padding: 8px; background: #F8FBF9; border-radius: 6px;">
+                                                    <div style="font-weight: 700; color: #2D6A4F;">${record.temperature}°C</div>
+                                                    <div style="font-size: 0.8rem; color: #52B788;">Temperatura</div>
+                                                </div>
+                                            ` : ''}
+                                            ${record.pulse ? `
+                                                <div style="text-align: center; padding: 8px; background: #F8FBF9; border-radius: 6px;">
+                                                    <div style="font-weight: 700; color: #2D6A4F;">${record.pulse} bpm</div>
+                                                    <div style="font-size: 0.8rem; color: #52B788;">Pulso</div>
+                                                </div>
+                                            ` : ''}
+                                            ${record.respiratory_rate ? `
+                                                <div style="text-align: center; padding: 8px; background: #F8FBF9; border-radius: 6px;">
+                                                    <div style="font-weight: 700; color: #2D6A4F;">${record.respiratory_rate} rpm</div>
+                                                    <div style="font-size: 0.8rem; color: #52B788;">Respiración</div>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                ` : ''}
+
+                                ${record.next_appointment_recommendation ? `
+                                    <div style="margin-bottom: 15px;">
+                                        <div style="font-weight: 600; color: #2D6A4F; margin-bottom: 8px;">📅 Próxima Cita Recomendada:</div>
+                                        <div style="color: #52B788; padding: 10px; background: #F8FBF9; border-radius: 8px; border-left: 3px solid #38A3A5;">
+                                            ${record.next_appointment_recommendation}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : `
+                <div style="text-align: center; padding: 40px; color: #52B788; background: #F8FBF9; border-radius: 10px; border-left: 4px solid #B7E4C7;">
+                    <div style="font-size: 3rem; margin-bottom: 15px;">📄</div>
+                    <div style="font-weight: 600; margin-bottom: 8px; font-size: 1.2rem;">Sin historial médico</div>
+                    <div style="font-size: 0.9rem;">Esta mascota aún no tiene consultas registradas en el sistema</div>
+                    <div style="margin-top: 20px;">
+                        <button onclick="createNewMedicalRecord('${pet.id}')" class="btn-primary">
+                            ➕ Crear Primera Consulta
+                        </button>
+                    </div>
+                </div>
+            `}
+        `;
+
+        document.getElementById('medicalHistoryContent').innerHTML = historyContent;
+        modal.classList.add('active');
+    }
+
+    function closeMedicalHistoryModal() {
+        const modal = document.getElementById('medicalHistoryModal');
+        modal.classList.remove('active');
+        currentViewingPet = null;
+    }
+
+    function createNewMedicalRecord(petId) {
+        // Redirigir a la página de historias clínicas para crear nueva
+        window.location.href = `/admin/medical-records?create=true&pet=${petId}`;
+    }
+
+    // =============== FUNCIONES DE EXPORTACIÓN ===============
+    async function exportClientsReport(format) {
+        try {
+            if (format === 'pdf') {
+                exportClientsToPDF();
+            } else if (format === 'excel') {
+                exportClientsToExcel();
+            }
+        } catch (error) {
+            console.error('❌ Error exportando:', error);
+            showMessage('Error al exportar reporte', 'error');
+        }
+    }
+
+    function exportClientsToPDF() {
+        // Crear ventana de impresión con el reporte
+        const printWindow = window.open('', '_blank');
+
+        const reportContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Reporte de Clientes</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #52B788; padding-bottom: 20px; }
+                    .title { font-size: 24px; color: #2D6A4F; margin-bottom: 10px; }
+                    .subtitle { color: #52B788; margin-bottom: 20px; }
+                    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
+                    .summary-item { text-align: center; padding: 15px; background: #D8F3DC; border-radius: 10px; }
+                    .summary-value { font-size: 20px; font-weight: bold; color: #2D6A4F; }
+                    .summary-label { color: #52B788; margin-top: 5px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { padding: 10px; border: 1px solid #B7E4C7; text-align: left; }
+                    th { background: #D8F3DC; color: #2D6A4F; font-weight: bold; }
+                    tr:nth-child(even) { background: #F8FBF9; }
+                    .status-active { color: #52B788; font-weight: bold; }
+                    .status-inactive { color: #6c757d; }
+                    .footer { margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="title">REPORTE DE CLIENTES</div>
+                    <div class="subtitle">Clínica Veterinaria - ${formatDate(new Date().toISOString())}</div>
+                </div>
+
+                <div class="summary">
+                    <div class="summary-item">
+                        <div class="summary-value">${allClients.length}</div>
+                        <div class="summary-label">Total Clientes</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-value">${allClients.filter(c => c.is_active).length}</div>
+                        <div class="summary-label">Activos</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-value">${allClients.filter(c => !c.is_active).length}</div>
+                        <div class="summary-label">Inactivos</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-value">${allPets.length}</div>
+                        <div class="summary-label">Total Mascotas</div>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Email</th>
+                            <th>Teléfono</th>
+                            <th>Mascotas</th>
+                            <th>Estado</th>
+                            <th>Fecha Registro</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredClients.map(client => {
+                            const clientPets = allPets.filter(pet => pet.owner_id === client.id);
+                            const fullName = `${client.first_name || ''} ${client.last_name || ''}`.trim();
+                            return `
+                                <tr>
+                                    <td>${fullName}</td>
+                                    <td>${client.email || 'Sin email'}</td>
+                                    <td>${client.phone || 'Sin teléfono'}</td>
+                                    <td>${clientPets.length}</td>
+                                    <td class="status-${client.is_active ? 'active' : 'inactive'}">
+                                        ${client.is_active ? 'Activo' : 'Inactivo'}
+                                    </td>
+                                    <td>${formatDate(client.created_at)}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+
+                <div class="footer">
+                    Reporte generado el ${formatDateTime(new Date().toISOString())} - Total de clientes: ${filteredClients.length}
+                </div>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(reportContent);
+        printWindow.document.close();
+
+        printWindow.onload = function() {
+            printWindow.print();
+        };
+
+        showMessage('Generando reporte PDF...', 'info');
+    }
+
+    function exportClientsToExcel() {
+        // Preparar datos para Excel
+        const excelData = filteredClients.map(client => {
+            const clientPets = allPets.filter(pet => pet.owner_id === client.id);
+            const fullName = `${client.first_name || ''} ${client.last_name || ''}`.trim();
+
+            return {
+                'Nombre Completo': fullName,
+                'Nombre': client.first_name || '',
+                'Apellido': client.last_name || '',
+                'Email': client.email || '',
+                'Teléfono': client.phone || '',
+                'Dirección': client.address || '',
+                'Estado': client.is_active ? 'Activo' : 'Inactivo',
+                'Número de Mascotas': clientPets.length,
+                'Mascotas': clientPets.map(pet => pet.name).join(', '),
+                'Fecha de Registro': formatDate(client.created_at),
+                'ID Cliente': client.id
+            };
+        });
+
+        // Convertir a CSV
+        const csvContent = convertToCSV(excelData);
+        downloadCSV(csvContent, `clientes_${new Date().toISOString().split('T')[0]}.csv`);
+
+        showMessage('Archivo Excel descargado exitosamente', 'success');
+    }
+
+    // =============== OTRAS FUNCIONES ===============
+    async function refreshClients() {
+        try {
+            showMessage('Actualizando datos...', 'info');
+            await loadInitialData();
+            showMessage('Datos actualizados correctamente', 'success');
+        } catch (error) {
+            showMessage('Error al actualizar datos', 'error');
+        }
+    }
+
+    function redirectToUsers() {
+        window.location.href = '/admin/users?create=client';
+    }
+
+    // =============== FUNCIONES DE UTILIDAD ===============
+    function getSpeciesIcon(species) {
+        const icons = {
+            'perro': '🐕',
+            'gato': '🐱',
+            'ave': '🦜',
+            'conejo': '🐰',
+            'hamster': '🐹',
+            'otro': '🐾'
+        };
+        return icons[species] || '🐾';
+    }
+
+    function getSpeciesLabel(species) {
+        const labels = {
+            'perro': 'Perro',
+            'gato': 'Gato',
+            'ave': 'Ave',
+            'conejo': 'Conejo',
+            'hamster': 'Hámster',
+            'otro': 'Otro'
+        };
+        return labels[species] || 'Desconocido';
+    }
+
+    function getVaccinationLabel(status) {
+        const labels = {
+            'completo': '✅ Completo',
+            'parcial': '🟡 Parcial',
+            'pendiente': '🔴 Pendiente',
+            'desconocido': '❓ Desconocido'
+        };
+        return labels[status] || '❓ Desconocido';
+    }
+
+    function getVaccinationColor(status) {
+        const colors = {
+            'completo': { bg: 'rgba(82, 183, 136, 0.2)', text: '#2D6A4F' },
+            'parcial': { bg: 'rgba(255, 193, 7, 0.2)', text: '#856404' },
+            'pendiente': { bg: 'rgba(220, 53, 69, 0.2)', text: '#721c24' },
+            'desconocido': { bg: 'rgba(108, 117, 125, 0.2)', text: '#495057' }
+        };
+        return colors[status] || colors['desconocido'];
+    }
+
+    function getStatusLabel(status) {
+        const labels = {
+            'draft': '📝 Borrador',
+            'completed': '✅ Completada',
+            'reviewed': '👁️ Revisada'
+        };
+        return labels[status] || '📝 Borrador';
+    }
+
+    function getStatusColor(status) {
+        const colors = {
+            'draft': { bg: 'rgba(108, 117, 125, 0.2)', text: '#495057' },
+            'completed': { bg: 'rgba(82, 183, 136, 0.2)', text: '#2D6A4F' },
+            'reviewed': { bg: 'rgba(56, 163, 165, 0.2)', text: '#22577A' }
+        };
+        return colors[status] || colors['draft'];
+    }
+
+    function calculateAge(birthDate) {
+        if (!birthDate) return 'N/A';
+
+        try {
+            const birth = new Date(birthDate);
+            const today = new Date();
+            const ageInMilliseconds = today - birth;
+            const ageInYears = Math.floor(ageInMilliseconds / (1000 * 60 * 60 * 24 * 365.25));
+            const ageInMonths = Math.floor((ageInMilliseconds % (1000 * 60 * 60 * 24 * 365.25)) / (1000 * 60 * 60 * 24 * 30.44));
+
+            if (ageInYears > 0) {
+                return `${ageInYears} año${ageInYears !== 1 ? 's' : ''}`;
+            } else if (ageInMonths > 0) {
+                return `${ageInMonths} mes${ageInMonths !== 1 ? 'es' : ''}`;
+            } else {
+                const ageInDays = Math.floor(ageInMilliseconds / (1000 * 60 * 60 * 24));
+                return `${ageInDays} día${ageInDays !== 1 ? 's' : ''}`;
+            }
+        } catch {
+            return 'N/A';
+        }
+    }
+
+    function formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('es-CO', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+        } catch {
+            return 'Fecha inválida';
+        }
+    }
+
+    function formatDateTime(dateString) {
+        if (!dateString) return 'N/A';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleString('es-CO');
+        } catch {
+            return 'Fecha inválida';
+        }
+    }
+
+    function showLoadingMessage(message) {
+        const container = document.getElementById('clientsContainer');
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #52B788;">
+                <div class="spinner" style="margin: 0 auto 15px;"></div>
+                <span>${message}</span>
+            </div>
+        `;
+    }
+
+    function convertToCSV(data) {
+        if (data.length === 0) return '';
+
+        const headers = Object.keys(data[0]);
+        const csvHeaders = headers.join(',');
+
+        const csvRows = data.map(row =>
+            headers.map(header => {
+                const value = row[header] || '';
+                // Escapar comillas y encerrar en comillas si contiene comas
+                return `"${value.toString().replace(/"/g, '""')}"`;
+            }).join(',')
+        );
+
+        return [csvHeaders, ...csvRows].join('\n');
+    }
+
+    function downloadCSV(content, filename) {
+        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+
+    // =============== INICIALIZACIÓN DE DATOS ===============
+    filteredClients = [...allClients];
+
+    // =============== FUNCIONES GLOBALES PARA USO EN HTML ===============
+    window.viewClientProfile = viewClientProfile;
+    window.editClient = editClient;
+    window.viewClientPets = viewClientPets;
+    window.editPet = editPet;
+    window.viewPetMedicalHistory = viewPetMedicalHistory;
+    window.closeClientProfileModal = closeClientProfileModal;
+    window.closeMedicalHistoryModal = closeMedicalHistoryModal;
+    window.createNewMedicalRecord = createNewMedicalRecord;
+    window.filterClients = filterClients;
+    window.sortClients = sortClients;
+    window.resetFilters = resetFilters;
+    window.refreshClients = refreshClients;
+    window.redirectToUsers = redirectToUsers;
+    window.exportClientsReport = exportClientsReport;
+
+    console.log('✅ Gestión de Clientes - JavaScript cargado completamente');
+
+</script>
+{% endblock %}

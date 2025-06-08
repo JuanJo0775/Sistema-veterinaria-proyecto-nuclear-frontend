@@ -939,6 +939,32 @@ def api_update_user_schedule(user_id):
         }), 500
 
 
+@frontend_bp.route('/admin/clients')
+@role_required(['admin'])
+def admin_clients():
+    """Página de gestión de clientes"""
+    try:
+        # Configurar recursos necesarios
+        ensure_placeholder_images()
+        setup_upload_directories()
+
+        user = session.get('user', {})
+        template_data = {
+            'user': user,
+            'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Administrador',
+            'user_role': user.get('role', 'admin').title(),
+            'user_initial': user.get('first_name', 'A')[0].upper() if user.get('first_name') else 'A'
+        }
+
+        print(f"✅ Cargando página de gestión de clientes para usuario: {user.get('email')}")
+        return render_template('admin/sections/clients-management.html', **template_data)
+
+    except Exception as e:
+        print(f"❌ Error en admin_clients: {e}")
+        flash('Error al cargar la gestión de clientes', 'error')
+        return redirect(url_for('frontend.admin_dashboard'))
+
+
 @frontend_bp.route('/admin/pets')
 @role_required(['admin'])
 def admin_pets():
@@ -2200,6 +2226,778 @@ def api_get_medical_records_stats():
             'message': str(e)
         }), 500
 
+# =============== RUTAS PARA GESTIÓN DE CITAS ===============
+
+@frontend_bp.route('/appointments')
+@role_required(['admin', 'receptionist', 'veterinarian'])  # ← CORREGIDO
+def appointments():
+    """Lista de citas - redirige al admin"""
+    user_role = session['user'].get('role')
+
+    if user_role == 'admin':
+        return redirect(url_for('frontend.admin_appointments'))
+    elif user_role == 'receptionist':
+        return redirect(url_for('frontend.receptionist_dashboard'))
+    elif user_role == 'veterinarian':
+        return redirect(url_for('frontend.veterinarian_dashboard'))
+    else:
+        flash('No tienes permisos para acceder a las citas', 'error')
+        return redirect(url_for('frontend.dashboard'))
+
+@frontend_bp.route('/api/admin/appointments')
+@role_required(['admin'])
+def api_get_appointments():
+    """API endpoint para obtener todas las citas"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Parámetros de filtro opcionales
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        veterinarian_id = request.args.get('veterinarian_id')
+        status = request.args.get('status')
+        client_id = request.args.get('client_id')
+
+        # CORRECCIÓN: Usar la ruta correcta del Appointment Service
+        appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/appointments"
+        params = {}
+
+        if start_date:
+            params['start_date'] = start_date
+        if end_date:
+            params['end_date'] = end_date
+        if veterinarian_id:
+            params['veterinarian_id'] = veterinarian_id
+        if status:
+            params['status'] = status
+        if client_id:
+            params['client_id'] = client_id
+
+        print(f"📡 Llamando a: {appointment_url} con parámetros: {params}")
+        response = requests.get(appointment_url, headers=headers, params=params, timeout=10)
+        print(f"📡 Respuesta del Appointment Service: {response.status_code}")
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                # Enriquecer datos de citas con información de usuarios y mascotas
+                appointments = data.get('appointments', [])
+                enriched_appointments = []
+
+                # Obtener usuarios para mapear veterinarios y clientes
+                try:
+                    users_response = requests.get(
+                        f"{current_app.config['AUTH_SERVICE_URL']}/auth/users",
+                        headers=headers,
+                        timeout=5
+                    )
+                    users_data = []
+                    if users_response.status_code == 200:
+                        users_json = users_response.json()
+                        if users_json.get('success'):
+                            users_data = users_json.get('users', [])
+
+                    users_map = {user['id']: user for user in users_data}
+
+                    # Obtener mascotas
+                    pets_response = requests.get(
+                        f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets",
+                        headers=headers,
+                        timeout=5
+                    )
+                    pets_data = []
+                    if pets_response.status_code == 200:
+                        pets_json = pets_response.json()
+                        if pets_json.get('success'):
+                            pets_data = pets_json.get('pets', [])
+
+                    pets_map = {pet['id']: pet for pet in pets_data}
+
+                    # Enriquecer cada cita
+                    for appointment in appointments:
+                        vet_id = appointment.get('veterinarian_id')
+                        client_id = appointment.get('client_id')
+                        pet_id = appointment.get('pet_id')
+
+                        vet = users_map.get(vet_id, {})
+                        client = users_map.get(client_id, {})
+                        pet = pets_map.get(pet_id, {})
+
+                        enriched_appointment = {
+                            **appointment,
+                            'veterinarian_name': f"{vet.get('first_name', '')} {vet.get('last_name', '')}".strip() or 'Veterinario desconocido',
+                            'client_name': f"{client.get('first_name', '')} {client.get('last_name', '')}".strip() or 'Cliente desconocido',
+                            'client_email': client.get('email', ''),
+                            'client_phone': client.get('phone', ''),
+                            'pet_name': pet.get('name', 'Mascota desconocida'),
+                            'pet_species': pet.get('species', 'unknown')
+                        }
+                        enriched_appointments.append(enriched_appointment)
+
+                except Exception as e:
+                    print(f"⚠️ Error enriqueciendo datos de citas: {e}")
+                    enriched_appointments = appointments
+
+                return jsonify({
+                    'success': True,
+                    'appointments': enriched_appointments,
+                    'total': len(enriched_appointments)
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'appointments': [],
+                    'total': 0
+                })
+        else:
+            # Si falla, retornar datos de ejemplo como fallback
+            print(f"⚠️ Error conectando con Appointment Service: {response.status_code}")
+            print(f"⚠️ URL llamada: {appointment_url}")
+            example_appointments = get_example_appointments_data()
+            return jsonify({
+                'success': True,
+                'appointments': example_appointments,
+                'total': len(example_appointments),
+                'message': 'Usando datos de ejemplo - Servicio no disponible'
+            })
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Appointment Service: {e}")
+        # Fallback con datos de ejemplo
+        example_appointments = get_example_appointments_data()
+        return jsonify({
+            'success': True,
+            'appointments': example_appointments,
+            'total': len(example_appointments),
+            'message': 'Usando datos de ejemplo (sin conexión)'
+        })
+    except Exception as e:
+        print(f"❌ Error en api_get_appointments: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+def get_example_appointments_data():
+    """Datos de ejemplo para citas cuando no hay conexión con el servicio"""
+    from datetime import datetime, timedelta
+
+    today = datetime.now()
+    tomorrow = today + timedelta(days=1)
+    next_week = today + timedelta(days=7)
+
+    return [
+        {
+            'id': 'apt_001',
+            'pet_id': 'pet_001',
+            'pet_name': 'Max',
+            'pet_species': 'perro',
+            'client_id': 'client_001',
+            'client_name': 'Carlos López',
+            'client_phone': '+1234567893',
+            'client_email': 'carlos@example.com',
+            'veterinarian_id': 'vet_001',
+            'veterinarian_name': 'Dr. Juan Pérez',
+            'appointment_date': today.strftime('%Y-%m-%d'),
+            'appointment_time': '10:00',
+            'status': 'confirmed',
+            'priority': 'normal',
+            'reason': 'Consulta de rutina y vacunación anual',
+            'notes': 'Primera visita del año. Revisar historial de vacunas.',
+            'created_at': today.isoformat(),
+            'updated_at': today.isoformat()
+        },
+        {
+            'id': 'apt_002',
+            'pet_id': 'pet_002',
+            'pet_name': 'Luna',
+            'pet_species': 'gato',
+            'client_id': 'client_001',
+            'client_name': 'Carlos López',
+            'client_phone': '+1234567893',
+            'client_email': 'carlos@example.com',
+            'veterinarian_id': 'vet_001',
+            'veterinarian_name': 'Dr. Juan Pérez',
+            'appointment_date': tomorrow.strftime('%Y-%m-%d'),
+            'appointment_time': '14:30',
+            'status': 'scheduled',
+            'priority': 'urgent',
+            'reason': 'Control post-operatorio esterilización',
+            'notes': 'Revisar cicatrización y retirar puntos si es necesario.',
+            'created_at': today.isoformat(),
+            'updated_at': today.isoformat()
+        },
+        {
+            'id': 'apt_003',
+            'pet_id': 'pet_003',
+            'pet_name': 'Rocky',
+            'pet_species': 'perro',
+            'client_id': 'client_002',
+            'client_name': 'María González',
+            'client_phone': '+1234567894',
+            'client_email': 'maria@example.com',
+            'veterinarian_id': 'vet_002',
+            'veterinarian_name': 'Dra. Laura Rodríguez',
+            'appointment_date': next_week.strftime('%Y-%m-%d'),
+            'appointment_time': '16:00',
+            'status': 'scheduled',
+            'priority': 'emergency',
+            'reason': 'Dificultad respiratoria - Emergencia',
+            'notes': 'Cliente reporta respiración muy dificultosa desde anoche.',
+            'created_at': today.isoformat(),
+            'updated_at': today.isoformat()
+        }
+    ]
+
+
+@frontend_bp.route('/api/admin/appointments', methods=['POST'])
+@role_required(['admin'])
+def api_create_appointment():
+    """Crear nueva cita"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        data = request.get_json()
+
+        # Validar datos básicos
+        required_fields = ['pet_id', 'veterinarian_id', 'client_id', 'appointment_date', 'appointment_time']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({
+                    'success': False,
+                    'message': f'Campo requerido: {field}'
+                }), 400
+
+        # Crear cita en Appointment Service
+        appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/create"
+        response = requests.post(appointment_url, json=data, headers=headers, timeout=10)
+
+        if response.status_code == 201:
+            response_data = response.json()
+            if response_data.get('success'):
+                return jsonify({
+                    'success': True,
+                    'message': 'Cita creada exitosamente',
+                    'appointment': response_data.get('appointment', {})
+                })
+
+        # Manejar errores
+        try:
+            error_data = response.json()
+            error_message = error_data.get('message', f'Error del Appointment Service: {response.status_code}')
+        except:
+            error_message = f'Error del Appointment Service: {response.status_code}'
+
+        return jsonify({
+            'success': False,
+            'message': error_message
+        }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Appointment Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de citas'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_create_appointment: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/appointments/<appointment_id>', methods=['GET'])
+@role_required(['admin'])
+def api_get_appointment(appointment_id):
+    """Obtener cita específica"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener cita del Appointment Service
+        appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/appointments/{appointment_id}"
+        response = requests.get(appointment_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                appointment = data.get('appointment', {})
+
+                # Enriquecer con datos adicionales
+                try:
+                    # Obtener usuarios para veterinario y cliente
+                    users_response = requests.get(
+                        f"{current_app.config['AUTH_SERVICE_URL']}/auth/users",
+                        headers=headers,
+                        timeout=5
+                    )
+
+                    if users_response.status_code == 200:
+                        users_data = users_response.json()
+                        if users_data.get('success'):
+                            users = {user['id']: user for user in users_data['users']}
+
+                            # Enriquecer veterinario
+                            vet_id = appointment.get('veterinarian_id')
+                            if vet_id and vet_id in users:
+                                vet = users[vet_id]
+                                appointment['veterinarian_name'] = f"{vet['first_name']} {vet['last_name']}"
+
+                            # Enriquecer cliente
+                            client_id = appointment.get('client_id')
+                            if client_id and client_id in users:
+                                client = users[client_id]
+                                appointment.update({
+                                    'client_name': f"{client['first_name']} {client['last_name']}",
+                                    'client_email': client.get('email', ''),
+                                    'client_phone': client.get('phone', '')
+                                })
+
+                    # Obtener mascota
+                    pet_id = appointment.get('pet_id')
+                    if pet_id:
+                        pet_response = requests.get(
+                            f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}",
+                            headers=headers,
+                            timeout=5
+                        )
+                        if pet_response.status_code == 200:
+                            pet_data = pet_response.json()
+                            if pet_data.get('success'):
+                                pet = pet_data['pet']
+                                appointment.update({
+                                    'pet_name': pet['name'],
+                                    'pet_species': pet['species'],
+                                    'pet_breed': pet.get('breed', '')
+                                })
+
+                except Exception as e:
+                    print(f"⚠️ Error enriqueciendo datos de cita: {e}")
+
+                return jsonify({
+                    'success': True,
+                    'appointment': appointment
+                })
+
+        elif response.status_code == 404:
+            return jsonify({
+                'success': False,
+                'message': 'Cita no encontrada'
+            }), 404
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Error del Appointment Service: {response.status_code}'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Appointment Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de citas'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_get_appointment: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/appointments/<appointment_id>', methods=['PUT'])
+@role_required(['admin'])
+def api_update_appointment(appointment_id):
+    """Actualizar cita específica"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        data = request.get_json()
+
+        # Actualizar cita en Appointment Service
+        appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/update/{appointment_id}"
+        response = requests.put(appointment_url, json=data, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            response_data = response.json()
+            if response_data.get('success'):
+                return jsonify({
+                    'success': True,
+                    'message': 'Cita actualizada exitosamente',
+                    'appointment': response_data.get('appointment', {})
+                })
+
+        elif response.status_code == 404:
+            return jsonify({
+                'success': False,
+                'message': 'Cita no encontrada'
+            }), 404
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Error del Appointment Service: {response.status_code}'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Appointment Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de citas'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_update_appointment: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/appointments/<appointment_id>/confirm', methods=['PUT'])
+@role_required(['admin'])
+def api_confirm_appointment(appointment_id):
+    """Confirmar cita"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Confirmar cita en Appointment Service
+        appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/confirm/{appointment_id}"
+        response = requests.put(appointment_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return jsonify({
+                    'success': True,
+                    'message': 'Cita confirmada exitosamente',
+                    'appointment': data.get('appointment', {})
+                })
+
+        elif response.status_code == 404:
+            return jsonify({
+                'success': False,
+                'message': 'Cita no encontrada'
+            }), 404
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Error del Appointment Service: {response.status_code}'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Appointment Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de citas'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_confirm_appointment: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/appointments/<appointment_id>/complete', methods=['PUT'])
+@role_required(['admin'])
+def api_complete_appointment(appointment_id):
+    """Completar cita"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Completar cita en Appointment Service
+        appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/complete/{appointment_id}"
+        response = requests.put(appointment_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return jsonify({
+                    'success': True,
+                    'message': 'Cita completada exitosamente',
+                    'appointment': data.get('appointment', {})
+                })
+
+        elif response.status_code == 404:
+            return jsonify({
+                'success': False,
+                'message': 'Cita no encontrada'
+            }), 404
+        else:
+            error_data = response.json() if response.headers.get('content-type', '').startswith(
+                'application/json') else {}
+            return jsonify({
+                'success': False,
+                'message': error_data.get('message', f'Error del Appointment Service: {response.status_code}')
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Appointment Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de citas'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_complete_appointment: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/appointments/<appointment_id>/cancel', methods=['PUT'])
+@role_required(['admin'])
+def api_cancel_appointment(appointment_id):
+    """Cancelar cita"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Cancelar cita en Appointment Service
+        appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/cancel/{appointment_id}"
+        response = requests.put(appointment_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return jsonify({
+                    'success': True,
+                    'message': 'Cita cancelada exitosamente',
+                    'appointment': data.get('appointment', {})
+                })
+
+        elif response.status_code == 404:
+            return jsonify({
+                'success': False,
+                'message': 'Cita no encontrada'
+            }), 404
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Error del Appointment Service: {response.status_code}'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Appointment Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de citas'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_cancel_appointment: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/appointments/<appointment_id>', methods=['DELETE'])
+@role_required(['admin'])
+def api_delete_appointment(appointment_id):
+    """Eliminar cita definitivamente"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Eliminar cita en Appointment Service
+        appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/appointments/{appointment_id}"
+        response = requests.delete(appointment_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return jsonify({
+                    'success': True,
+                    'message': 'Cita eliminada exitosamente'
+                })
+
+        elif response.status_code == 404:
+            return jsonify({
+                'success': False,
+                'message': 'Cita no encontrada'
+            }), 404
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Error del Appointment Service: {response.status_code}'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Appointment Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de citas'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_delete_appointment: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/appointments/today')
+@role_required(['admin'])
+def api_get_today_appointments():
+    """Obtener citas de hoy"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener citas de hoy desde Appointment Service
+        appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/today"
+        response = requests.get(appointment_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return jsonify(data)
+            else:
+                return jsonify({
+                    'success': True,
+                    'appointments': [],
+                    'total': 0
+                })
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Error del Appointment Service: {response.status_code}'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Appointment Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de citas'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_get_today_appointments: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/appointments/available-slots')
+@role_required(['admin'])
+def api_get_available_slots():
+    """Obtener horarios disponibles"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener parámetros
+        veterinarian_id = request.args.get('veterinarian_id')
+        date = request.args.get('date')
+
+        if not veterinarian_id or not date:
+            return jsonify({
+                'success': False,
+                'message': 'Parámetros requeridos: veterinarian_id, date'
+            }), 400
+
+        # Obtener slots disponibles desde Appointment Service
+        appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/available-slots"
+        params = {
+            'veterinarian_id': veterinarian_id,
+            'date': date
+        }
+
+        response = requests.get(appointment_url, headers=headers, params=params, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return jsonify(data)
+            else:
+                return jsonify({
+                    'success': True,
+                    'available_slots': [],
+                    'date': date,
+                    'veterinarian_id': veterinarian_id
+                })
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Error del Appointment Service: {response.status_code}'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Appointment Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de citas'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_get_available_slots: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/appointments/stats')
+@role_required(['admin'])
+def api_get_appointments_stats():
+    """Obtener estadísticas de citas"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener todas las citas para calcular estadísticas
+        appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments"
+        response = requests.get(appointment_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                appointments = data.get('appointments', [])
+
+                # Calcular estadísticas
+                from datetime import datetime, date
+                today = date.today()
+
+                total_appointments = len(appointments)
+                today_appointments = len([a for a in appointments
+                                          if a.get('appointment_date') == today.isoformat()])
+
+                # Por estado
+                scheduled = len([a for a in appointments if a.get('status') == 'scheduled'])
+                confirmed = len([a for a in appointments if a.get('status') == 'confirmed'])
+                completed = len([a for a in appointments if a.get('status') == 'completed'])
+                cancelled = len([a for a in appointments if a.get('status') == 'cancelled'])
+
+                return jsonify({
+                    'success': True,
+                    'stats': {
+                        'total_appointments': total_appointments,
+                        'today_appointments': today_appointments,
+                        'by_status': {
+                            'scheduled': scheduled,
+                            'confirmed': confirmed,
+                            'completed': completed,
+                            'cancelled': cancelled
+                        }
+                    }
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'stats': {
+                        'total_appointments': 0,
+                        'today_appointments': 0,
+                        'by_status': {
+                            'scheduled': 0,
+                            'confirmed': 0,
+                            'completed': 0,
+                            'cancelled': 0
+                        }
+                    }
+                })
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Error del Appointment Service: {response.status_code}'
+            }), response.status_code
+
+    except Exception as e:
+        print(f"❌ Error en api_get_appointments_stats: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
 
 @frontend_bp.route('/health')
 def health():
