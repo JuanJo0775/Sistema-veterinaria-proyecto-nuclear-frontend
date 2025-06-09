@@ -445,7 +445,7 @@
                 <div class="menu-section-title">Inventario</div>
                 <ul>
                     <li class="menu-item">
-                        <a href="#inventory" class="menu-link">
+                        <a href="{{ url_for('frontend.admin_inventory') }}" class="menu-link {% if request.endpoint == 'frontend.admin_inventory' %}active{% endif %}">
                             <span class="menu-icon">📦</span>
                             <span>Medicamentos</span>
                         </a>

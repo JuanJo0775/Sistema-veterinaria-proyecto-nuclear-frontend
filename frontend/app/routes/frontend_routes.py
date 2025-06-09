@@ -517,19 +517,6 @@ def admin_users():
         return redirect(url_for('frontend.admin_dashboard'))
 
 
-@frontend_bp.route('/admin/inventory')
-@role_required(['admin'])
-def admin_inventory():
-    """Página de gestión de inventario"""
-    user = session.get('user', {})
-    template_data = {
-        'user': user,
-        'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Administrador',
-        'user_role': user.get('role', 'admin').title(),
-        'user_initial': user.get('first_name', 'A')[0].upper() if user.get('first_name') else 'A'
-    }
-    return render_template('admin/sections/inventory-management.html', **template_data)
-
 
 @frontend_bp.route('/admin/appointments')
 @role_required(['admin'])
@@ -2998,6 +2985,750 @@ def api_get_appointments_stats():
             'success': False,
             'message': str(e)
         }), 500
+
+
+@frontend_bp.route('/admin/inventory')
+@role_required(['admin'])
+def admin_inventory():
+    """Página de gestión de inventario"""
+    try:
+        # Configurar recursos necesarios
+        ensure_placeholder_images()
+        setup_upload_directories()
+
+        user = session.get('user', {})
+        template_data = {
+            'user': user,
+            'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Administrador',
+            'user_role': user.get('role', 'admin').title(),
+            'user_initial': user.get('first_name', 'A')[0].upper() if user.get('first_name') else 'A'
+        }
+
+        print(f"✅ Cargando página de gestión de inventario para usuario: {user.get('email')}")
+        return render_template('admin/sections/inventory-management.html', **template_data)
+
+    except Exception as e:
+        print(f"❌ Error en admin_inventory: {e}")
+        flash('Error al cargar la gestión de inventario', 'error')
+        return redirect(url_for('frontend.admin_dashboard'))
+
+
+# =============== API ENDPOINTS PARA INVENTARIO ===============
+
+@frontend_bp.route('/api/admin/inventory/medications')
+@role_required(['admin'])
+def api_get_medications():
+    """API endpoint para obtener todos los medicamentos"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener medicamentos desde Inventory Service
+        inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/medications"
+        response = requests.get(inventory_url, headers=headers, timeout=10)
+
+        print(f"📡 Llamada a Inventory Service: {inventory_url}")
+        print(f"📡 Respuesta: {response.status_code}")
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                medications = data.get('medications', [])
+                print(f"✅ {len(medications)} medicamentos obtenidos")
+
+                return jsonify({
+                    'success': True,
+                    'medications': medications,
+                    'total': len(medications)
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': data.get('message', 'Error desconocido')
+                }), 400
+        else:
+            # Fallback con datos de ejemplo
+            print(f"⚠️ Inventory Service no disponible: {response.status_code}")
+            example_medications = get_example_medications_data()
+            return jsonify({
+                'success': True,
+                'medications': example_medications,
+                'total': len(example_medications),
+                'message': 'Usando datos de ejemplo - Servicio no disponible'
+            })
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Inventory Service: {e}")
+        # Fallback con datos de ejemplo
+        example_medications = get_example_medications_data()
+        return jsonify({
+            'success': True,
+            'medications': example_medications,
+            'total': len(example_medications),
+            'message': 'Usando datos de ejemplo (sin conexión)'
+        })
+    except Exception as e:
+        print(f"❌ Error en api_get_medications: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/inventory/medications', methods=['POST'])
+@role_required(['admin'])
+def api_create_medication():
+    """Crear nuevo medicamento"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        data = request.get_json()
+
+        print(f"📡 Creando medicamento: {data.get('name')}")
+
+        # Validar datos básicos
+        required_fields = ['name', 'unit_price']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({
+                    'success': False,
+                    'message': f'Campo requerido: {field}'
+                }), 400
+
+        # Crear medicamento en Inventory Service
+        inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/medications"
+        response = requests.post(inventory_url, json=data, headers=headers, timeout=10)
+
+        if response.status_code == 201:
+            response_data = response.json()
+            if response_data.get('success'):
+                print(f"✅ Medicamento creado: {response_data.get('medication', {}).get('id')}")
+                return jsonify(response_data)
+
+        # Manejar errores
+        try:
+            error_data = response.json()
+            error_message = error_data.get('message', f'Error del Inventory Service: {response.status_code}')
+        except:
+            error_message = f'Error del Inventory Service: {response.status_code}'
+
+        return jsonify({
+            'success': False,
+            'message': error_message
+        }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Inventory Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de inventario'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_create_medication: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/inventory/medications/<medication_id>', methods=['PUT'])
+@role_required(['admin'])
+def api_update_medication(medication_id):
+    """Actualizar medicamento específico"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        data = request.get_json()
+
+        print(f"📡 Actualizando medicamento: {medication_id}")
+
+        # Actualizar medicamento en Inventory Service
+        inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/medications/{medication_id}"
+        response = requests.put(inventory_url, json=data, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            response_data = response.json()
+            if response_data.get('success'):
+                print(f"✅ Medicamento actualizado: {medication_id}")
+                return jsonify(response_data)
+
+        elif response.status_code == 404:
+            return jsonify({
+                'success': False,
+                'message': 'Medicamento no encontrado'
+            }), 404
+        else:
+            try:
+                error_data = response.json()
+                error_message = error_data.get('message', f'Error del Inventory Service: {response.status_code}')
+            except:
+                error_message = f'Error del Inventory Service: {response.status_code}'
+
+            return jsonify({
+                'success': False,
+                'message': error_message
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Inventory Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de inventario'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_update_medication: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/inventory/medications/<medication_id>', methods=['DELETE'])
+@role_required(['admin'])
+def api_delete_medication(medication_id):
+    """Eliminar/desactivar medicamento"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        print(f"📡 Eliminando medicamento: {medication_id}")
+
+        # Desactivar medicamento en Inventory Service
+        inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/medications/{medication_id}/deactivate"
+        response = requests.put(inventory_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            print(f"✅ Medicamento desactivado: {medication_id}")
+            return jsonify({
+                'success': True,
+                'message': 'Medicamento eliminado exitosamente'
+            })
+        elif response.status_code == 404:
+            return jsonify({
+                'success': False,
+                'message': 'Medicamento no encontrado'
+            }), 404
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Error del Inventory Service: {response.status_code}'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Inventory Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de inventario'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_delete_medication: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/inventory/summary')
+@role_required(['admin'])
+def api_get_inventory_summary():
+    """Obtener resumen del inventario"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener resumen desde Inventory Service
+        inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/summary"
+        response = requests.get(inventory_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return jsonify(data)
+
+        # Fallback con datos calculados localmente
+        return jsonify({
+            'success': True,
+            'summary': {
+                'total_medications': 0,
+                'total_inventory_value': 0,
+                'low_stock_count': 0,
+                'out_of_stock_count': 0,
+                'expiring_soon_count': 0
+            },
+            'message': 'Datos no disponibles del servicio'
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_get_inventory_summary: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/inventory/stock/update', methods=['POST'])
+@role_required(['admin'])
+def api_update_stock():
+    """Actualizar stock de medicamento"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        data = request.get_json()
+
+        print(f"📡 Actualizando stock: {data}")
+
+        # Validar datos requeridos
+        required_fields = ['medication_id', 'movement_type', 'quantity', 'reason']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'message': f'Campo requerido: {field}'
+                }), 400
+
+        # Determinar endpoint según tipo de movimiento
+        movement_type = data.get('movement_type')
+        if movement_type == 'in':
+            endpoint = '/inventory/add-stock'
+            request_data = {
+                'medication_id': data.get('medication_id'),
+                'quantity': data.get('quantity'),
+                'reason': data.get('reason'),
+                'unit_cost': data.get('unit_cost'),
+                'user_id': session.get('user', {}).get('id')
+            }
+        elif movement_type == 'out':
+            endpoint = '/inventory/reduce-stock'
+            request_data = {
+                'medication_id': data.get('medication_id'),
+                'quantity': data.get('quantity'),
+                'reason': data.get('reason'),
+                'reference_id': data.get('reference_id'),
+                'user_id': session.get('user', {}).get('id')
+            }
+        else:  # adjustment
+            endpoint = '/inventory/update-stock'
+            request_data = {
+                'medication_id': data.get('medication_id'),
+                'quantity_change': data.get('quantity_change', 0),
+                'reason': data.get('reason'),
+                'reference_id': data.get('reference_id'),
+                'user_id': session.get('user', {}).get('id')
+            }
+
+        # Hacer petición al Inventory Service
+        inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}{endpoint}"
+        response = requests.post(inventory_url, json=request_data, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            response_data = response.json()
+            if response_data.get('success'):
+                print(f"✅ Stock actualizado exitosamente")
+                return jsonify(response_data)
+
+        # Manejar errores
+        try:
+            error_data = response.json()
+            error_message = error_data.get('message', f'Error del Inventory Service: {response.status_code}')
+        except:
+            error_message = f'Error del Inventory Service: {response.status_code}'
+
+        return jsonify({
+            'success': False,
+            'message': error_message
+        }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Inventory Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de inventario'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_update_stock: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/inventory/movements')
+@role_required(['admin'])
+def api_get_stock_movements():
+    """Obtener movimientos de stock"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener parámetros de consulta
+        medication_id = request.args.get('medication_id')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        limit = request.args.get('limit')
+
+        # Construir URL con parámetros
+        params = {}
+        if medication_id:
+            params['medication_id'] = medication_id
+        if start_date:
+            params['start_date'] = start_date
+        if end_date:
+            params['end_date'] = end_date
+        if limit:
+            params['limit'] = limit
+
+        inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/movements"
+        response = requests.get(inventory_url, headers=headers, params=params, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return jsonify(data)
+
+        # Fallback con datos vacíos
+        return jsonify({
+            'success': True,
+            'movements': [],
+            'total': 0,
+            'message': 'Datos no disponibles del servicio'
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_get_stock_movements: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/inventory/alerts/low-stock')
+@role_required(['admin'])
+def api_get_low_stock_alerts():
+    """Obtener alertas de stock bajo"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/alerts/low-stock"
+        response = requests.get(inventory_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return jsonify(data)
+
+        return jsonify({
+            'success': True,
+            'low_stock_medications': [],
+            'total': 0
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_get_low_stock_alerts: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/inventory/alerts/expiring')
+@role_required(['admin'])
+def api_get_expiring_medications():
+    """Obtener medicamentos próximos a vencer"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        days = request.args.get('days', 30)
+
+        inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/alerts/expiring"
+        params = {'days': days}
+        response = requests.get(inventory_url, headers=headers, params=params, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return jsonify(data)
+
+        return jsonify({
+            'success': True,
+            'expiring_medications': [],
+            'total': 0
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_get_expiring_medications: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/inventory/categories')
+@role_required(['admin'])
+def api_get_medication_categories():
+    """Obtener categorías de medicamentos"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/categories"
+        response = requests.get(inventory_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return jsonify(data)
+
+        # Fallback con categorías por defecto
+        default_categories = [
+            'Antibiótico', 'Analgésico', 'Antiinflamatorio', 'Antiparasitario',
+            'Vitaminas', 'Vacunas', 'Sedante', 'Antiséptico', 'Suplemento'
+        ]
+        return jsonify({
+            'success': True,
+            'categories': default_categories
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_get_medication_categories: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/inventory/search')
+@role_required(['admin'])
+def api_search_medications():
+    """Buscar medicamentos"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        search_term = request.args.get('q', '')
+
+        if not search_term:
+            return jsonify({
+                'success': False,
+                'message': 'Parámetro de búsqueda requerido'
+            }), 400
+
+        inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/medications/search"
+        params = {'q': search_term}
+        response = requests.get(inventory_url, headers=headers, params=params, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return jsonify(data)
+
+        return jsonify({
+            'success': True,
+            'medications': [],
+            'total': 0,
+            'search_term': search_term
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_search_medications: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+# =============== DATOS DE EJEMPLO PARA FALLBACK ===============
+
+def get_example_medications_data():
+    """Datos de ejemplo para medicamentos cuando no hay conexión con el servicio"""
+    from datetime import datetime, timedelta
+
+    today = datetime.now()
+    future_date = today + timedelta(days=180)
+    near_expiry = today + timedelta(days=25)
+
+    return [
+        {
+            'id': 'med_001',
+            'name': 'Amoxicilina',
+            'category': 'Antibiótico',
+            'presentation': 'Comprimidos',
+            'concentration': '500mg',
+            'laboratory': 'Laboratorios Veterinarios S.A.',
+            'supplier': 'Distribuidora Médica',
+            'unit_price': 2500.0,
+            'stock_quantity': 45,
+            'minimum_stock_alert': 20,
+            'expiration_date': future_date.strftime('%Y-%m-%d'),
+            'batch_number': 'AMX2024-001',
+            'description': 'Antibiótico de amplio espectro para infecciones bacterianas',
+            'storage_conditions': 'Conservar en lugar fresco y seco, temperatura ambiente',
+            'is_active': True,
+            'created_at': today.isoformat(),
+            'updated_at': today.isoformat()
+        },
+        {
+            'id': 'med_002',
+            'name': 'Meloxicam',
+            'category': 'Antiinflamatorio',
+            'presentation': 'Inyectable',
+            'concentration': '2mg/ml',
+            'laboratory': 'VetPharma',
+            'supplier': 'Distribuidora Médica',
+            'unit_price': 8500.0,
+            'stock_quantity': 8,
+            'minimum_stock_alert': 15,
+            'expiration_date': near_expiry.strftime('%Y-%m-%d'),
+            'batch_number': 'MLX2024-002',
+            'description': 'Antiinflamatorio no esteroideo para dolor y inflamación',
+            'storage_conditions': 'Refrigerar entre 2-8°C',
+            'is_active': True,
+            'created_at': today.isoformat(),
+            'updated_at': today.isoformat()
+        },
+        {
+            'id': 'med_003',
+            'name': 'Vacuna Múltiple DHPP',
+            'category': 'Vacunas',
+            'presentation': 'Vial',
+            'concentration': '1ml/dosis',
+            'laboratory': 'BioVet',
+            'supplier': 'Vacunas Veterinarias',
+            'unit_price': 15000.0,
+            'stock_quantity': 0,
+            'minimum_stock_alert': 10,
+            'expiration_date': near_expiry.strftime('%Y-%m-%d'),
+            'batch_number': 'VAC2024-003',
+            'description': 'Vacuna múltiple para perros (Distemper, Hepatitis, Parvovirus, Parainfluenza)',
+            'storage_conditions': 'Conservar refrigerado 2-8°C, no congelar',
+            'is_active': True,
+            'created_at': today.isoformat(),
+            'updated_at': today.isoformat()
+        },
+        {
+            'id': 'med_004',
+            'name': 'Tramadol',
+            'category': 'Analgésico',
+            'presentation': 'Comprimidos',
+            'concentration': '50mg',
+            'laboratory': 'PainRelief Vet',
+            'supplier': 'Farmacia Veterinaria Central',
+            'unit_price': 1200.0,
+            'stock_quantity': 120,
+            'minimum_stock_alert': 30,
+            'expiration_date': future_date.strftime('%Y-%m-%d'),
+            'batch_number': 'TRA2024-004',
+            'description': 'Analgésico opioide para dolor moderado a severo',
+            'storage_conditions': 'Conservar en lugar seguro, temperatura ambiente',
+            'is_active': True,
+            'created_at': today.isoformat(),
+            'updated_at': today.isoformat()
+        },
+        {
+            'id': 'med_005',
+            'name': 'Ivermectina',
+            'category': 'Antiparasitario',
+            'presentation': 'Solución oral',
+            'concentration': '1mg/ml',
+            'laboratory': 'Parasit Control',
+            'supplier': 'Antiparasitarios Vet',
+            'unit_price': 3200.0,
+            'stock_quantity': 25,
+            'minimum_stock_alert': 20,
+            'expiration_date': future_date.strftime('%Y-%m-%d'),
+            'batch_number': 'IVE2024-005',
+            'description': 'Antiparasitario interno y externo de amplio espectro',
+            'storage_conditions': 'Proteger de la luz, temperatura ambiente',
+            'is_active': True,
+            'created_at': today.isoformat(),
+            'updated_at': today.isoformat()
+        }
+    ]
+
+@frontend_bp.route('/api/admin/inventory/alerts/check-expiration', methods=['POST'])
+@role_required(['admin'])
+def api_check_expiration_alerts():
+    """Verificar y enviar alertas de vencimiento"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        data = request.get_json() or {}
+
+        inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/alerts/check-expiration"
+        response = requests.post(inventory_url, json=data, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            response_data = response.json()
+            if response_data.get('success'):
+                return jsonify(response_data)
+
+        return jsonify({
+            'success': False,
+            'message': f'Error del Inventory Service: {response.status_code}'
+        }), response.status_code
+
+    except Exception as e:
+        print(f"❌ Error en api_check_expiration_alerts: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/inventory/export/csv')
+@role_required(['admin'])
+def api_export_inventory_csv():
+    """Exportar inventario a CSV"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Redirigir al Inventory Service para descargar CSV
+        inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/export/csv"
+        response = requests.get(inventory_url, headers=headers, timeout=30)
+
+        if response.status_code == 200:
+            # Reenviar la respuesta CSV al cliente
+            from flask import Response
+            return Response(
+                response.content,
+                mimetype='text/csv',
+                headers={
+                    'Content-Disposition': f'attachment; filename=inventario_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+                }
+            )
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Error generando CSV'
+            }), response.status_code
+
+    except Exception as e:
+        print(f"❌ Error en api_export_inventory_csv: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/admin/inventory/stats')
+@role_required(['admin'])
+def api_get_inventory_stats():
+    """Obtener estadísticas del inventario"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/stats"
+        response = requests.get(inventory_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return jsonify(data)
+
+        return jsonify({
+            'success': True,
+            'stats': {
+                'total_medications': 0,
+                'by_species': {'dogs': 0, 'cats': 0, 'others': 0},
+                'by_vaccination': {'complete': 0, 'partial': 0, 'pending': 0, 'unknown': 0},
+                'by_age': {'puppies': 0, 'young': 0, 'adult': 0, 'senior': 0}
+            }
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_get_inventory_stats: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
 
 @frontend_bp.route('/health')
 def health():
