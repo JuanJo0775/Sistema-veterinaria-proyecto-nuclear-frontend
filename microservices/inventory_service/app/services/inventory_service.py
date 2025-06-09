@@ -94,36 +94,48 @@ class InventoryService:
     # =============== STOCK MANAGEMENT ===============
 
     def update_stock(self, medication_id, quantity_change, reason, reference_id=None, user_id=None):
-        """Actualizar stock de medicamento"""
-        medication = Medication.query.get(medication_id)
+        """Actualizar stock de medicamento - VERSIÓN CORREGIDA"""
+
+        # CORRECCIÓN 5: Validar UUID del medicamento
+        import uuid
+        if isinstance(medication_id, str):
+            try:
+                medication_id_uuid = uuid.UUID(medication_id)
+            except ValueError:
+                raise ValueError(f"ID de medicamento inválido: {medication_id}")
+        else:
+            medication_id_uuid = medication_id
+
+        medication = Medication.query.get(medication_id_uuid)
         if not medication:
-            return None
+            raise ValueError("Medicamento no encontrado")
 
         previous_stock = medication.stock_quantity
         new_stock = previous_stock + quantity_change
 
         # Validar que no sea negativo
         if new_stock < 0:
-            raise ValueError("Stock insuficiente")
+            raise ValueError(
+                f"Stock insuficiente. Stock actual: {previous_stock}, cambio solicitado: {quantity_change}")
 
         # Actualizar stock
         medication.stock_quantity = new_stock
 
         # Determinar tipo de movimiento
         movement_type = 'in' if quantity_change > 0 else 'out'
-        if reason == 'adjustment':
+        if reason and 'adjustment' in reason.lower():
             movement_type = 'adjustment'
 
-        # Registrar movimiento
+        # Registrar movimiento con validaciones
         movement = self._record_stock_movement(
-            medication_id,
+            medication_id_uuid,
             movement_type,
             abs(quantity_change),
             previous_stock,
             new_stock,
             reason,
-            reference_id,
-            user_id
+            reference_id,  # Puede ser None
+            user_id  # Puede ser None
         )
 
         db.session.commit()
@@ -139,29 +151,71 @@ class InventoryService:
         }
 
     def add_stock(self, medication_id, quantity, reason, unit_cost=None, user_id=None):
-        """Agregar stock (compra, donación, etc.)"""
+        """Agregar stock (compra, donación, etc.) - VERSIÓN CORREGIDA"""
+
+        # CORRECCIÓN 6: Usar el método update_stock corregido
         result = self.update_stock(medication_id, quantity, reason, user_id=user_id)
 
         # Actualizar costo unitario si se proporciona
         if unit_cost and result:
-            medication = result['medication']
-            medication.unit_price = unit_cost
+            try:
+                unit_cost_float = float(unit_cost)
+                medication = result['medication']
+                medication.unit_price = unit_cost_float
 
-            # Actualizar el movimiento con el costo
-            movement = result['movement']
-            movement.unit_cost = unit_cost
+                # Actualizar el movimiento con el costo
+                movement = result['movement']
+                movement.unit_cost = unit_cost_float
 
-            db.session.commit()
+                db.session.commit()
+            except (ValueError, TypeError):
+                print(f"⚠️ Costo unitario inválido: {unit_cost}")
 
         return result
 
     def reduce_stock(self, medication_id, quantity, reason, reference_id=None, user_id=None):
-        """Reducir stock (prescripción, vencimiento, etc.)"""
+        """Reducir stock (prescripción, vencimiento, etc.) - VERSIÓN CORREGIDA"""
+
+        # CORRECCIÓN 7: Usar el método update_stock corregido con cantidad negativa
         return self.update_stock(medication_id, -quantity, reason, reference_id, user_id)
 
     def _record_stock_movement(self, medication_id, movement_type, quantity, previous_stock, new_stock, reason,
                                reference_id=None, user_id=None):
-        """Registrar movimiento de stock"""
+        """Registrar movimiento de stock - VERSIÓN CORREGIDA"""
+
+        # CORRECCIÓN 4: Validar y limpiar UUIDs antes de crear el registro
+        import uuid
+
+        # Validar medication_id
+        if isinstance(medication_id, str):
+            try:
+                medication_id = uuid.UUID(medication_id)
+            except ValueError:
+                raise ValueError(f"medication_id inválido: {medication_id}")
+
+        # Validar reference_id (opcional)
+        if reference_id:
+            if isinstance(reference_id, str):
+                try:
+                    reference_id = uuid.UUID(reference_id)
+                except ValueError:
+                    print(f"⚠️ reference_id inválido, estableciendo como None: {reference_id}")
+                    reference_id = None
+        else:
+            reference_id = None
+
+        # Validar user_id (opcional)
+        if user_id:
+            if isinstance(user_id, str):
+                try:
+                    user_id = uuid.UUID(user_id)
+                except ValueError:
+                    print(f"⚠️ user_id inválido, estableciendo como None: {user_id}")
+                    user_id = None
+        else:
+            user_id = None
+
+        # Crear el movimiento con validaciones
         movement = StockMovement(
             medication_id=medication_id,
             movement_type=movement_type,
@@ -169,8 +223,8 @@ class InventoryService:
             previous_stock=previous_stock,
             new_stock=new_stock,
             reason=reason,
-            reference_id=reference_id,
-            user_id=user_id
+            reference_id=reference_id,  # Puede ser None
+            user_id=user_id  # Puede ser None
         )
 
         db.session.add(movement)

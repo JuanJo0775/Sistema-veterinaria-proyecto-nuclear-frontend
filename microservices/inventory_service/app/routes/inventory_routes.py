@@ -182,7 +182,7 @@ def search_medications():
 
 @inventory_bp.route('/update-stock', methods=['PUT'])
 def update_stock():
-    """Actualizar stock de medicamento"""
+    """Actualizar stock de medicamento - VERSIÓN CORREGIDA"""
     try:
         data = request.get_json()
 
@@ -194,12 +194,21 @@ def update_stock():
                     'message': f'Campo requerido: {field}'
                 }), 400
 
+        # CORRECCIÓN 1: Manejar reference_id y user_id opcionales correctamente
+        reference_id = data.get('reference_id')
+        if reference_id == '' or reference_id == 'null' or not reference_id:
+            reference_id = None
+
+        user_id = data.get('user_id')
+        if user_id == '' or user_id == 'null' or not user_id:
+            user_id = None
+
         result = inventory_service.update_stock(
             data.get('medication_id'),
             data.get('quantity_change'),
             data.get('reason'),
-            data.get('reference_id'),
-            data.get('user_id')
+            reference_id,  # Puede ser None
+            user_id        # Puede ser None
         )
 
         return jsonify({
@@ -227,7 +236,7 @@ def update_stock():
 
 @inventory_bp.route('/add-stock', methods=['POST'])
 def add_stock():
-    """Agregar stock (compra, donación, etc.)"""
+    """Agregar stock (compra, donación, etc.) - VERSIÓN CORREGIDA"""
     try:
         data = request.get_json()
 
@@ -239,12 +248,21 @@ def add_stock():
                     'message': f'Campo requerido: {field}'
                 }), 400
 
+        # CORRECCIÓN 2: Manejar campos opcionales
+        user_id = data.get('user_id')
+        if user_id == '' or user_id == 'null' or not user_id:
+            user_id = None
+
+        unit_cost = data.get('unit_cost')
+        if unit_cost == '' or unit_cost == 'null':
+            unit_cost = None
+
         result = inventory_service.add_stock(
             data.get('medication_id'),
             data.get('quantity'),
             data.get('reason'),
-            data.get('unit_cost'),
-            data.get('user_id')
+            unit_cost,
+            user_id
         )
 
         return jsonify({
@@ -265,9 +283,10 @@ def add_stock():
         }), 500
 
 
+
 @inventory_bp.route('/reduce-stock', methods=['POST'])
 def reduce_stock():
-    """Reducir stock (prescripción, vencimiento, etc.)"""
+    """Reducir stock (prescripción, vencimiento, etc.) - VERSIÓN CORREGIDA"""
     try:
         data = request.get_json()
 
@@ -279,12 +298,21 @@ def reduce_stock():
                     'message': f'Campo requerido: {field}'
                 }), 400
 
+        # CORRECCIÓN 3: Manejar campos opcionales
+        reference_id = data.get('reference_id')
+        if reference_id == '' or reference_id == 'null' or not reference_id:
+            reference_id = None
+
+        user_id = data.get('user_id')
+        if user_id == '' or user_id == 'null' or not user_id:
+            user_id = None
+
         result = inventory_service.reduce_stock(
             data.get('medication_id'),
             data.get('quantity'),
             data.get('reason'),
-            data.get('reference_id'),
-            data.get('user_id')
+            reference_id,
+            user_id
         )
 
         return jsonify({
@@ -308,7 +336,6 @@ def reduce_stock():
             'success': False,
             'message': str(e)
         }), 500
-
 
 @inventory_bp.route('/movements', methods=['GET'])
 def get_stock_movements():

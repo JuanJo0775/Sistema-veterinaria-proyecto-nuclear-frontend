@@ -2072,46 +2072,6 @@ def api_create_prescription():
         }), 500
 
 
-@frontend_bp.route('/api/admin/inventory/medications')
-@role_required(['admin'])
-def api_get_medications_for_prescriptions():
-    """Obtener medicamentos disponibles para prescripciones"""
-    try:
-        headers = {'Authorization': f"Bearer {session.get('token')}"}
-
-        # Obtener medicamentos del Inventory Service
-        inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/medications"
-        response = requests.get(inventory_url, headers=headers, timeout=10)
-
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                # Filtrar solo medicamentos activos con stock
-                medications = [
-                    med for med in data.get('medications', [])
-                    if med.get('is_active', True) and med.get('stock_quantity', 0) > 0
-                ]
-
-                return jsonify({
-                    'success': True,
-                    'medications': medications,
-                    'total': len(medications)
-                })
-
-        # Si falla, retornar array vacío
-        return jsonify({
-            'success': True,
-            'medications': [],
-            'total': 0
-        })
-
-    except Exception as e:
-        print(f"❌ Error en api_get_medications_for_prescriptions: {e}")
-        return jsonify({
-            'success': True,
-            'medications': [],
-            'total': 0
-        })
 
 
 # =============== ESTADÍSTICAS DE HISTORIAS CLÍNICAS ===============
@@ -3018,22 +2978,69 @@ def admin_inventory():
 @frontend_bp.route('/api/admin/inventory/medications')
 @role_required(['admin'])
 def api_get_medications():
-    """API endpoint para obtener todos los medicamentos"""
+    """API endpoint para obtener medicamentos - VERSIÓN DEFINITIVA"""
     try:
         headers = {'Authorization': f"Bearer {session.get('token')}"}
 
-        # Obtener medicamentos desde Inventory Service
+        # Parámetros de filtro opcionales
+        include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
+        category = request.args.get('category')
+        search = request.args.get('search')
+
+        # Construir URL con parámetros
+        params = {}
+        if include_inactive:
+            params['include_inactive'] = 'true'
+        if category:
+            params['category'] = category
+
         inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/medications"
-        response = requests.get(inventory_url, headers=headers, timeout=10)
+
+        if search:
+            inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/medications/search"
+            params['q'] = search
+
+        response = requests.get(inventory_url, headers=headers, params=params, timeout=10)
 
         print(f"📡 Llamada a Inventory Service: {inventory_url}")
+        print(f"📡 Parámetros: {params}")
         print(f"📡 Respuesta: {response.status_code}")
 
         if response.status_code == 200:
             data = response.json()
             if data.get('success'):
                 medications = data.get('medications', [])
-                print(f"✅ {len(medications)} medicamentos obtenidos")
+
+                # Enriquecer datos de medicamentos con cálculos
+                for med in medications:
+                    # Calcular días hasta vencimiento
+                    if med.get('expiration_date'):
+                        try:
+                            from datetime import datetime, date
+                            exp_date = datetime.strptime(med['expiration_date'], '%Y-%m-%d').date()
+                            today = date.today()
+                            days_to_expiry = (exp_date - today).days
+                            med['days_to_expiration'] = days_to_expiry
+                        except:
+                            med['days_to_expiration'] = None
+
+                    # Calcular estado del stock
+                    stock = med.get('stock_quantity', 0)
+                    min_stock = med.get('minimum_stock_alert', 10)
+
+                    if stock == 0:
+                        med['stock_status'] = 'out_of_stock'
+                    elif stock <= min_stock:
+                        med['stock_status'] = 'low_stock'
+                    else:
+                        med['stock_status'] = 'in_stock'
+
+                    # Calcular valor total
+                    unit_price = med.get('unit_price', 0)
+                    total_value = float(unit_price) * stock if unit_price else 0
+                    med['total_value'] = total_value
+
+                print(f"✅ {len(medications)} medicamentos obtenidos y enriquecidos")
 
                 return jsonify({
                     'success': True,
@@ -3046,7 +3053,7 @@ def api_get_medications():
                     'message': data.get('message', 'Error desconocido')
                 }), 400
         else:
-            # Fallback con datos de ejemplo
+            # Fallback con datos de ejemplo si el servicio no está disponible
             print(f"⚠️ Inventory Service no disponible: {response.status_code}")
             example_medications = get_example_medications_data()
             return jsonify({
@@ -3264,55 +3271,84 @@ def api_get_inventory_summary():
 @frontend_bp.route('/api/admin/inventory/stock/update', methods=['POST'])
 @role_required(['admin'])
 def api_update_stock():
-    """Actualizar stock de medicamento"""
+    """Actualizar stock de medicamento - VERSIÓN CORREGIDA"""
     try:
         headers = {'Authorization': f"Bearer {session.get('token')}"}
         data = request.get_json()
 
-        print(f"📡 Actualizando stock: {data}")
+        print(f"📦 Datos recibidos para actualizar stock: {data}")
 
-        # Validar datos requeridos
-        required_fields = ['medication_id', 'movement_type', 'quantity', 'reason']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({
-                    'success': False,
-                    'message': f'Campo requerido: {field}'
-                }), 400
-
-        # Determinar endpoint según tipo de movimiento
+        # CORRECCIÓN PRINCIPAL: Limpiar y validar campos opcionales
         movement_type = data.get('movement_type')
+        medication_id = data.get('medication_id')
+        quantity = data.get('quantity', 0)
+        reason = data.get('reason', '')
+
+        # Limpiar reference_id - convertir string vacío a None
+        reference_id = data.get('reference_id')
+        if reference_id == '' or reference_id == 'null' or not reference_id:
+            reference_id = None
+
+        # Limpiar user_id - usar el ID del usuario actual de la sesión
+        user_id = session.get('user', {}).get('id')
+        if not user_id:
+            user_id = None
+
+        # Validar datos básicos
+        if not all([medication_id, movement_type, reason]):
+            return jsonify({
+                'success': False,
+                'message': 'Campos requeridos: medication_id, movement_type, reason'
+            }), 400
+
+        if quantity <= 0:
+            return jsonify({
+                'success': False,
+                'message': 'La cantidad debe ser mayor a 0'
+            }), 400
+
+        # Preparar datos según el tipo de movimiento
         if movement_type == 'in':
             endpoint = '/inventory/add-stock'
             request_data = {
-                'medication_id': data.get('medication_id'),
-                'quantity': data.get('quantity'),
-                'reason': data.get('reason'),
-                'unit_cost': data.get('unit_cost'),
-                'user_id': session.get('user', {}).get('id')
+                'medication_id': medication_id,
+                'quantity': quantity,
+                'reason': reason,
+                'user_id': user_id
             }
+            # Solo agregar unit_cost si existe y es válido
+            unit_cost = data.get('unit_cost')
+            if unit_cost and float(unit_cost) > 0:
+                request_data['unit_cost'] = float(unit_cost)
+
         elif movement_type == 'out':
             endpoint = '/inventory/reduce-stock'
             request_data = {
-                'medication_id': data.get('medication_id'),
-                'quantity': data.get('quantity'),
-                'reason': data.get('reason'),
-                'reference_id': data.get('reference_id'),
-                'user_id': session.get('user', {}).get('id')
+                'medication_id': medication_id,
+                'quantity': quantity,
+                'reason': reason,
+                'reference_id': reference_id,  # Puede ser None
+                'user_id': user_id
             }
+
         else:  # adjustment
             endpoint = '/inventory/update-stock'
+            quantity_change = data.get('quantity_change', 0)
             request_data = {
-                'medication_id': data.get('medication_id'),
-                'quantity_change': data.get('quantity_change', 0),
-                'reason': data.get('reason'),
-                'reference_id': data.get('reference_id'),
-                'user_id': session.get('user', {}).get('id')
+                'medication_id': medication_id,
+                'quantity_change': quantity_change,
+                'reason': reason,
+                'reference_id': reference_id,  # Puede ser None
+                'user_id': user_id
             }
+
+        print(f"📦 Enviando a {endpoint}: {request_data}")
 
         # Hacer petición al Inventory Service
         inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}{endpoint}"
         response = requests.post(inventory_url, json=request_data, headers=headers, timeout=10)
+
+        print(f"📦 Respuesta del Inventory Service: {response.status_code}")
 
         if response.status_code == 200:
             response_data = response.json()
@@ -3327,6 +3363,7 @@ def api_update_stock():
         except:
             error_message = f'Error del Inventory Service: {response.status_code}'
 
+        print(f"❌ Error: {error_message}")
         return jsonify({
             'success': False,
             'message': error_message
@@ -3340,9 +3377,11 @@ def api_update_stock():
         }), 500
     except Exception as e:
         print(f"❌ Error en api_update_stock: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
-            'message': str(e)
+            'message': f'Error interno: {str(e)}'
         }), 500
 
 
@@ -3528,7 +3567,7 @@ def api_search_medications():
 # =============== DATOS DE EJEMPLO PARA FALLBACK ===============
 
 def get_example_medications_data():
-    """Datos de ejemplo para medicamentos cuando no hay conexión con el servicio"""
+    """Datos de ejemplo mejorados para medicamentos cuando no hay conexión"""
     from datetime import datetime, timedelta
 
     today = datetime.now()
@@ -3538,7 +3577,7 @@ def get_example_medications_data():
     return [
         {
             'id': 'med_001',
-            'name': 'Amoxicilina',
+            'name': 'Amoxicilina 500mg',
             'category': 'Antibiótico',
             'presentation': 'Comprimidos',
             'concentration': '500mg',
@@ -3553,11 +3592,14 @@ def get_example_medications_data():
             'storage_conditions': 'Conservar en lugar fresco y seco, temperatura ambiente',
             'is_active': True,
             'created_at': today.isoformat(),
-            'updated_at': today.isoformat()
+            'updated_at': today.isoformat(),
+            'stock_status': 'in_stock',
+            'total_value': 112500.0,
+            'days_to_expiration': 180
         },
         {
             'id': 'med_002',
-            'name': 'Meloxicam',
+            'name': 'Meloxicam 2mg/ml',
             'category': 'Antiinflamatorio',
             'presentation': 'Inyectable',
             'concentration': '2mg/ml',
@@ -3572,7 +3614,10 @@ def get_example_medications_data():
             'storage_conditions': 'Refrigerar entre 2-8°C',
             'is_active': True,
             'created_at': today.isoformat(),
-            'updated_at': today.isoformat()
+            'updated_at': today.isoformat(),
+            'stock_status': 'low_stock',
+            'total_value': 68000.0,
+            'days_to_expiration': 25
         },
         {
             'id': 'med_003',
@@ -3591,11 +3636,14 @@ def get_example_medications_data():
             'storage_conditions': 'Conservar refrigerado 2-8°C, no congelar',
             'is_active': True,
             'created_at': today.isoformat(),
-            'updated_at': today.isoformat()
+            'updated_at': today.isoformat(),
+            'stock_status': 'out_of_stock',
+            'total_value': 0.0,
+            'days_to_expiration': 25
         },
         {
             'id': 'med_004',
-            'name': 'Tramadol',
+            'name': 'Tramadol 50mg',
             'category': 'Analgésico',
             'presentation': 'Comprimidos',
             'concentration': '50mg',
@@ -3610,11 +3658,14 @@ def get_example_medications_data():
             'storage_conditions': 'Conservar en lugar seguro, temperatura ambiente',
             'is_active': True,
             'created_at': today.isoformat(),
-            'updated_at': today.isoformat()
+            'updated_at': today.isoformat(),
+            'stock_status': 'in_stock',
+            'total_value': 144000.0,
+            'days_to_expiration': 180
         },
         {
             'id': 'med_005',
-            'name': 'Ivermectina',
+            'name': 'Ivermectina 1mg/ml',
             'category': 'Antiparasitario',
             'presentation': 'Solución oral',
             'concentration': '1mg/ml',
@@ -3629,7 +3680,10 @@ def get_example_medications_data():
             'storage_conditions': 'Proteger de la luz, temperatura ambiente',
             'is_active': True,
             'created_at': today.isoformat(),
-            'updated_at': today.isoformat()
+            'updated_at': today.isoformat(),
+            'stock_status': 'in_stock',
+            'total_value': 80000.0,
+            'days_to_expiration': 180
         }
     ]
 
