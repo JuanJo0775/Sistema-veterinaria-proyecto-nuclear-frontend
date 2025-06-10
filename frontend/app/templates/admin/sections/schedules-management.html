@@ -981,11 +981,18 @@
 
     // =============== CARGA DE DATOS ===============
     async function loadSchedulesData() {
-        try {
-            console.log('📡 Obteniendo horarios del Auth Service...');
+    try {
+        console.log('📡 Obteniendo horarios del servidor...');
 
-            // Intentar obtener horarios a través del endpoint del frontend
-            let response = await fetch('/api/admin/schedules', {
+        // CORRECCIÓN: Usar múltiples estrategias de conexión
+        let response;
+        let data;
+        let dataSource = '';
+
+        // ESTRATEGIA 1: A través del frontend (recomendado)
+        try {
+            console.log('🔗 Intentando conexión a través del frontend...');
+            response = await fetch('/api/admin/schedules', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json'
@@ -993,114 +1000,133 @@
                 credentials: 'include'
             });
 
-            // Si falla, intentar directamente (fallback)
-            if (!response.ok) {
-                console.log('⚠️ Intentando conexión directa al Auth Service...');
-                response = await fetch(`${API_CONFIG.AUTH_SERVICE_URL}/auth/schedules`, {
+            if (response.ok) {
+                data = await response.json();
+                dataSource = 'frontend';
+                console.log('✅ Datos obtenidos a través del frontend');
+            } else {
+                throw new Error(`Frontend response: ${response.status}`);
+            }
+        } catch (frontendError) {
+            console.log('⚠️ Frontend falló, intentando Appointment Service...');
+
+            // ESTRATEGIA 2: Appointment Service como proxy
+            try {
+                response = await fetch(`${API_CONFIG.APPOINTMENT_SERVICE_URL}/appointments/schedules/staff`, {
                     method: 'GET',
                     headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include'
+                        'Content-Type': 'application/json',
+                        'Authorization': getAuthToken()
+                    }
                 });
+
+                if (response.ok) {
+                    data = await response.json();
+                    dataSource = 'appointment_service';
+                    console.log('✅ Datos obtenidos a través del Appointment Service');
+                } else {
+                    throw new Error(`Appointment Service response: ${response.status}`);
+                }
+            } catch (appointmentError) {
+                console.log('⚠️ Appointment Service falló, intentando Auth Service directo...');
+
+                // ESTRATEGIA 3: Auth Service directo (fallback)
+                try {
+                    response = await fetch(`${API_CONFIG.AUTH_SERVICE_URL}/auth/schedules`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': getAuthToken()
+                        }
+                    });
+
+                    if (response.ok) {
+                        data = await response.json();
+                        dataSource = 'auth_service';
+                        console.log('✅ Datos obtenidos directamente del Auth Service');
+                    } else {
+                        throw new Error(`Auth Service response: ${response.status}`);
+                    }
+                } catch (authError) {
+                    console.log('❌ Todos los servicios fallaron, usando datos de ejemplo');
+                    throw new Error('No se pudo conectar con ningún servicio');
+                }
             }
+        }
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const data = await response.json();
-
-            if (data.success && data.schedules) {
-                allStaff = data.schedules;
-                filteredStaff = [...allStaff];
-                displayStaffData();
-                updateStatistics();
-                showMessage('Horarios cargados exitosamente', 'success');
-            } else {
-                throw new Error('No se pudieron obtener los horarios');
-            }
-
-        } catch (error) {
-            console.error('❌ Error obteniendo horarios:', error);
-
-            // Mostrar datos de ejemplo en caso de error
-            allStaff = getExampleSchedules();
+        // Procesar datos obtenidos
+        if (data && data.success && data.schedules) {
+            allStaff = data.schedules;
             filteredStaff = [...allStaff];
+
+            console.log(`📊 Datos cargados: ${allStaff.length} miembros del personal`);
+            console.log(`🔗 Fuente de datos: ${dataSource}`);
+
             displayStaffData();
             updateStatistics();
-            showMessage('Usando datos de ejemplo - Error de conexión', 'warning');
+
+            // Mostrar mensaje según la fuente
+            const messages = {
+                'frontend': 'Horarios cargados exitosamente',
+                'appointment_service': 'Horarios cargados desde Appointment Service',
+                'auth_service': 'Horarios cargados desde Auth Service (directo)'
+            };
+
+            showMessage(messages[dataSource], 'success');
+
+            // Si usamos servicios directos, mostrar advertencia
+            if (dataSource !== 'frontend') {
+                setTimeout(() => {
+                    showMessage('Conexión directa usada - Verificar configuración del frontend', 'warning');
+                }, 2000);
+            }
+
+        } else {
+            throw new Error('Respuesta inválida del servidor');
+        }
+
+    } catch (error) {
+        console.error('❌ Error obteniendo horarios:', error);
+
+        // Usar datos de ejemplo como fallback final
+        console.log('🔄 Cargando datos de ejemplo...');
+        allStaff = getExampleSchedules();
+        filteredStaff = [...allStaff];
+        displayStaffData();
+        updateStatistics();
+
+        showMessage('Usando datos de ejemplo - Error de conexión con todos los servicios', 'warning');
+
+        // Mostrar error detallado en consola para debugging
+        console.error('Detalles del error:', {
+            message: error.message,
+            stack: error.stack
+        });
+    }
+}
+
+function getAuthToken() {
+    // Intentar obtener token de diferentes fuentes
+    const tokenSources = [
+        () => localStorage.getItem('token'),
+        () => sessionStorage.getItem('token'),
+        () => document.cookie.split(';').find(row => row.trim().startsWith('token='))?.split('=')[1],
+        () => 'Bearer ' // Token vacío como fallback
+    ];
+
+    for (const getToken of tokenSources) {
+        try {
+            const token = getToken();
+            if (token && token !== 'Bearer ') {
+                return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+            }
+        } catch (e) {
+            continue;
         }
     }
 
-    function getExampleSchedules() {
-        return [
-            {
-                user_id: '1',
-                user_name: 'Dr. Juan Pérez',
-                user_email: 'vet@veterinariaclinic.com',
-                user_role: 'veterinarian',
-                phone: '+57 300 234 5678',
-                weekly_schedule: {
-                    monday: { start: '08:00', end: '17:00', active: true, break_start: '12:00', break_end: '13:00' },
-                    tuesday: { start: '08:00', end: '17:00', active: true, break_start: '12:00', break_end: '13:00' },
-                    wednesday: { start: '08:00', end: '17:00', active: true, break_start: '12:00', break_end: '13:00' },
-                    thursday: { start: '08:00', end: '17:00', active: true, break_start: '12:00', break_end: '13:00' },
-                    friday: { start: '08:00', end: '16:00', active: true, break_start: '12:00', break_end: '13:00' },
-                    saturday: { start: '08:00', end: '12:00', active: true, break_start: '', break_end: '' },
-                    sunday: { start: '', end: '', active: false, break_start: '', break_end: '' }
-                }
-            },
-            {
-                user_id: '2',
-                user_name: 'María García',
-                user_email: 'recepcion@veterinariaclinic.com',
-                user_role: 'receptionist',
-                phone: '+57 300 345 6789',
-                weekly_schedule: {
-                    monday: { start: '07:30', end: '17:30', active: true, break_start: '12:00', break_end: '13:00' },
-                    tuesday: { start: '07:30', end: '17:30', active: true, break_start: '12:00', break_end: '13:00' },
-                    wednesday: { start: '07:30', end: '17:30', active: true, break_start: '12:00', break_end: '13:00' },
-                    thursday: { start: '07:30', end: '17:30', active: true, break_start: '12:00', break_end: '13:00' },
-                    friday: { start: '07:30', end: '18:00', active: true, break_start: '12:00', break_end: '13:00' },
-                    saturday: { start: '08:00', end: '13:00', active: true, break_start: '', break_end: '' },
-                    sunday: { start: '', end: '', active: false, break_start: '', break_end: '' }
-                }
-            },
-            {
-                user_id: '3',
-                user_name: 'Ana Martínez',
-                user_email: 'auxiliar@veterinariaclinic.com',
-                user_role: 'auxiliary',
-                phone: '+57 300 567 8901',
-                weekly_schedule: {
-                    monday: { start: '08:00', end: '17:00', active: true, break_start: '12:00', break_end: '13:00' },
-                    tuesday: { start: '08:00', end: '17:00', active: true, break_start: '12:00', break_end: '13:00' },
-                    wednesday: { start: '08:00', end: '17:00', active: true, break_start: '12:00', break_end: '13:00' },
-                    thursday: { start: '08:00', end: '17:00', active: true, break_start: '12:00', break_end: '13:00' },
-                    friday: { start: '08:00', end: '16:00', active: true, break_start: '12:00', break_end: '13:00' },
-                    saturday: { start: '', end: '', active: false, break_start: '', break_end: '' },
-                    sunday: { start: '', end: '', active: false, break_start: '', break_end: '' }
-                }
-            },
-            {
-                user_id: '4',
-                user_name: 'Dr. Carmen López',
-                user_email: 'vet2@veterinariaclinic.com',
-                user_role: 'veterinarian',
-                phone: '+57 300 678 9012',
-                weekly_schedule: {
-                    monday: { start: '09:00', end: '18:00', active: true, break_start: '13:00', break_end: '14:00' },
-                    tuesday: { start: '09:00', end: '18:00', active: true, break_start: '13:00', break_end: '14:00' },
-                    wednesday: { start: '09:00', end: '18:00', active: true, break_start: '13:00', break_end: '14:00' },
-                    thursday: { start: '09:00', end: '18:00', active: true, break_start: '13:00', break_end: '14:00' },
-                    friday: { start: '09:00', end: '17:00', active: true, break_start: '13:00', break_end: '14:00' },
-                    saturday: { start: '09:00', end: '13:00', active: true, break_start: '', break_end: '' },
-                    sunday: { start: '', end: '', active: false, break_start: '', break_end: '' }
-                }
-            }
-        ];
-    }
+    return 'Bearer '; // Fallback
+}
 
     // =============== ACTUALIZACIÓN DE ESTADÍSTICAS ===============
     function updateStatistics() {
@@ -1611,40 +1637,52 @@
     }
 
     async function saveSchedule() {
-        if (!currentEditingUser) {
-            showMessage('Error: No hay usuario seleccionado', 'error');
-            return;
-        }
+    if (!currentEditingUser) {
+        showMessage('Error: No hay usuario seleccionado', 'error');
+        return;
+    }
 
-        const saveBtn = document.getElementById('saveBtn');
-        const saveBtnText = document.getElementById('saveBtnText');
+    const saveBtn = document.getElementById('saveBtn');
+    const saveBtnText = document.getElementById('saveBtnText');
 
-        const scheduleData = {};
+    // Recopilar datos del formulario
+    const scheduleData = {};
+    DAYS_OF_WEEK.forEach(day => {
+        const dayContainer = document.querySelector(`.day-schedule[data-day="${day.key}"]`);
+        const toggle = document.querySelector(`.toggle-switch[data-day="${day.key}"]`);
+        const isActive = toggle.classList.contains('active');
 
-        DAYS_OF_WEEK.forEach(day => {
-            const dayContainer = document.querySelector(`.day-schedule[data-day="${day.key}"]`);
-            const toggle = document.querySelector(`.toggle-switch[data-day="${day.key}"]`);
-            const isActive = toggle.classList.contains('active');
+        const inputs = dayContainer.querySelectorAll('.time-input');
+        const dayData = { active: isActive };
 
-            const inputs = dayContainer.querySelectorAll('.time-input');
-            const dayData = { active: isActive };
-
-            inputs.forEach(input => {
-                dayData[input.dataset.field] = input.value;
-            });
-
-            scheduleData[day.key] = dayData;
+        inputs.forEach(input => {
+            dayData[input.dataset.field] = input.value;
         });
 
-        if (!validateScheduleData(scheduleData)) {
-            return;
-        }
+        scheduleData[day.key] = dayData;
+    });
 
-        saveBtn.disabled = true;
-        saveBtnText.textContent = 'Guardando...';
+    // Validar datos
+    if (!validateScheduleData(scheduleData)) {
+        return;
+    }
 
+    // Actualizar UI
+    saveBtn.disabled = true;
+    saveBtnText.textContent = 'Guardando...';
+
+    try {
+        console.log(`💾 Guardando horario para usuario: ${currentEditingUser.user_id}`);
+        console.log('📝 Datos a guardar:', scheduleData);
+
+        let response;
+        let success = false;
+        let savedVia = '';
+
+        // ESTRATEGIA 1: A través del frontend
         try {
-            const response = await fetch(`/api/admin/schedules/${currentEditingUser.user_id}`, {
+            console.log('🔗 Intentando guardar a través del frontend...');
+            response = await fetch(`/api/admin/schedules/${currentEditingUser.user_id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1657,34 +1695,149 @@
 
             if (response.ok) {
                 const data = await response.json();
-
                 if (data.success) {
-                    const staffIndex = allStaff.findIndex(s => s.user_id === currentEditingUser.user_id);
-                    if (staffIndex !== -1) {
-                        allStaff[staffIndex].weekly_schedule = scheduleData;
-                        filteredStaff = [...allStaff];
-                        displayStaffData();
-                        updateStatistics();
-                    }
-
-                    showMessage('Horario actualizado exitosamente', 'success');
-                    closeScheduleModal();
-                } else {
-                    throw new Error(data.message || 'Error al guardar horario');
+                    success = true;
+                    savedVia = 'frontend';
+                    console.log('✅ Guardado exitosamente a través del frontend');
                 }
-            } else {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `HTTP ${response.status}`);
+            }
+        } catch (frontendError) {
+            console.log('⚠️ Frontend falló, intentando Appointment Service...');
+        }
+
+        // ESTRATEGIA 2: A través del Appointment Service
+        if (!success) {
+            try {
+                console.log('🔗 Intentando guardar a través del Appointment Service...');
+                response = await fetch(`${API_CONFIG.APPOINTMENT_SERVICE_URL}/appointments/schedules/staff/${currentEditingUser.user_id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': getAuthToken()
+                    },
+                    body: JSON.stringify({
+                        weekly_schedule: scheduleData
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        success = true;
+                        savedVia = 'appointment_service';
+                        console.log('✅ Guardado exitosamente a través del Appointment Service');
+                    }
+                }
+            } catch (appointmentError) {
+                console.log('⚠️ Appointment Service falló, intentando Auth Service directo...');
+            }
+        }
+
+        // ESTRATEGIA 3: Auth Service directo
+        if (!success) {
+            try {
+                console.log('🔗 Intentando guardar directamente en Auth Service...');
+                response = await fetch(`${API_CONFIG.AUTH_SERVICE_URL}/auth/schedules/${currentEditingUser.user_id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': getAuthToken()
+                    },
+                    body: JSON.stringify({
+                        weekly_schedule: scheduleData
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        success = true;
+                        savedVia = 'auth_service';
+                        console.log('✅ Guardado exitosamente directamente en Auth Service');
+                    }
+                }
+            } catch (authError) {
+                console.log('❌ Auth Service también falló');
+            }
+        }
+
+        if (success) {
+            // Actualizar datos locales
+            const staffIndex = allStaff.findIndex(s => s.user_id === currentEditingUser.user_id);
+            if (staffIndex !== -1) {
+                allStaff[staffIndex].weekly_schedule = scheduleData;
+                filteredStaff = [...allStaff];
+                displayStaffData();
+                updateStatistics();
             }
 
-        } catch (error) {
-            console.error('❌ Error guardando horario:', error);
-            showMessage('Error al guardar horario: ' + error.message, 'error');
-        } finally {
-            saveBtn.disabled = false;
-            saveBtnText.textContent = 'Guardar Horario';
+            // Mensaje de éxito
+            const messages = {
+                'frontend': 'Horario actualizado exitosamente',
+                'appointment_service': 'Horario guardado vía Appointment Service',
+                'auth_service': 'Horario guardado vía Auth Service (directo)'
+            };
+
+            showMessage(messages[savedVia], 'success');
+
+            // Sincronizar horarios de veterinarios si es necesario
+            if (currentEditingUser.user_role === 'veterinarian' && savedVia !== 'frontend') {
+                setTimeout(() => {
+                    syncVeterinarianSchedules();
+                }, 1000);
+            }
+
+            closeScheduleModal();
+
+        } else {
+            // Manejar error
+            let errorMessage = 'Error desconocido al guardar horario';
+
+            if (response) {
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.message || `HTTP ${response.status}`;
+                } catch {
+                    errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                }
+            }
+
+            console.error('❌ Error guardando horario:', errorMessage);
+            showMessage('Error al guardar horario: ' + errorMessage, 'error');
         }
+
+    } catch (error) {
+        console.error('❌ Error completo:', error);
+        showMessage('Error de conexión al guardar horario', 'error');
+    } finally {
+        saveBtn.disabled = false;
+        saveBtnText.textContent = 'Guardar Horario';
     }
+}
+
+async function syncVeterinarianSchedules() {
+    try {
+        console.log('🔄 Sincronizando horarios de veterinarios...');
+
+        const response = await fetch(`${API_CONFIG.APPOINTMENT_SERVICE_URL}/appointments/schedules/sync-all`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': getAuthToken()
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                console.log('✅ Horarios de veterinarios sincronizados');
+                showMessage('Horarios de veterinarios sincronizados para citas', 'info');
+            }
+        }
+    } catch (error) {
+        console.log('⚠️ Error sincronizando horarios de veterinarios:', error);
+    }
+}
 
     function validateScheduleData(scheduleData) {
         let hasActiveDay = false;

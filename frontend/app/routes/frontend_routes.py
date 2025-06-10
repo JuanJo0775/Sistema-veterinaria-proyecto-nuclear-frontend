@@ -883,48 +883,183 @@ def api_get_schedules():
 @frontend_bp.route('/api/admin/schedules/<user_id>', methods=['PUT'])
 @role_required(['admin'])
 def api_update_user_schedule(user_id):
-    """Actualizar horario de un usuario específico"""
+    """Actualizar horario de un usuario específico - VERSIÓN CORREGIDA FINAL"""
     try:
         headers = {'Authorization': f"Bearer {session.get('token')}"}
         data = request.get_json()
 
-        # Actualizar horario en Auth Service
+        print(f"📝 Frontend: Actualizando horario para usuario: {user_id}")
+        print(f"📝 Datos recibidos: {data}")
+
+        # PASO 1: Actualizar en Auth Service (principal)
         auth_url = f"{current_app.config['AUTH_SERVICE_URL']}/auth/schedules/{user_id}"
-        response = requests.put(auth_url, json=data, headers=headers, timeout=10)
 
-        if response.status_code == 200:
-            return jsonify(response.json())
-        elif response.status_code == 404:
+        success = False
+        response_data = None
+
+        try:
+            print(f"📡 Enviando a Auth Service: {auth_url}")
+            response = requests.put(auth_url, json=data, headers=headers, timeout=10)
+            print(f"📡 Respuesta Auth Service: {response.status_code}")
+
+            if response.status_code == 200:
+                response_data = response.json()
+                if response_data.get('success'):
+                    success = True
+                    print("✅ Horario actualizado en Auth Service")
+                else:
+                    print(f"❌ Error en Auth Service: {response_data.get('message')}")
+            else:
+                print(f"❌ Error HTTP Auth Service: {response.status_code}")
+
+        except requests.RequestException as auth_error:
+            print(f"❌ Error conectando con Auth Service: {auth_error}")
+
+        if not success:
             return jsonify({
                 'success': False,
-                'message': 'Usuario no encontrado'
-            }), 404
-        elif response.status_code == 400:
-            error_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
-            return jsonify({
-                'success': False,
-                'message': error_data.get('message', 'Datos de horario inválidos')
-            }), 400
+                'message': 'Error actualizando horario en Auth Service'
+            }), 500
+
+        # PASO 2: Verificar si es veterinario y sincronizar
+        print("🔍 Verificando si usuario es veterinario...")
+
+        user_role = None
+
+        # Intentar obtener rol del usuario
+        try:
+            user_url = f"{current_app.config['AUTH_SERVICE_URL']}/auth/users/{user_id}"
+            user_response = requests.get(user_url, headers=headers, timeout=5)
+
+            if user_response.status_code == 200:
+                user_info = user_response.json()
+                if user_info.get('success'):
+                    user_role = user_info.get('user', {}).get('role')
+                    print(f"✅ Rol obtenido: {user_role}")
+            else:
+                print(f"⚠️ Error obteniendo usuario: {user_response.status_code}")
+
+        except requests.RequestException as user_error:
+            print(f"⚠️ Error obteniendo información del usuario: {user_error}")
+
+        # PASO 3: Si es veterinario, sincronizar con Appointment Service
+        if user_role == 'veterinarian':
+            print("👨‍⚕️ Usuario es veterinario, sincronizando con Appointment Service...")
+
+            try:
+                sync_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/schedules/staff/{user_id}"
+                sync_response = requests.put(sync_url, json=data, headers=headers, timeout=10)
+
+                if sync_response.status_code == 200:
+                    sync_data = sync_response.json()
+                    if sync_data.get('success'):
+                        print("✅ Horario sincronizado en Appointment Service")
+                    else:
+                        print(f"⚠️ Error sincronizando: {sync_data.get('message')}")
+                else:
+                    print(f"⚠️ Error HTTP sincronizando: {sync_response.status_code}")
+
+            except requests.RequestException as sync_error:
+                print(f"⚠️ Error sincronizando con Appointment Service: {sync_error}")
+                # No fallar la operación principal por esto
+
+        elif user_role:
+            print(f"ℹ️ Usuario tiene rol '{user_role}', no requiere sincronización")
         else:
-            error_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
-            return jsonify({
-                'success': False,
-                'message': error_data.get('message', f'Error del Auth Service: {response.status_code}')
-            }), response.status_code
+            print("⚠️ No se pudo determinar el rol del usuario")
 
-    except requests.RequestException as e:
-        print(f"❌ Error conectando con Auth Service: {e}")
+        # PASO 4: Verificar que se guardó correctamente
+        print("🔍 Verificando sincronización...")
+        try:
+            verify_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/schedules/veterinarians"
+            verify_response = requests.get(verify_url, headers=headers, timeout=5)
+
+            if verify_response.status_code == 200:
+                verify_data = verify_response.json()
+                if verify_data.get('success'):
+                    vet_schedules = verify_data.get('veterinarian_schedules', {})
+                    if user_id in vet_schedules:
+                        schedule_count = len(vet_schedules[user_id])
+                        print(
+                            f"✅ Verificación exitosa: {schedule_count} horarios encontrados para veterinario {user_id}")
+                    else:
+                        print(f"⚠️ No se encontraron horarios para veterinario {user_id} después de la sincronización")
+
+        except Exception as verify_error:
+            print(f"⚠️ Error verificando sincronización: {verify_error}")
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        print(f"❌ Error general en api_update_user_schedule: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
-            'message': 'Error de conexión con el servicio de autenticación'
+            'message': f'Error interno: {str(e)}'
         }), 500
+
+
+# TAMBIÉN AGREGAR ESTE ENDPOINT PARA VERIFICACIÓN
+@frontend_bp.route('/api/admin/schedules/verify/<user_id>')
+@role_required(['admin'])
+def api_verify_user_schedule(user_id):
+    """Verificar horarios de un usuario en ambos servicios"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        result = {
+            'user_id': user_id,
+            'auth_service': {'success': False, 'schedules': None},
+            'appointment_service': {'success': False, 'schedules': None}
+        }
+
+        # Verificar en Auth Service
+        try:
+            auth_url = f"{current_app.config['AUTH_SERVICE_URL']}/auth/schedules"
+            auth_response = requests.get(auth_url, headers=headers, timeout=5)
+
+            if auth_response.status_code == 200:
+                auth_data = auth_response.json()
+                if auth_data.get('success'):
+                    user_schedule = next((s for s in auth_data.get('schedules', []) if s.get('user_id') == user_id),
+                                         None)
+                    if user_schedule:
+                        result['auth_service'] = {
+                            'success': True,
+                            'schedules': user_schedule.get('weekly_schedule', {})
+                        }
+
+        except Exception as auth_error:
+            print(f"Error verificando Auth Service: {auth_error}")
+
+        # Verificar en Appointment Service
+        try:
+            appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/schedules/{user_id}"
+            appointment_response = requests.get(appointment_url, headers=headers, timeout=5)
+
+            if appointment_response.status_code == 200:
+                appointment_data = appointment_response.json()
+                if appointment_data.get('success'):
+                    result['appointment_service'] = {
+                        'success': True,
+                        'schedules': appointment_data.get('schedules', [])
+                    }
+
+        except Exception as appointment_error:
+            print(f"Error verificando Appointment Service: {appointment_error}")
+
+        return jsonify({
+            'success': True,
+            'verification': result
+        })
+
     except Exception as e:
-        print(f"❌ Error en api_update_user_schedule: {e}")
+        print(f"❌ Error en verificación: {e}")
         return jsonify({
             'success': False,
             'message': str(e)
         }), 500
-
 
 @frontend_bp.route('/admin/clients')
 @role_required(['admin'])

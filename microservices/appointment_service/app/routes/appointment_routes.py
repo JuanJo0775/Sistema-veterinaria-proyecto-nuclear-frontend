@@ -1,10 +1,12 @@
 # microservices/appointment_service/app/routes/appointment_routes.py
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime, timedelta
 from ..models.appointment import Appointment
 from ..models.schedule import VeterinarianSchedule
 from .. import db
 from ..services.appointment_service import AppointmentService
+import requests
+
 
 appointment_bp = Blueprint('appointments', __name__)
 appointment_service = AppointmentService()
@@ -1048,6 +1050,305 @@ def get_veterinarian_appointment_report(vet_id):
         }), 400
     except Exception as e:
         print(f"❌ Error generando reporte: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@appointment_bp.route('/schedules/staff', methods=['GET'])
+def get_all_staff_schedules():
+    """Obtener todos los horarios del personal desde Auth Service"""
+    try:
+        # Este endpoint actúa como proxy al Auth Service
+        auth_url = f"{current_app.config['AUTH_SERVICE_URL']}/auth/schedules"
+
+        # Reenviar la petición al Auth Service
+        headers = {}
+        if request.headers.get('Authorization'):
+            headers['Authorization'] = request.headers.get('Authorization')
+
+        response = requests.get(auth_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            return jsonify(data)
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Error del Auth Service: {response.status_code}'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Auth Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de autenticación'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en get_all_staff_schedules: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@appointment_bp.route('/schedules/staff/<user_id>', methods=['PUT'])
+def update_staff_schedule(user_id):
+    """Actualizar horario de un usuario específico vía Auth Service"""
+    try:
+        # Actuar como proxy al Auth Service
+        auth_url = f"{current_app.config['AUTH_SERVICE_URL']}/auth/schedules/{user_id}"
+
+        # Reenviar la petición con los datos
+        headers = {'Content-Type': 'application/json'}
+        if request.headers.get('Authorization'):
+            headers['Authorization'] = request.headers.get('Authorization')
+
+        data = request.get_json()
+        response = requests.put(auth_url, json=data, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            response_data = response.json()
+
+            # IMPORTANTE: Después de actualizar horarios, sincronizar con VeterinarianSchedule
+            if response_data.get('success'):
+                sync_veterinarian_schedules(user_id, data.get('weekly_schedule', {}))
+
+            return jsonify(response_data)
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Error del Auth Service: {response.status_code}'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Auth Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de autenticación'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en update_staff_schedule: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+def sync_veterinarian_schedules(user_id, weekly_schedule):
+    """Sincronizar horarios con la tabla veterinarian_schedules - VERSIÓN CORREGIDA"""
+    try:
+        print(f"🔄 Iniciando sincronización para usuario: {user_id}")
+
+        # ESTRATEGIA 1: Intentar endpoint interno sin autenticación
+        auth_internal_url = f"{current_app.config.get('AUTH_SERVICE_URL', 'http://localhost:5001')}/auth/users/{user_id}/internal"
+
+        user_role = None
+
+        try:
+            print(f"📡 Consultando rol de usuario en: {auth_internal_url}")
+            response = requests.get(auth_internal_url, timeout=5)
+
+            if response.status_code == 200:
+                user_data = response.json()
+                if user_data.get('success'):
+                    user_role = user_data.get('user', {}).get('role')
+                    print(f"✅ Rol obtenido: {user_role}")
+                else:
+                    print(f"❌ Error en respuesta: {user_data.get('message')}")
+            else:
+                print(f"⚠️ Error HTTP obteniendo usuario: {response.status_code}")
+
+        except requests.RequestException as req_error:
+            print(f"⚠️ Error de conexión obteniendo usuario: {req_error}")
+
+        # ESTRATEGIA 2: Si falla, verificar directamente en la base de datos
+        if not user_role:
+            print("🔄 Intentando verificación directa en base de datos...")
+            try:
+                # Hacer una consulta directa a la base de datos del Auth Service
+                # Nota: Esto requiere acceso a la misma base de datos
+                from sqlalchemy import create_engine, text
+                import os
+
+                # Usar la misma configuración de base de datos
+                db_url = os.environ.get('DATABASE_URL') or \
+                         f"postgresql://{os.environ.get('POSTGRES_USER', 'postgres')}:{os.environ.get('POSTGRES_PASSWORD', 'bocato0731')}@{os.environ.get('POSTGRES_HOST', 'localhost')}:{os.environ.get('POSTGRES_PORT', '5432')}/{os.environ.get('POSTGRES_DB', 'veterinary-system')}"
+
+                engine = create_engine(db_url)
+                with engine.connect() as conn:
+                    result = conn.execute(text("SELECT role FROM users WHERE id = :user_id"), {"user_id": user_id})
+                    row = result.fetchone()
+                    if row:
+                        user_role = row[0]
+                        print(f"✅ Rol obtenido desde DB directa: {user_role}")
+                    else:
+                        print(f"❌ Usuario {user_id} no encontrado en DB")
+
+            except Exception as db_error:
+                print(f"⚠️ Error consultando DB directamente: {db_error}")
+
+        # ESTRATEGIA 3: Si es un horario con muchos días activos, asumir que es veterinario
+        if not user_role:
+            active_days = sum(1 for day_data in weekly_schedule.values() if day_data.get('active'))
+            if active_days >= 5:  # Si tiene 5 o más días activos, probablemente es veterinario
+                user_role = 'veterinarian'
+                print(f"🤔 Asumiendo rol 'veterinarian' basado en {active_days} días activos")
+
+        # Solo proceder si es veterinario
+        if user_role == 'veterinarian':
+            print(f"👨‍⚕️ Confirmado: Usuario {user_id} es veterinario, sincronizando horarios...")
+
+            # Eliminar horarios existentes del veterinario
+            try:
+                deleted_count = VeterinarianSchedule.query.filter_by(veterinarian_id=user_id).delete()
+                print(f"🗑️ Eliminados {deleted_count} horarios existentes")
+            except Exception as delete_error:
+                print(f"⚠️ Error eliminando horarios existentes: {delete_error}")
+                db.session.rollback()
+                return
+
+            # Crear nuevos horarios basados en weekly_schedule
+            day_mapping = {
+                'monday': 1, 'tuesday': 2, 'wednesday': 3, 'thursday': 4,
+                'friday': 5, 'saturday': 6, 'sunday': 0
+            }
+
+            created_schedules = 0
+
+            for day_name, day_data in weekly_schedule.items():
+                if day_data.get('active') and day_data.get('start') and day_data.get('end'):
+                    try:
+                        # Validar formato de hora
+                        start_time = datetime.strptime(day_data['start'], '%H:%M').time()
+                        end_time = datetime.strptime(day_data['end'], '%H:%M').time()
+
+                        # Validar que start < end
+                        if start_time >= end_time:
+                            print(f"⚠️ Horario inválido para {day_name}: {day_data['start']} >= {day_data['end']}")
+                            continue
+
+                        schedule = VeterinarianSchedule(
+                            veterinarian_id=user_id,
+                            day_of_week=day_mapping.get(day_name, 0),
+                            start_time=start_time,
+                            end_time=end_time,
+                            is_available=True
+                        )
+
+                        db.session.add(schedule)
+                        created_schedules += 1
+                        print(f"✅ Horario agregado: {day_name} {day_data['start']}-{day_data['end']}")
+
+                    except ValueError as time_error:
+                        print(f"⚠️ Error de formato de hora para {day_name}: {time_error}")
+                        continue
+                    except Exception as day_error:
+                        print(f"⚠️ Error procesando día {day_name}: {day_error}")
+                        continue
+
+            if created_schedules > 0:
+                try:
+                    db.session.commit()
+                    print(f"✅ {created_schedules} horarios de veterinario sincronizados exitosamente para: {user_id}")
+
+                    # Verificar que se guardaron correctamente
+                    verification_count = VeterinarianSchedule.query.filter_by(veterinarian_id=user_id).count()
+                    print(f"🔍 Verificación: {verification_count} horarios encontrados en la base de datos")
+
+                except Exception as commit_error:
+                    print(f"❌ Error haciendo commit: {commit_error}")
+                    db.session.rollback()
+                    raise commit_error
+            else:
+                print(f"⚠️ No se crearon horarios para el usuario {user_id}")
+
+        elif user_role:
+            print(f"ℹ️ Usuario {user_id} tiene rol '{user_role}', no es veterinario - no se sincroniza")
+        else:
+            print(f"⚠️ No se pudo determinar el rol del usuario {user_id}")
+
+    except Exception as e:
+        print(f"❌ Error general sincronizando horarios de veterinario: {e}")
+        import traceback
+        traceback.print_exc()
+        try:
+            db.session.rollback()
+        except:
+            pass
+
+@appointment_bp.route('/schedules/veterinarians', methods=['GET'])
+def get_veterinarian_schedules_only():
+    """Obtener solo horarios de veterinarios para citas"""
+    try:
+        schedules = VeterinarianSchedule.query.filter_by(is_available=True).all()
+
+        # Agrupar por veterinario
+        vet_schedules = {}
+        for schedule in schedules:
+            vet_id = str(schedule.veterinarian_id)
+            if vet_id not in vet_schedules:
+                vet_schedules[vet_id] = []
+            vet_schedules[vet_id].append(schedule.to_dict())
+
+        return jsonify({
+            'success': True,
+            'veterinarian_schedules': vet_schedules,
+            'total_veterinarians': len(vet_schedules)
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error obteniendo horarios de veterinarios: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@appointment_bp.route('/schedules/sync-all', methods=['POST'])
+def sync_all_veterinarian_schedules():
+    """Sincronizar todos los horarios de veterinarios desde Auth Service"""
+    try:
+        # Obtener todos los horarios desde Auth Service
+        auth_url = f"{current_app.config['AUTH_SERVICE_URL']}/auth/schedules"
+        headers = {}
+        if request.headers.get('Authorization'):
+            headers['Authorization'] = request.headers.get('Authorization')
+
+        response = requests.get(auth_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success') and data.get('schedules'):
+
+                synced_count = 0
+                for staff in data['schedules']:
+                    if staff.get('user_role') == 'veterinarian':
+                        sync_veterinarian_schedules(
+                            staff['user_id'],
+                            staff.get('weekly_schedule', {})
+                        )
+                        synced_count += 1
+
+                return jsonify({
+                    'success': True,
+                    'message': f'Sincronizados {synced_count} horarios de veterinarios',
+                    'synced_count': synced_count
+                }), 200
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'No se encontraron horarios para sincronizar'
+                }), 400
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Error del Auth Service: {response.status_code}'
+            }), response.status_code
+
+    except Exception as e:
+        print(f"❌ Error en sincronización masiva: {e}")
         return jsonify({
             'success': False,
             'message': str(e)

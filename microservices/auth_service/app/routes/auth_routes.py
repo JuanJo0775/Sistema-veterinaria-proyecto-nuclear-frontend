@@ -764,3 +764,43 @@ def validate_schedule_format(schedule):
     except Exception as e:
         print(f"❌ Error validando formato de horario: {e}")
         return False
+
+
+@auth_bp.route('/users/<user_id>/internal', methods=['GET'])
+def get_user_by_id_internal(user_id):
+    """Obtener usuario específico para consultas internas entre servicios - SIN VERIFICACIÓN DE TOKEN"""
+    try:
+        print(f"🔍 Consulta interna para usuario: {user_id}")
+
+        # Buscar usuario sin verificación de token (para consultas internas)
+        target_user = User.query.get(user_id)
+        if not target_user:
+            return jsonify({
+                'success': False,
+                'message': 'Usuario no encontrado'
+            }), 404
+
+        return jsonify({
+            'success': True,
+            'user': target_user.to_dict()
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error en consulta interna: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+# TAMBIÉN AGREGAR ESTA FUNCIÓN AUXILIAR MEJORADA
+def get_user_role_internal(user_id):
+    """Función interna para obtener el rol de un usuario"""
+    try:
+        user = User.query.get(user_id)
+        if user:
+            return user.role
+        return None
+    except Exception as e:
+        print(f"⚠️ Error obteniendo rol del usuario {user_id}: {e}")
+        return None
