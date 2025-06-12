@@ -534,11 +534,6 @@ def admin_appointments():
 
 # =============== OTROS DASHBOARDS ===============
 
-@frontend_bp.route('/client/dashboard')
-@role_required(['client'])
-def client_dashboard():
-    """Dashboard para clientes"""
-    return render_template('client/dashboard.html')
 
 
 @frontend_bp.route('/veterinarian/dashboard')
@@ -3918,6 +3913,274 @@ def api_get_inventory_stats():
             'message': str(e)
         }), 500
 
+
+# =============== RUTAS DEL CLIENTE ===============
+
+@frontend_bp.route('/client/dashboard')
+@role_required(['client'])
+def client_dashboard():
+    """Dashboard principal para clientes"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener estadísticas básicas del cliente
+        client_stats = {
+            'my_pets_count': 0,
+            'upcoming_appointments_count': 0,
+            'pending_confirmations': 0,
+            'unread_notifications': 0
+        }
+
+        # Intentar obtener datos reales de los servicios
+        try:
+            # Contar mascotas del cliente
+            pets_response = requests.get(
+                f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/owner/{user['id']}",
+                headers=headers, timeout=5
+            )
+            if pets_response.status_code == 200:
+                pets_data = pets_response.json()
+                if pets_data.get('success'):
+                    client_stats['my_pets_count'] = len(pets_data.get('pets', []))
+        except:
+            pass
+
+        try:
+            # Contar citas próximas
+            appointments_response = requests.get(
+                f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/client/{user['id']}/upcoming",
+                headers=headers, timeout=5
+            )
+            if appointments_response.status_code == 200:
+                apt_data = appointments_response.json()
+                if apt_data.get('success'):
+                    appointments = apt_data.get('appointments', [])
+                    client_stats['upcoming_appointments_count'] = len(appointments)
+                    client_stats['pending_confirmations'] = len(
+                        [a for a in appointments if a.get('status') == 'scheduled'])
+        except:
+            pass
+
+        template_data = {
+            'user': user,
+            'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Cliente',
+            'user_role': 'Cliente',
+            'user_initial': user.get('first_name', 'C')[0].upper() if user.get('first_name') else 'C',
+            **client_stats
+        }
+
+        return render_template('client/dashboard.html', **template_data)
+
+    except Exception as e:
+        print(f"❌ Error en client dashboard: {e}")
+        flash('Error al cargar el dashboard', 'error')
+        return redirect(url_for('frontend.login'))
+
+
+@frontend_bp.route('/client/pets')
+@role_required(['client'])
+def client_pets():
+    """Página de mascotas del cliente"""
+    user = session.get('user', {})
+    template_data = {
+        'user': user,
+        'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Cliente',
+        'user_initial': user.get('first_name', 'C')[0].upper() if user.get('first_name') else 'C'
+    }
+    return render_template('client/sections/my-pets.html', **template_data)
+
+
+@frontend_bp.route('/client/pets/add')
+@role_required(['client'])
+def client_add_pet():
+    """Página para registrar nueva mascota"""
+    user = session.get('user', {})
+    template_data = {
+        'user': user,
+        'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Cliente',
+        'user_initial': user.get('first_name', 'C')[0].upper() if user.get('first_name') else 'C'
+    }
+    return render_template('client/sections/add-pet.html', **template_data)
+
+
+@frontend_bp.route('/client/appointments')
+@role_required(['client'])
+def client_appointments():
+    """Página de citas del cliente"""
+    user = session.get('user', {})
+    template_data = {
+        'user': user,
+        'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Cliente',
+        'user_initial': user.get('first_name', 'C')[0].upper() if user.get('first_name') else 'C'
+    }
+    return render_template('client/sections/appointments.html', **template_data)
+
+
+@frontend_bp.route('/client/appointments/book')
+@role_required(['client'])
+def client_book_appointment():
+    """Página para agendar cita"""
+    user = session.get('user', {})
+    template_data = {
+        'user': user,
+        'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Cliente',
+        'user_initial': user.get('first_name', 'C')[0].upper() if user.get('first_name') else 'C'
+    }
+    return render_template('client/sections/book-appointment.html', **template_data)
+
+
+@frontend_bp.route('/client/medical-history')
+@role_required(['client'])
+def client_medical_history():
+    """Página de historial médico"""
+    user = session.get('user', {})
+    template_data = {
+        'user': user,
+        'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Cliente',
+        'user_initial': user.get('first_name', 'C')[0].upper() if user.get('first_name') else 'C'
+    }
+    return render_template('client/sections/medical-history.html', **template_data)
+
+
+@frontend_bp.route('/client/notifications')
+@role_required(['client'])
+def client_notifications():
+    """Página de notificaciones"""
+    user = session.get('user', {})
+    template_data = {
+        'user': user,
+        'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Cliente',
+        'user_initial': user.get('first_name', 'C')[0].upper() if user.get('first_name') else 'C'
+    }
+    return render_template('client/sections/notifications.html', **template_data)
+
+
+@frontend_bp.route('/client/profile')
+@role_required(['client'])
+def client_profile():
+    """Página de perfil del cliente"""
+    user = session.get('user', {})
+    template_data = {
+        'user': user,
+        'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Cliente',
+        'user_initial': user.get('first_name', 'C')[0].upper() if user.get('first_name') else 'C'
+    }
+    return render_template('client/sections/profile.html', **template_data)
+
+
+@frontend_bp.route('/client/settings')
+@role_required(['client'])
+def client_settings():
+    """Página de configuración"""
+    user = session.get('user', {})
+    template_data = {
+        'user': user,
+        'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Cliente',
+        'user_initial': user.get('first_name', 'C')[0].upper() if user.get('first_name') else 'C'
+    }
+    return render_template('client/sections/settings.html', **template_data)
+
+
+# =============== API ENDPOINTS DEL CLIENTE ===============
+
+@frontend_bp.route('/api/client/pets')
+@role_required(['client'])
+def api_client_pets():
+    """API para obtener mascotas del cliente"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/owner/{user['id']}"
+        response = requests.get(medical_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify({
+                'success': True,
+                'pets': [],
+                'total': 0
+            })
+    except Exception as e:
+        print(f"❌ Error en api_client_pets: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@frontend_bp.route('/api/client/appointments/upcoming')
+@role_required(['client'])
+def api_client_upcoming_appointments():
+    """API para obtener citas próximas del cliente"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/client/{user['id']}/upcoming"
+        response = requests.get(appointment_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify({
+                'success': True,
+                'appointments': [],
+                'total': 0
+            })
+    except Exception as e:
+        print(f"❌ Error en api_client_upcoming_appointments: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@frontend_bp.route('/api/client/dashboard/stats')
+@role_required(['client'])
+def api_client_dashboard_stats():
+    """API para estadísticas del dashboard del cliente"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        stats = {
+            'unread_notifications': 0,
+            'pending_appointments': 0,
+            'total_pets': 0
+        }
+
+        # Intentar obtener notificaciones no leídas
+        try:
+            notif_url = f"{current_app.config['NOTIFICATION_SERVICE_URL']}/notifications/user/{user['id']}/unread/count"
+            notif_response = requests.get(notif_url, headers=headers, timeout=5)
+            if notif_response.status_code == 200:
+                notif_data = notif_response.json()
+                if notif_data.get('success'):
+                    stats['unread_notifications'] = notif_data.get('count', 0)
+        except:
+            pass
+
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+    except Exception as e:
+        print(f"❌ Error en api_client_dashboard_stats: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@frontend_bp.route('/api/client/notifications/count')
+@role_required(['client'])
+def api_client_notifications_count():
+    """API para contar notificaciones del cliente"""
+    try:
+        return jsonify({
+            'success': True,
+            'data': {
+                'unread_notifications': 0,
+                'pending_appointments': 0
+            }
+        })
+    except Exception as e:
+        print(f"❌ Error en api_client_notifications_count: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @frontend_bp.route('/health')
 def health():

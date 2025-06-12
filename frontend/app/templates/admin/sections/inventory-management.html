@@ -229,12 +229,15 @@
     .stat-icon.icon-total {
         background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
     }
+
     .stat-icon.icon-value {
         background: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
     }
+
     .stat-icon.icon-low {
         background: linear-gradient(135deg, var(--warning) 0%, var(--primary-dark) 100%);
     }
+
     .stat-icon.icon-expiring {
         background: linear-gradient(135deg, var(--primary-dark) 0%, var(--dark) 100%);
     }
@@ -603,10 +606,21 @@
         border-radius: 4px;
     }
 
-    .stock-high { background: var(--primary); }
-    .stock-medium { background: var(--accent); }
-    .stock-low { background: var(--warning); }
-    .stock-empty { background: var(--dark); }
+    .stock-high {
+        background: var(--primary);
+    }
+
+    .stock-medium {
+        background: var(--accent);
+    }
+
+    .stock-low {
+        background: var(--warning);
+    }
+
+    .stock-empty {
+        background: var(--dark);
+    }
 
     /* =============== BOTONES DE ACCIÓN =============== */
     .action-buttons {
@@ -991,130 +1005,6 @@
         animation: fadeIn 0.3s ease;
     }
 
-    /* =============== RESPONSIVE MEJORADO =============== */
-    @media (max-width: 1200px) {
-        .stats-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-
-        .filter-grid {
-            grid-template-columns: 1fr;
-            gap: 20px;
-        }
-
-        .medications-cards-container {
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        }
-    }
-
-    @media (max-width: 768px) {
-        .inventory-container {
-            padding: 20px;
-        }
-
-        .inventory-header {
-            flex-direction: column;
-            align-items: stretch;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .inventory-title {
-            font-size: 1.8rem;
-        }
-
-        .inventory-actions {
-            justify-content: center;
-        }
-
-        .stats-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .filter-section {
-            padding: 20px;
-        }
-
-        .filter-header {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .filter-actions {
-            justify-content: center;
-        }
-
-        .table-header {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 15px;
-        }
-
-        .modal-content {
-            margin: 10px;
-            max-height: calc(100vh - 20px);
-        }
-
-        .form-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .medications-cards-container {
-            grid-template-columns: 1fr;
-            gap: 20px;
-        }
-
-        .modal-header,
-        .modal-body,
-        .modal-footer {
-            padding: 20px;
-        }
-    }
-
-    /* =============== ANIMACIONES =============== */
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-
-    @keyframes slideUp {
-        from {
-            transform: translateY(40px);
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-
-    @keyframes slideInRight {
-        from {
-            opacity: 0;
-            transform: translateX(100%);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-
-    @keyframes slideOutRight {
-        from {
-            opacity: 1;
-            transform: translateX(0);
-        }
-        to {
-            opacity: 0;
-            transform: translateX(100%);
-        }
-    }
-
     /* =============== ELEMENTOS ESPECÍFICOS ADICIONALES =============== */
     .currency-display {
         font-weight: 700;
@@ -1336,6 +1226,130 @@
 
     .report-table tbody tr:hover {
         background: var(--background);
+    }
+
+    /* =============== RESPONSIVE MEJORADO =============== */
+    @media (max-width: 1200px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .filter-grid {
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .medications-cards-container {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .inventory-container {
+            padding: 20px;
+        }
+
+        .inventory-header {
+            flex-direction: column;
+            align-items: stretch;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .inventory-title {
+            font-size: 1.8rem;
+        }
+
+        .inventory-actions {
+            justify-content: center;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .filter-section {
+            padding: 20px;
+        }
+
+        .filter-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .filter-actions {
+            justify-content: center;
+        }
+
+        .table-header {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 15px;
+        }
+
+        .modal-content {
+            margin: 10px;
+            max-height: calc(100vh - 20px);
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .medications-cards-container {
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .modal-header,
+        .modal-body,
+        .modal-footer {
+            padding: 20px;
+        }
+    }
+
+    /* =============== ANIMACIONES =============== */
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes slideUp {
+        from {
+            transform: translateY(40px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(100%);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes slideOutRight {
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateX(100%);
+        }
     }
 
     /* =============== FOCUS STYLES =============== */
@@ -1849,7 +1863,10 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
+{{ super() }}
 <script>
 // =============== VARIABLES GLOBALES ===============
 let medications = [];

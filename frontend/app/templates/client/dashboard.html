@@ -1,10 +1,661 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+{% extends "client/client_base.html" %}
 
-</body>
-</html>
+{% block title %}Mi Portal{% endblock %}
+{% block page_title %}¡Bienvenido!{% endblock %}
+
+{% block custom_styles %}
+<style>
+    /* =============== DASHBOARD SPECIFIC STYLES =============== */
+    .welcome-banner {
+        background: linear-gradient(135deg, #52B788 0%, #38A3A5 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(82, 183, 136, 0.3);
+    }
+
+    .welcome-message {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    .welcome-subtitle {
+        opacity: 0.9;
+        font-size: 1rem;
+    }
+
+    /* QUICK STATS */
+    .quick-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 25px;
+        margin-bottom: 40px;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(8, 28, 21, 0.08);
+        border-left: 4px solid;
+        transition: transform 0.3s ease;
+        cursor: pointer;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .stat-card.pets { border-left-color: #52B788; }
+    .stat-card.appointments { border-left-color: #38A3A5; }
+    .stat-card.pending { border-left-color: #22577A; }
+    .stat-card.notifications { border-left-color: #2D6A4F; }
+
+    .stat-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 15px;
+    }
+
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+    }
+
+    .stat-icon.pets { background: linear-gradient(135deg, #52B788, #38A3A5); }
+    .stat-icon.appointments { background: linear-gradient(135deg, #38A3A5, #22577A); }
+    .stat-icon.pending { background: linear-gradient(135deg, #22577A, #2D6A4F); }
+    .stat-icon.notifications { background: linear-gradient(135deg, #2D6A4F, #081C15); }
+
+    .stat-number {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #081C15;
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        color: #52B788;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    /* DASHBOARD SECTIONS */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 30px;
+        margin-bottom: 30px;
+    }
+
+    .dashboard-section {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(8, 28, 21, 0.08);
+        overflow: hidden;
+    }
+
+    .section-header {
+        padding: 25px 25px 0;
+        border-bottom: 1px solid #B7E4C7;
+        margin-bottom: 25px;
+    }
+
+    .section-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: #38A3A5;
+        margin-bottom: 10px;
+    }
+
+    .section-subtitle {
+        color: #52B788;
+        font-size: 0.9rem;
+    }
+
+    .section-content {
+        padding: 0 25px 25px;
+    }
+
+    /* PRÓXIMAS CITAS */
+    .appointment-list {
+        list-style: none;
+    }
+
+    .appointment-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 15px 0;
+        border-bottom: 1px solid #D8F3DC;
+    }
+
+    .appointment-item:last-child {
+        border-bottom: none;
+    }
+
+    .appointment-date {
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        color: white;
+        padding: 10px;
+        border-radius: 10px;
+        text-align: center;
+        min-width: 80px;
+    }
+
+    .appointment-day {
+        font-size: 1.2rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .appointment-month {
+        font-size: 0.8rem;
+        opacity: 0.9;
+    }
+
+    .appointment-details {
+        flex: 1;
+    }
+
+    .appointment-time {
+        font-weight: 600;
+        color: #081C15;
+        margin-bottom: 3px;
+    }
+
+    .appointment-pet {
+        color: #52B788;
+        font-size: 0.9rem;
+    }
+
+    .appointment-status {
+        padding: 4px 12px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .status-confirmed {
+        background: #B7E4C7;
+        color: #2D6A4F;
+    }
+
+    .status-scheduled {
+        background: #D8F3DC;
+        color: #52B788;
+    }
+
+    /* MIS MASCOTAS SECTION */
+    .pets-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 15px;
+    }
+
+    .pet-card {
+        text-align: center;
+        padding: 15px;
+        border: 2px solid #D8F3DC;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .pet-card:hover {
+        border-color: #52B788;
+        background: #D8F3DC;
+    }
+
+    .pet-avatar {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 10px;
+        font-size: 24px;
+        color: white;
+    }
+
+    .pet-name {
+        font-weight: 600;
+        color: #081C15;
+        font-size: 0.9rem;
+        margin-bottom: 3px;
+    }
+
+    .pet-species {
+        color: #52B788;
+        font-size: 0.8rem;
+    }
+
+    .add-pet-card {
+        border: 2px dashed #52B788;
+        background: none;
+        color: #52B788;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 140px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+    .add-pet-card:hover {
+        background: rgba(82, 183, 136, 0.1);
+        color: #2D6A4F;
+    }
+
+    .add-pet-icon {
+        font-size: 30px;
+        margin-bottom: 10px;
+    }
+
+    /* ACCIONES RÁPIDAS */
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-top: 30px;
+    }
+
+    .action-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 20px 15px;
+        background: linear-gradient(135deg, #D8F3DC 0%, #B7E4C7 100%);
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        color: #38A3A5;
+    }
+
+    .action-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(56, 163, 165, 0.15);
+        background: linear-gradient(135deg, #B7E4C7 0%, #52B788 100%);
+        color: white;
+    }
+
+    .action-icon {
+        font-size: 24px;
+    }
+
+    .action-label {
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-align: center;
+    }
+
+    /* EMPTY STATES */
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #52B788;
+    }
+
+    .empty-icon {
+        font-size: 48px;
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+
+    .empty-message {
+        font-size: 1.1rem;
+        margin-bottom: 10px;
+    }
+
+    .empty-description {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .quick-stats {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .pets-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .quick-actions {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- WELCOME BANNER -->
+<div class="welcome-banner">
+    <div class="welcome-message">¡Hola, {{ user_name }}!</div>
+    <div class="welcome-subtitle">Bienvenido a tu portal de mascotas. Aquí puedes gestionar todo lo relacionado con el cuidado de tus compañeros peludos.</div>
+</div>
+
+<!-- QUICK STATS -->
+<div class="quick-stats">
+    <div class="stat-card pets" onclick="window.location.href='{{ url_for('frontend.client_pets') }}'">
+        <div class="stat-header">
+            <div>
+                <div class="stat-number" id="totalPets">{{ my_pets_count or 0 }}</div>
+                <div class="stat-label">Mis Mascotas</div>
+            </div>
+            <div class="stat-icon pets">🐕</div>
+        </div>
+    </div>
+
+    <div class="stat-card appointments" onclick="window.location.href='{{ url_for('frontend.client_appointments') }}'">
+        <div class="stat-header">
+            <div>
+                <div class="stat-number" id="totalAppointments">{{ upcoming_appointments_count or 0 }}</div>
+                <div class="stat-label">Citas Próximas</div>
+            </div>
+            <div class="stat-icon appointments">📅</div>
+        </div>
+    </div>
+
+    <div class="stat-card pending" onclick="window.location.href='{{ url_for('frontend.client_appointments') }}'">
+        <div class="stat-header">
+            <div>
+                <div class="stat-number" id="pendingConfirmations">{{ pending_confirmations or 0 }}</div>
+                <div class="stat-label">Pendientes</div>
+            </div>
+            <div class="stat-icon pending">⏳</div>
+        </div>
+    </div>
+
+    <div class="stat-card notifications" onclick="window.location.href='{{ url_for('frontend.client_notifications') }}'">
+        <div class="stat-header">
+            <div>
+                <div class="stat-number" id="unreadNotificationsCount">{{ unread_notifications or 0 }}</div>
+                <div class="stat-label">Notificaciones</div>
+            </div>
+            <div class="stat-icon notifications">🔔</div>
+        </div>
+    </div>
+</div>
+
+<!-- DASHBOARD GRID -->
+<div class="dashboard-grid">
+    <!-- PRÓXIMAS CITAS -->
+    <div class="dashboard-section">
+        <div class="section-header">
+            <div class="section-title">Próximas Citas</div>
+            <div class="section-subtitle">Tus citas médicas programadas</div>
+        </div>
+        <div class="section-content">
+            <ul class="appointment-list" id="upcomingAppointments">
+                <!-- Las citas se cargarán dinámicamente -->
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Cargando citas...
+                </div>
+            </ul>
+        </div>
+    </div>
+
+    <!-- MIS MASCOTAS -->
+    <div class="dashboard-section">
+        <div class="section-header">
+            <div class="section-title">Mis Mascotas</div>
+            <div class="section-subtitle">Tus compañeros registrados</div>
+        </div>
+        <div class="section-content">
+            <div class="pets-grid" id="myPetsGrid">
+                <!-- Las mascotas se cargarán dinámicamente -->
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Cargando mascotas...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ACCIONES RÁPIDAS -->
+<div class="quick-actions">
+    <a href="{{ url_for('frontend.client_add_pet') }}" class="action-btn">
+        <span class="action-icon">🐕</span>
+        <span class="action-label">Registrar Mascota</span>
+    </a>
+    <a href="{{ url_for('frontend.client_book_appointment') }}" class="action-btn">
+        <span class="action-icon">🗓️</span>
+        <span class="action-label">Agendar Cita</span>
+    </a>
+    <a href="{{ url_for('frontend.client_medical_history') }}" class="action-btn">
+        <span class="action-icon">📋</span>
+        <span class="action-label">Ver Historial</span>
+    </a>
+    <a href="{{ url_for('frontend.client_profile') }}" class="action-btn">
+        <span class="action-icon">👤</span>
+        <span class="action-label">Mi Perfil</span>
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Inicializando Dashboard del Cliente...');
+        
+        // Cargar datos del dashboard
+        loadDashboardData();
+        
+        // Actualizar cada 5 minutos
+        setInterval(loadDashboardData, 5 * 60 * 1000);
+    });
+
+    async function loadDashboardData() {
+        try {
+            // Cargar mis mascotas
+            await loadMyPets();
+            
+            // Cargar próximas citas
+            await loadUpcomingAppointments();
+            
+            // Cargar estadísticas
+            await loadClientStats();
+            
+        } catch (error) {
+            console.error('❌ Error cargando datos del dashboard:', error);
+        }
+    }
+
+    async function loadMyPets() {
+        try {
+            const response = await makeAPIRequest('/api/client/pets');
+            const petsGrid = document.getElementById('myPetsGrid');
+            
+            if (response.success && response.pets.length > 0) {
+                const petsHTML = response.pets.map(pet => `
+                    <div class="pet-card" onclick="viewPetDetails('${pet.id}')">
+                        <div class="pet-avatar">${getPetIcon(pet.species)}</div>
+                        <div class="pet-name">${pet.name}</div>
+                        <div class="pet-species">${capitalizePetSpecies(pet.species)}</div>
+                    </div>
+                `).join('');
+                
+                // Agregar botón para añadir mascota
+                const addPetHTML = `
+                    <a href="{{ url_for('frontend.client_add_pet') }}" class="pet-card add-pet-card">
+                        <div class="add-pet-icon">➕</div>
+                        <div class="pet-name">Agregar</div>
+                    </a>
+                `;
+                
+                petsGrid.innerHTML = petsHTML + addPetHTML;
+                
+                // Actualizar contador
+                document.getElementById('totalPets').textContent = response.pets.length;
+            } else {
+                // Estado vacío
+                petsGrid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <div class="empty-icon">🐾</div>
+                        <div class="empty-message">Aún no tienes mascotas registradas</div>
+                        <div class="empty-description">
+                            <a href="{{ url_for('frontend.client_add_pet') }}" class="action-btn" style="margin-top: 15px;">
+                                <span class="action-icon">➕</span>
+                                <span class="action-label">Registrar Primera Mascota</span>
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('❌ Error cargando mascotas:', error);
+            document.getElementById('myPetsGrid').innerHTML = `
+                <div class="empty-state" style="grid-column: 1 / -1;">
+                    <div class="empty-icon">⚠️</div>
+                    <div class="empty-message">Error cargando mascotas</div>
+                    <div class="empty-description">Inténtalo de nuevo más tarde</div>
+                </div>
+            `;
+        }
+    }
+
+    async function loadUpcomingAppointments() {
+        try {
+            const response = await makeAPIRequest('/api/client/appointments/upcoming');
+            const appointmentsList = document.getElementById('upcomingAppointments');
+            
+            if (response.success && response.appointments.length > 0) {
+                const appointmentsHTML = response.appointments.map(appointment => {
+                    const date = new Date(appointment.appointment_date);
+                    const day = date.getDate();
+                    const month = date.toLocaleDateString('es-CO', { month: 'short' });
+                    
+                    return `
+                        <li class="appointment-item">
+                            <div class="appointment-date">
+                                <div class="appointment-day">${day}</div>
+                                <div class="appointment-month">${month}</div>
+                            </div>
+                            <div class="appointment-details">
+                                <div class="appointment-time">${appointment.appointment_time} - ${appointment.pet_name}</div>
+                                <div class="appointment-pet">Dr. ${appointment.veterinarian_name || 'Por asignar'}</div>
+                            </div>
+                            <div class="appointment-status status-${appointment.status}">
+                                ${getStatusText(appointment.status)}
+                            </div>
+                        </li>
+                    `;
+                }).join('');
+                
+                appointmentsList.innerHTML = appointmentsHTML;
+                
+                // Actualizar contadores
+                document.getElementById('totalAppointments').textContent = response.appointments.length;
+                const pendingCount = response.appointments.filter(apt => apt.status === 'scheduled').length;
+                document.getElementById('pendingConfirmations').textContent = pendingCount;
+            } else {
+                appointmentsList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📅</div>
+                        <div class="empty-message">No tienes citas próximas</div>
+                        <div class="empty-description">
+                            <a href="{{ url_for('frontend.client_book_appointment') }}" class="action-btn" style="margin-top: 15px;">
+                                <span class="action-icon">🗓️</span>
+                                <span class="action-label">Agendar Cita</span>
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('❌ Error cargando citas:', error);
+            document.getElementById('upcomingAppointments').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">⚠️</div>
+                    <div class="empty-message">Error cargando citas</div>
+                    <div class="empty-description">Inténtalo de nuevo más tarde</div>
+                </div>
+            `;
+        }
+    }
+
+    async function loadClientStats() {
+        try {
+            const response = await makeAPIRequest('/api/client/dashboard/stats');
+            
+            if (response.success) {
+                const stats = response.stats;
+                
+                // Actualizar notificaciones
+                if (stats.unread_notifications !== undefined) {
+                    document.getElementById('unreadNotificationsCount').textContent = stats.unread_notifications;
+                }
+            }
+        } catch (error) {
+            console.error('❌ Error cargando estadísticas:', error);
+        }
+    }
+
+    // =============== FUNCIONES AUXILIARES ===============
+    function getPetIcon(species) {
+        const icons = {
+            'perro': '🐕',
+            'gato': '🐱',
+            'ave': '🐦',
+            'conejo': '🐰',
+            'reptil': '🦎',
+            'pez': '🐠'
+        };
+        return icons[species.toLowerCase()] || '🐾';
+    }
+
+    function capitalizePetSpecies(species) {
+        const translations = {
+            'perro': 'Perro',
+            'gato': 'Gato',
+            'ave': 'Ave',
+            'conejo': 'Conejo',
+            'reptil': 'Reptil',
+            'pez': 'Pez'
+        };
+        return translations[species.toLowerCase()] || species;
+    }
+
+    function getStatusText(status) {
+        const statusTexts = {
+            'scheduled': 'Programada',
+            'confirmed': 'Confirmada',
+            'completed': 'Completada',
+            'cancelled': 'Cancelada'
+        };
+        return statusTexts[status] || status;
+    }
+
+    function viewPetDetails(petId) {
+        window.location.href = `{{ url_for('frontend.client_pets') }}?pet=${petId}`;
+    }
+
+    console.log('✅ Dashboard del Cliente inicializado correctamente');
+</script>
+{% endblock %}
