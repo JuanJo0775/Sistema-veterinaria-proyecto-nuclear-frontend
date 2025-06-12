@@ -1,0 +1,1054 @@
+{% extends "client/client_base.html" %}
+
+{% block title %}Mis Mascotas{% endblock %}
+{% block page_title %}Mis Mascotas{% endblock %}
+
+{% block custom_styles %}
+<style>
+    /* =============== MY PETS SPECIFIC STYLES =============== */
+    .pets-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .pets-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #38A3A5;
+        margin: 0;
+    }
+
+    .add-pet-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 25px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(82, 183, 136, 0.3);
+    }
+
+    .add-pet-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(82, 183, 136, 0.4);
+        color: white;
+    }
+
+    /* FILTERS AND SEARCH */
+    .pets-controls {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(8, 28, 21, 0.08);
+        margin-bottom: 30px;
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .search-container {
+        position: relative;
+        flex: 1;
+        min-width: 250px;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px 20px 12px 50px;
+        border: 2px solid #D8F3DC;
+        border-radius: 25px;
+        font-size: 16px;
+        outline: none;
+        transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+        border-color: #52B788;
+        box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.1);
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #52B788;
+        font-size: 18px;
+    }
+
+    .filter-group {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .filter-select {
+        padding: 10px 15px;
+        border: 2px solid #D8F3DC;
+        border-radius: 20px;
+        background: white;
+        color: #081C15;
+        font-size: 14px;
+        outline: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .filter-select:focus {
+        border-color: #52B788;
+    }
+
+    /* PETS GRID */
+    .pets-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+
+    .pet-card {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 5px 15px rgba(8, 28, 21, 0.08);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: 2px solid transparent;
+    }
+
+    .pet-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(8, 28, 21, 0.15);
+        border-color: #52B788;
+    }
+
+    .pet-card-header {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .pet-photo-container {
+        position: relative;
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        overflow: hidden;
+        background: linear-gradient(135deg, #D8F3DC, #B7E4C7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 3px solid #52B788;
+    }
+
+    .pet-photo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .pet-photo-placeholder {
+        font-size: 35px;
+        color: #52B788;
+    }
+
+    .pet-info {
+        flex: 1;
+    }
+
+    .pet-name {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #081C15;
+        margin: 0 0 5px 0;
+    }
+
+    .pet-species {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .pet-breed {
+        color: #38A3A5;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .pet-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .pet-detail-item {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .detail-label {
+        font-size: 0.8rem;
+        color: #52B788;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .detail-value {
+        font-size: 0.9rem;
+        color: #081C15;
+        font-weight: 500;
+    }
+
+    .pet-actions {
+        display: flex;
+        gap: 10px;
+        padding-top: 15px;
+        border-top: 1px solid #D8F3DC;
+    }
+
+    .pet-action-btn {
+        flex: 1;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #38A3A5, #22577A);
+        color: white;
+    }
+
+    .btn-secondary {
+        background: #D8F3DC;
+        color: #38A3A5;
+        border: 1px solid #B7E4C7;
+    }
+
+    .btn-secondary:hover {
+        background: #B7E4C7;
+        color: #2D6A4F;
+    }
+
+    /* VACCINATION STATUS */
+    .vaccination-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .vaccination-complete {
+        background: #B7E4C7;
+        color: #2D6A4F;
+    }
+
+    .vaccination-partial {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+
+    .vaccination-pending {
+        background: #ffebee;
+        color: #c62828;
+    }
+
+    /* EMPTY STATE */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #52B788;
+        grid-column: 1 / -1;
+    }
+
+    .empty-icon {
+        font-size: 80px;
+        margin-bottom: 20px;
+        opacity: 0.6;
+    }
+
+    .empty-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: #38A3A5;
+    }
+
+    .empty-description {
+        font-size: 1rem;
+        margin-bottom: 30px;
+        opacity: 0.8;
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* LOADING STATE */
+    .loading-state {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 60px;
+        color: #52B788;
+        grid-column: 1 / -1;
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #D8F3DC;
+        border-top: 4px solid #52B788;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 15px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* STATS SUMMARY */
+    .pets-stats {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 5px 15px rgba(8, 28, 21, 0.08);
+        margin-bottom: 30px;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 20px;
+    }
+
+    .stat-item {
+        text-align: center;
+        padding: 15px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #D8F3DC, #B7E4C7);
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #38A3A5;
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: #52B788;
+        font-weight: 600;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+        .pets-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .pets-controls {
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .filter-group {
+            flex-wrap: wrap;
+        }
+
+        .pets-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .pet-details {
+            grid-template-columns: 1fr;
+        }
+
+        .pet-actions {
+            flex-direction: column;
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    /* MODAL STYLES */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(8, 28, 21, 0.7);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .modal {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        max-width: 500px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        transform: scale(0.8);
+        transition: transform 0.3s ease;
+    }
+
+    .modal-overlay.active .modal {
+        transform: scale(1);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #D8F3DC;
+    }
+
+    .modal-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #38A3A5;
+        margin: 0;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: #52B788;
+        cursor: pointer;
+        padding: 5px;
+        border-radius: 50%;
+        transition: all 0.3s ease;
+    }
+
+    .modal-close:hover {
+        background: #D8F3DC;
+        color: #2D6A4F;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- HEADER -->
+<div class="pets-header">
+    <h1 class="pets-title">Mis Mascotas</h1>
+    <a href="{{ url_for('frontend.client_add_pet') }}" class="add-pet-btn">
+        <span>➕</span>
+        <span>Registrar Nueva Mascota</span>
+    </a>
+</div>
+
+<!-- STATS SUMMARY -->
+<div class="pets-stats" id="petsStats" style="display: none;">
+    <div class="stats-grid">
+        <div class="stat-item">
+            <div class="stat-number" id="totalPetsCount">0</div>
+            <div class="stat-label">Total Mascotas</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" id="dogsCount">0</div>
+            <div class="stat-label">Perros</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" id="catsCount">0</div>
+            <div class="stat-label">Gatos</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" id="upcomingAppointmentsCount">0</div>
+            <div class="stat-label">Citas Próximas</div>
+        </div>
+    </div>
+</div>
+
+<!-- CONTROLS -->
+<div class="pets-controls">
+    <div class="search-container">
+        <input type="text" class="search-input" id="searchInput" placeholder="Buscar por nombre de mascota...">
+        <span class="search-icon">🔍</span>
+    </div>
+
+    <div class="filter-group">
+        <select class="filter-select" id="speciesFilter">
+            <option value="">Todas las especies</option>
+            <option value="perro">🐕 Perros</option>
+            <option value="gato">🐱 Gatos</option>
+        </select>
+
+        <select class="filter-select" id="vaccinationFilter">
+            <option value="">Estado de vacunación</option>
+            <option value="completo">Completa</option>
+            <option value="parcial">Parcial</option>
+            <option value="pendiente">Pendiente</option>
+        </select>
+    </div>
+</div>
+
+<!-- PETS GRID -->
+<div class="pets-grid" id="petsGrid">
+    <!-- Loading state inicial -->
+    <div class="loading-state">
+        <div class="spinner"></div>
+        <span>Cargando tus mascotas...</span>
+    </div>
+</div>
+
+<!-- MODAL PARA DETALLES DE MASCOTA -->
+<div class="modal-overlay" id="petDetailsModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 class="modal-title" id="modalPetName">Detalles de la Mascota</h2>
+            <button class="modal-close" onclick="closePetDetailsModal()">✕</button>
+        </div>
+        <div class="modal-content" id="modalContent">
+            <!-- El contenido se cargará dinámicamente -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // =============== VARIABLES GLOBALES ===============
+    let allPets = [];
+    let filteredPets = [];
+    let currentPet = null;
+
+    // =============== INICIALIZACIÓN ===============
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Inicializando página Mis Mascotas...');
+
+        initializeEventListeners();
+        loadMyPets();
+    });
+
+    function initializeEventListeners() {
+        // Búsqueda en tiempo real
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('input', debounce(handleSearch, 300));
+
+        // Filtros
+        const speciesFilter = document.getElementById('speciesFilter');
+        const vaccinationFilter = document.getElementById('vaccinationFilter');
+
+        speciesFilter.addEventListener('change', applyFilters);
+        vaccinationFilter.addEventListener('change', applyFilters);
+
+        // Modal
+        const modalOverlay = document.getElementById('petDetailsModal');
+        modalOverlay.addEventListener('click', function(e) {
+            if (e.target === modalOverlay) {
+                closePetDetailsModal();
+            }
+        });
+    }
+
+    // =============== CARGAR MASCOTAS ===============
+    async function loadMyPets() {
+        try {
+            console.log('📡 Cargando mascotas del cliente...');
+
+            const response = await makeAPIRequest('/api/client/pets');
+
+            if (response.success) {
+                allPets = response.pets || [];
+                filteredPets = [...allPets];
+
+                console.log(`✅ ${allPets.length} mascotas cargadas`);
+
+                updateStats();
+                renderPets();
+                showStatsIfNeeded();
+            } else {
+                console.error('❌ Error en respuesta:', response.message);
+                showEmptyState('Error cargando mascotas', 'Inténtalo de nuevo más tarde');
+            }
+        } catch (error) {
+            console.error('❌ Error cargando mascotas:', error);
+            showEmptyState('Error de conexión', 'No se pudieron cargar tus mascotas');
+        }
+    }
+
+    // =============== RENDERIZAR MASCOTAS ===============
+    function renderPets() {
+        const petsGrid = document.getElementById('petsGrid');
+
+        if (filteredPets.length === 0) {
+            if (allPets.length === 0) {
+                showEmptyState('¡Registra tu primera mascota!', 'Aquí podrás ver y gestionar todas tus mascotas registradas');
+            } else {
+                showEmptyState('No se encontraron mascotas', 'Intenta ajustar los filtros de búsqueda');
+            }
+            return;
+        }
+
+        const petsHTML = filteredPets.map(pet => createPetCard(pet)).join('');
+        petsGrid.innerHTML = petsHTML;
+    }
+
+    function createPetCard(pet) {
+        const photoUrl = pet.photo_url || null;
+        const age = calculateAge(pet.birth_date);
+        const vaccinationStatus = pet.vaccination_status || 'pendiente';
+
+        return `
+            <div class="pet-card" onclick="openPetDetails('${pet.id}')">
+                <div class="pet-card-header">
+                    <div class="pet-photo-container">
+                        ${photoUrl ?
+                            `<img src="${photoUrl}" alt="${pet.name}" class="pet-photo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                             <div class="pet-photo-placeholder" style="display: none;">${getPetIcon(pet.species)}</div>` :
+                            `<div class="pet-photo-placeholder">${getPetIcon(pet.species)}</div>`
+                        }
+                    </div>
+                    <div class="pet-info">
+                        <h3 class="pet-name">${pet.name}</h3>
+                        <div class="pet-species">
+                            <span>${getPetIcon(pet.species)}</span>
+                            <span>${capitalizePetSpecies(pet.species)}</span>
+                        </div>
+                        ${pet.breed ? `<div class="pet-breed">${pet.breed}</div>` : ''}
+                    </div>
+                </div>
+
+                <div class="pet-details">
+                    <div class="pet-detail-item">
+                        <span class="detail-label">Edad</span>
+                        <span class="detail-value">${age}</span>
+                    </div>
+                    <div class="pet-detail-item">
+                        <span class="detail-label">Peso</span>
+                        <span class="detail-value">${pet.weight ? pet.weight + ' kg' : 'No registrado'}</span>
+                    </div>
+                    <div class="pet-detail-item">
+                        <span class="detail-label">Sexo</span>
+                        <span class="detail-value">${pet.gender ? (pet.gender === 'male' ? 'Macho' : 'Hembra') : 'No especificado'}</span>
+                    </div>
+                    <div class="pet-detail-item">
+                        <span class="detail-label">Vacunación</span>
+                        <span class="vaccination-status vaccination-${vaccinationStatus}">
+                            ${getVaccinationText(vaccinationStatus)}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="pet-actions">
+                    <a href="{{ url_for('frontend.client_book_appointment') }}?pet=${pet.id}" class="pet-action-btn btn-primary">
+                        <span>🗓️</span>
+                        <span>Agendar Cita</span>
+                    </a>
+                    <a href="{{ url_for('frontend.client_medical_history') }}?pet=${pet.id}" class="pet-action-btn btn-secondary">
+                        <span>📋</span>
+                        <span>Ver Historial</span>
+                    </a>
+                </div>
+            </div>
+        `;
+    }
+
+    // =============== BUSCAR Y FILTRAR ===============
+    function handleSearch(event) {
+        const searchTerm = event.target.value.toLowerCase().trim();
+        applyFilters();
+    }
+
+    function applyFilters() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+        const speciesFilter = document.getElementById('speciesFilter').value;
+        const vaccinationFilter = document.getElementById('vaccinationFilter').value;
+
+        filteredPets = allPets.filter(pet => {
+            // Filtro de búsqueda
+            const matchesSearch = !searchTerm ||
+                pet.name.toLowerCase().includes(searchTerm) ||
+                (pet.breed && pet.breed.toLowerCase().includes(searchTerm));
+
+            // Filtro de especie
+            const matchesSpecies = !speciesFilter || pet.species === speciesFilter;
+
+            // Filtro de vacunación
+            const matchesVaccination = !vaccinationFilter ||
+                (pet.vaccination_status || 'pendiente') === vaccinationFilter;
+
+            return matchesSearch && matchesSpecies && matchesVaccination;
+        });
+
+        renderPets();
+        updateStats();
+    }
+
+    // =============== ESTADÍSTICAS ===============
+    function updateStats() {
+        const totalCount = allPets.length;
+        const dogsCount = allPets.filter(pet => pet.species === 'perro').length;
+        const catsCount = allPets.filter(pet => pet.species === 'gato').length;
+
+        document.getElementById('totalPetsCount').textContent = totalCount;
+        document.getElementById('dogsCount').textContent = dogsCount;
+        document.getElementById('catsCount').textContent = catsCount;
+
+        // TODO: Cargar citas próximas de las mascotas
+        // Por ahora, ponemos 0
+        document.getElementById('upcomingAppointmentsCount').textContent = '0';
+    }
+
+    function showStatsIfNeeded() {
+        const statsElement = document.getElementById('petsStats');
+        if (allPets.length > 0) {
+            statsElement.style.display = 'block';
+        }
+    }
+
+    // =============== MODAL DE DETALLES ===============
+    async function openPetDetails(petId) {
+        currentPet = allPets.find(pet => pet.id === petId);
+
+        if (!currentPet) {
+            showMessage('Mascota no encontrada', 'error');
+            return;
+        }
+
+        try {
+            console.log(`🔍 Abriendo detalles de ${currentPet.name}`);
+
+            const modal = document.getElementById('petDetailsModal');
+            const modalTitle = document.getElementById('modalPetName');
+            const modalContent = document.getElementById('modalContent');
+
+            modalTitle.textContent = currentPet.name;
+            modalContent.innerHTML = createPetDetailsContent(currentPet);
+
+            modal.classList.add('active');
+
+            // TODO: Cargar historial médico desde la API
+            // await loadPetMedicalHistory(petId);
+
+        } catch (error) {
+            console.error('❌ Error abriendo detalles:', error);
+            showMessage('Error cargando detalles de la mascota', 'error');
+        }
+    }
+
+    function createPetDetailsContent(pet) {
+        const age = calculateAge(pet.birth_date);
+        const photoUrl = pet.photo_url || null;
+
+        return `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div class="pet-photo-container" style="width: 120px; height: 120px; margin: 0 auto 15px;">
+                    ${photoUrl ?
+                        `<img src="${photoUrl}" alt="${pet.name}" class="pet-photo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                         <div class="pet-photo-placeholder" style="display: none; font-size: 50px;">${getPetIcon(pet.species)}</div>` :
+                        `<div class="pet-photo-placeholder" style="font-size: 50px;">${getPetIcon(pet.species)}</div>`
+                    }
+                </div>
+                <div class="pet-species" style="justify-content: center; margin-bottom: 10px;">
+                    <span>${getPetIcon(pet.species)}</span>
+                    <span>${capitalizePetSpecies(pet.species)}</span>
+                </div>
+            </div>
+
+            <div class="pet-details" style="grid-template-columns: 1fr; gap: 15px; margin-bottom: 20px;">
+                <div class="pet-detail-item">
+                    <span class="detail-label">Nombre completo</span>
+                    <span class="detail-value">${pet.name}</span>
+                </div>
+
+                ${pet.breed ? `
+                <div class="pet-detail-item">
+                    <span class="detail-label">Raza</span>
+                    <span class="detail-value">${pet.breed}</span>
+                </div>
+                ` : ''}
+
+                <div class="pet-detail-item">
+                    <span class="detail-label">Edad</span>
+                    <span class="detail-value">${age}</span>
+                </div>
+
+                ${pet.birth_date ? `
+                <div class="pet-detail-item">
+                    <span class="detail-label">Fecha de nacimiento</span>
+                    <span class="detail-value">${formatDate(pet.birth_date)}</span>
+                </div>
+                ` : ''}
+
+                <div class="pet-detail-item">
+                    <span class="detail-label">Sexo</span>
+                    <span class="detail-value">${pet.gender ? (pet.gender === 'male' ? 'Macho' : 'Hembra') : 'No especificado'}</span>
+                </div>
+
+                ${pet.weight ? `
+                <div class="pet-detail-item">
+                    <span class="detail-label">Peso</span>
+                    <span class="detail-value">${pet.weight} kg</span>
+                </div>
+                ` : ''}
+
+                <div class="pet-detail-item">
+                    <span class="detail-label">Estado de vacunación</span>
+                    <span class="vaccination-status vaccination-${pet.vaccination_status || 'pendiente'}">
+                        ${getVaccinationText(pet.vaccination_status || 'pendiente')}
+                    </span>
+                </div>
+
+                ${pet.microchip_number ? `
+                <div class="pet-detail-item">
+                    <span class="detail-label">Microchip</span>
+                    <span class="detail-value">${pet.microchip_number}</span>
+                </div>
+                ` : ''}
+
+                ${pet.allergies ? `
+                <div class="pet-detail-item">
+                    <span class="detail-label">Alergias conocidas</span>
+                    <span class="detail-value">${pet.allergies}</span>
+                </div>
+                ` : ''}
+
+                ${pet.special_notes ? `
+                <div class="pet-detail-item">
+                    <span class="detail-label">Notas especiales</span>
+                    <span class="detail-value">${pet.special_notes}</span>
+                </div>
+                ` : ''}
+
+                <div class="pet-detail-item">
+                    <span class="detail-label">Registrado el</span>
+                    <span class="detail-value">${formatDateTime(pet.created_at)}</span>
+                </div>
+            </div>
+
+            <div class="pet-actions" style="flex-direction: column; gap: 15px;">
+                <a href="{{ url_for('frontend.client_book_appointment') }}?pet=${pet.id}" class="pet-action-btn btn-primary">
+                    <span>🗓️</span>
+                    <span>Agendar Nueva Cita</span>
+                </a>
+                <a href="{{ url_for('frontend.client_medical_history') }}?pet=${pet.id}" class="pet-action-btn btn-secondary">
+                    <span>📋</span>
+                    <span>Ver Historial Médico Completo</span>
+                </a>
+                <button onclick="editPetInfo('${pet.id}')" class="pet-action-btn btn-secondary">
+                    <span>✏️</span>
+                    <span>Editar Información</span>
+                </button>
+            </div>
+        `;
+    }
+
+    function closePetDetailsModal() {
+        const modal = document.getElementById('petDetailsModal');
+        modal.classList.remove('active');
+        currentPet = null;
+    }
+
+    // =============== ACCIONES DE MASCOTA ===============
+    function editPetInfo(petId) {
+        // Cerrar modal actual
+        closePetDetailsModal();
+
+        // Redirigir a página de edición (por implementar)
+        showMessage('Función de edición próximamente disponible', 'info');
+
+        // TODO: Implementar página de edición de mascota
+        // window.location.href = `/client/pets/edit?pet=${petId}`;
+    }
+
+    async function bookAppointmentForPet(petId) {
+        try {
+            window.location.href = `{{ url_for('frontend.client_book_appointment') }}?pet=${petId}`;
+        } catch (error) {
+            console.error('❌ Error navegando a agendar cita:', error);
+            showMessage('Error navegando a agendar cita', 'error');
+        }
+    }
+
+    // =============== ESTADO VACÍO ===============
+    function showEmptyState(title, description) {
+        const petsGrid = document.getElementById('petsGrid');
+        petsGrid.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">🐾</div>
+                <div class="empty-title">${title}</div>
+                <div class="empty-description">${description}</div>
+                ${allPets.length === 0 ? `
+                    <a href="{{ url_for('frontend.client_add_pet') }}" class="add-pet-btn" style="margin-top: 20px;">
+                        <span>➕</span>
+                        <span>Registrar Mi Primera Mascota</span>
+                    </a>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // =============== FUNCIONES AUXILIARES ===============
+    function getPetIcon(species) {
+        const icons = {
+            'perro': '🐕',
+            'gato': '🐱'
+        };
+        return icons[species.toLowerCase()] || '🐾';
+    }
+
+    function capitalizePetSpecies(species) {
+        const translations = {
+            'perro': 'Perro',
+            'gato': 'Gato'
+        };
+        return translations[species.toLowerCase()] || species;
+    }
+
+    function getVaccinationText(status) {
+        const statusTexts = {
+            'completo': '✅ Completa',
+            'parcial': '⚠️ Parcial',
+            'pendiente': '❌ Pendiente'
+        };
+        return statusTexts[status] || '❓ Desconocido';
+    }
+
+    function calculateAge(birthDate) {
+        if (!birthDate) return 'No especificada';
+
+        try {
+            const birth = new Date(birthDate);
+            const today = new Date();
+            const ageInMs = today - birth;
+            const ageInYears = ageInMs / (1000 * 60 * 60 * 24 * 365.25);
+
+            if (ageInYears < 1) {
+                const ageInMonths = Math.floor(ageInYears * 12);
+                return ageInMonths <= 1 ? '1 mes' : `${ageInMonths} meses`;
+            } else {
+                const years = Math.floor(ageInYears);
+                return years === 1 ? '1 año' : `${years} años`;
+            }
+        } catch (error) {
+            return 'Edad inválida';
+        }
+    }
+
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // =============== MANEJO DE ERRORES DE IMÁGENES ===============
+    function handleImageError(img) {
+        img.style.display = 'none';
+        const placeholder = img.nextElementSibling;
+        if (placeholder) {
+            placeholder.style.display = 'flex';
+        }
+    }
+
+    // =============== ACTUALIZACIÓN PERIÓDICA ===============
+    function setupPeriodicUpdates() {
+        // Actualizar datos cada 5 minutos
+        setInterval(() => {
+            console.log('🔄 Actualizando datos de mascotas...');
+            loadMyPets();
+        }, 5 * 60 * 1000);
+    }
+
+    // =============== MANEJO DE EVENTOS DE TECLADO ===============
+    document.addEventListener('keydown', function(e) {
+        // Cerrar modal con Escape
+        if (e.key === 'Escape') {
+            closePetDetailsModal();
+        }
+    });
+
+    // =============== ANÁLITICAS Y TRACKING ===============
+    function trackPetAction(action, petId, petName) {
+        console.log(`📊 Acción: ${action} - Mascota: ${petName} (${petId})`);
+        // TODO: Implementar tracking de analytics si es necesario
+    }
+
+    // =============== INICIALIZACIÓN FINAL ===============
+    console.log('✅ Página Mis Mascotas inicializada correctamente');
+
+    // Configurar actualizaciones periódicas
+    setTimeout(setupPeriodicUpdates, 10000); // Iniciar después de 10 segundos
+
+    // =============== FUNCIONES EXPORTADAS PARA DEBUGGING ===============
+    window.debugPets = {
+        allPets: () => allPets,
+        filteredPets: () => filteredPets,
+        currentPet: () => currentPet,
+        reloadPets: loadMyPets,
+        resetFilters: () => {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('speciesFilter').value = '';
+            document.getElementById('vaccinationFilter').value = '';
+            applyFilters();
+        }
+    };
+</script>
+{% endblock %}

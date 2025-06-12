@@ -3914,7 +3914,11 @@ def api_get_inventory_stats():
         }), 500
 
 
-# =============== RUTAS DEL CLIENTE ===============
+
+
+
+
+# =============== RUTAS DEL CLIENTE - COMPLETAS ===============
 
 @frontend_bp.route('/client/dashboard')
 @role_required(['client'])
@@ -4096,16 +4100,189 @@ def api_client_pets():
         response = requests.get(medical_url, headers=headers, timeout=10)
 
         if response.status_code == 200:
-            return jsonify(response.json())
+            data = response.json()
+            if data.get('success'):
+                pets = data.get('pets', [])
+
+                # Enriquecer datos con información adicional
+                for pet in pets:
+                    # Calcular edad si tiene fecha de nacimiento
+                    if pet.get('birth_date'):
+                        try:
+                            from datetime import datetime, date
+                            birth = datetime.strptime(pet['birth_date'], '%Y-%m-%d').date()
+                            today = date.today()
+                            age_years = (today - birth).days / 365.25
+                            pet['calculated_age'] = age_years
+                        except:
+                            pet['calculated_age'] = None
+
+                    # Asegurar que tenga estado de vacunación
+                    if not pet.get('vaccination_status'):
+                        pet['vaccination_status'] = 'pendiente'
+
+                return jsonify({
+                    'success': True,
+                    'pets': pets,
+                    'total': len(pets)
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'pets': [],
+                    'total': 0
+                })
         else:
             return jsonify({
-                'success': True,
-                'pets': [],
-                'total': 0
-            })
+                'success': False,
+                'message': f'Error del Medical Service: {response.status_code}'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Medical Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio médico'
+        }), 500
     except Exception as e:
         print(f"❌ Error en api_client_pets: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/client/pets/<pet_id>')
+@role_required(['client'])
+def api_client_pet_details(pet_id):
+    """API para obtener detalles específicos de una mascota del cliente"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener detalles de la mascota
+        medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}"
+        response = requests.get(medical_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                pet = data.get('pet', {})
+
+                # Verificar que la mascota pertenece al cliente
+                if pet.get('owner_id') != user['id']:
+                    return jsonify({
+                        'success': False,
+                        'message': 'No tienes acceso a esta mascota'
+                    }), 403
+
+                # Intentar obtener historial médico básico
+                try:
+                    records_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/records/pet/{pet_id}"
+                    records_response = requests.get(records_url, headers=headers, timeout=5)
+
+                    if records_response.status_code == 200:
+                        records_data = records_response.json()
+                        if records_data.get('success'):
+                            pet['recent_visits'] = len(records_data.get('medical_records', []))
+                            pet['last_visit'] = None
+                            records = records_data.get('medical_records', [])
+                            if records:
+                                # Ordenar por fecha y tomar la más reciente
+                                sorted_records = sorted(records, key=lambda x: x.get('created_at', ''), reverse=True)
+                                pet['last_visit'] = sorted_records[0].get('created_at')
+                        else:
+                            pet['recent_visits'] = 0
+                    else:
+                        pet['recent_visits'] = 0
+                except:
+                    pet['recent_visits'] = 0
+
+                return jsonify({
+                    'success': True,
+                    'pet': pet
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Mascota no encontrada'
+                }), 404
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Error del Medical Service: {response.status_code}'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Medical Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio médico'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_client_pet_details: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/client/pets/stats')
+@role_required(['client'])
+def api_client_pets_stats():
+    """API para obtener estadísticas de mascotas del cliente"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener todas las mascotas del cliente
+        medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/owner/{user['id']}"
+        response = requests.get(medical_url, headers=headers, timeout=10)
+
+        stats = {
+            'total_pets': 0,
+            'dogs_count': 0,
+            'cats_count': 0,
+            'upcoming_appointments': 0,
+            'vaccination_complete': 0,
+            'vaccination_pending': 0
+        }
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                pets = data.get('pets', [])
+
+                stats['total_pets'] = len(pets)
+                stats['dogs_count'] = len([p for p in pets if p.get('species') == 'perro'])
+                stats['cats_count'] = len([p for p in pets if p.get('species') == 'gato'])
+                stats['vaccination_complete'] = len([p for p in pets if p.get('vaccination_status') == 'completo'])
+                stats['vaccination_pending'] = len(
+                    [p for p in pets if p.get('vaccination_status') in ['pendiente', 'parcial']])
+
+        # Intentar obtener citas próximas
+        try:
+            appointments_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/client/{user['id']}/upcoming"
+            appointments_response = requests.get(appointments_url, headers=headers, timeout=5)
+
+            if appointments_response.status_code == 200:
+                apt_data = appointments_response.json()
+                if apt_data.get('success'):
+                    stats['upcoming_appointments'] = len(apt_data.get('appointments', []))
+        except:
+            pass
+
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_client_pets_stats: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
 
 
 @frontend_bp.route('/api/client/appointments/upcoming')
@@ -4120,16 +4297,58 @@ def api_client_upcoming_appointments():
         response = requests.get(appointment_url, headers=headers, timeout=10)
 
         if response.status_code == 200:
-            return jsonify(response.json())
+            data = response.json()
+            if data.get('success'):
+                appointments = data.get('appointments', [])
+
+                # Enriquecer datos con información de mascotas
+                try:
+                    medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/owner/{user['id']}"
+                    pets_response = requests.get(medical_url, headers=headers, timeout=5)
+
+                    if pets_response.status_code == 200:
+                        pets_data = pets_response.json()
+                        if pets_data.get('success'):
+                            pets_map = {pet['id']: pet for pet in pets_data.get('pets', [])}
+
+                            for appointment in appointments:
+                                pet_id = appointment.get('pet_id')
+                                if pet_id and pet_id in pets_map:
+                                    pet = pets_map[pet_id]
+                                    appointment['pet_name'] = pet['name']
+                                    appointment['pet_species'] = pet['species']
+                except Exception as e:
+                    print(f"⚠️ Error enriqueciendo citas con datos de mascotas: {e}")
+
+                return jsonify({
+                    'success': True,
+                    'appointments': appointments,
+                    'total': len(appointments)
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'appointments': [],
+                    'total': 0
+                })
         else:
             return jsonify({
-                'success': True,
-                'appointments': [],
-                'total': 0
-            })
+                'success': False,
+                'message': f'Error del Appointment Service: {response.status_code}'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Appointment Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de citas'
+        }), 500
     except Exception as e:
         print(f"❌ Error en api_client_upcoming_appointments: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
 
 
 @frontend_bp.route('/api/client/dashboard/stats')
@@ -4157,6 +4376,29 @@ def api_client_dashboard_stats():
         except:
             pass
 
+        # Obtener conteo de mascotas
+        try:
+            pets_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/owner/{user['id']}"
+            pets_response = requests.get(pets_url, headers=headers, timeout=5)
+            if pets_response.status_code == 200:
+                pets_data = pets_response.json()
+                if pets_data.get('success'):
+                    stats['total_pets'] = len(pets_data.get('pets', []))
+        except:
+            pass
+
+        # Obtener citas pendientes
+        try:
+            appointments_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/client/{user['id']}/upcoming"
+            appointments_response = requests.get(appointments_url, headers=headers, timeout=5)
+            if appointments_response.status_code == 200:
+                apt_data = appointments_response.json()
+                if apt_data.get('success'):
+                    appointments = apt_data.get('appointments', [])
+                    stats['pending_appointments'] = len([a for a in appointments if a.get('status') == 'scheduled'])
+        except:
+            pass
+
         return jsonify({
             'success': True,
             'stats': stats
@@ -4171,16 +4413,45 @@ def api_client_dashboard_stats():
 def api_client_notifications_count():
     """API para contar notificaciones del cliente"""
     try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        data = {
+            'unread_notifications': 0,
+            'pending_appointments': 0
+        }
+
+        # Intentar obtener notificaciones no leídas
+        try:
+            notif_url = f"{current_app.config['NOTIFICATION_SERVICE_URL']}/notifications/user/{user['id']}/unread/count"
+            notif_response = requests.get(notif_url, headers=headers, timeout=5)
+            if notif_response.status_code == 200:
+                notif_data = notif_response.json()
+                if notif_data.get('success'):
+                    data['unread_notifications'] = notif_data.get('count', 0)
+        except:
+            pass
+
+        # Obtener citas pendientes de confirmación
+        try:
+            appointments_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/client/{user['id']}/upcoming"
+            appointments_response = requests.get(appointments_url, headers=headers, timeout=5)
+            if appointments_response.status_code == 200:
+                apt_data = appointments_response.json()
+                if apt_data.get('success'):
+                    appointments = apt_data.get('appointments', [])
+                    data['pending_appointments'] = len([a for a in appointments if a.get('status') == 'scheduled'])
+        except:
+            pass
+
         return jsonify({
             'success': True,
-            'data': {
-                'unread_notifications': 0,
-                'pending_appointments': 0
-            }
+            'data': data
         })
     except Exception as e:
         print(f"❌ Error en api_client_notifications_count: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @frontend_bp.route('/health')
 def health():
