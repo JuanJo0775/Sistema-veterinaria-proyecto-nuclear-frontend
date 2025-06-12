@@ -3,6 +3,8 @@
 {% block title %}Gestión de Inventario{% endblock %}
 {% block page_title %}Gestión de Inventario{% endblock %}
 
+{% block styles %}
+  {{ super() }}
 {% block custom_styles %}
 <style>
     /* =============== SISTEMA DE COLORES UNIFICADO =============== */
@@ -1380,6 +1382,7 @@
         }
     }
 </style>
+{% endblock %}
 {% endblock %}
 
 {% block content %}

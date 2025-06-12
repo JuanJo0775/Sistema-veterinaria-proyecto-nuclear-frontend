@@ -547,17 +547,19 @@
         }
 
         // =============== CARGAR NOTIFICACIONES ===============
-        async function loadClientNotifications() {
-            try {
-                const response = await makeAPIRequest('/api/client/notifications/count');
+            async function loadClientNotifications() {
+        try {
+            // Usar el endpoint correcto del frontend que hará proxy
+            const response = await makeAPIRequest('/api/client/notifications/count');
 
-                if (response.success) {
-                    updateNotificationBadges(response.data);
-                }
-            } catch (error) {
-                console.error('❌ Error cargando notificaciones:', error);
+            if (response.success) {
+                updateNotificationBadges(response.data || response);
             }
+        } catch (error) {
+            console.error('❌ Error cargando notificaciones:', error);
+            // Fallback silencioso - no mostrar error al usuario
         }
+    }
 
         function updateNotificationBadges(data) {
             // Badge en topbar

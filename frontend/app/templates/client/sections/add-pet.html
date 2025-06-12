@@ -1,0 +1,2007 @@
+{% extends "client/client_base.html" %}
+
+{% block title %}Registrar Nueva Mascota{% endblock %}
+{% block page_title %}Registrar Nueva Mascota{% endblock %}
+
+{% block custom_styles %}
+<style>
+    /* =============== PREMIUM DESIGN STYLES =============== */
+    * {
+        box-sizing: border-box;
+    }
+
+    .add-pet-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 0 20px;
+    }
+
+    /* MAGICAL HEADER */
+    .page-header {
+        text-align: center;
+        margin-bottom: 50px;
+        position: relative;
+        padding: 40px 0;
+    }
+
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 200px;
+        height: 4px;
+        background: linear-gradient(90deg, #52B788, #38A3A5, #22577A);
+        border-radius: 2px;
+        animation: shimmer 2s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+        0%, 100% { opacity: 0.6; transform: translateX(-50%) scaleX(1); }
+        50% { opacity: 1; transform: translateX(-50%) scaleX(1.2); }
+    }
+
+    .page-title {
+        font-size: 3rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #2D6A4F 0%, #38A3A5 50%, #22577A 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 20px 0 15px 0;
+        text-shadow: 0 4px 15px rgba(45, 106, 79, 0.2);
+    }
+
+    .page-subtitle {
+        font-size: 1.2rem;
+        color: #52B788;
+        opacity: 0.9;
+        max-width: 700px;
+        margin: 0 auto;
+        line-height: 1.8;
+        font-weight: 300;
+    }
+
+    .page-emoji {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        display: block;
+        filter: drop-shadow(0 4px 15px rgba(82, 183, 136, 0.3));
+        animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+    }
+
+    /* PREMIUM PROGRESS INDICATOR */
+    .form-progress {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 50px;
+        padding: 30px 0;
+    }
+
+    .progress-container {
+        background: rgba(255, 255, 255, 0.9);
+        padding: 25px 40px;
+        border-radius: 25px;
+        box-shadow: 0 10px 40px rgba(8, 28, 21, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(183, 228, 199, 0.3);
+    }
+
+    .progress-steps {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .progress-step {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 16px;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .progress-step::after {
+        content: attr(data-label);
+        position: absolute;
+        bottom: -25px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+
+    .progress-step.active {
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        color: white;
+        transform: scale(1.1);
+        box-shadow: 0 8px 25px rgba(82, 183, 136, 0.4);
+    }
+
+    .progress-step.completed {
+        background: linear-gradient(135deg, #2D6A4F, #081C15);
+        color: white;
+        transform: scale(1.05);
+    }
+
+    .progress-step.pending {
+        background: linear-gradient(135deg, #D8F3DC, #B7E4C7);
+        color: #52B788;
+        border: 3px solid #B7E4C7;
+    }
+
+    .progress-connector {
+        width: 60px;
+        height: 4px;
+        background: #D8F3DC;
+        border-radius: 2px;
+        transition: all 0.4s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .progress-connector.completed {
+        background: linear-gradient(90deg, #52B788, #38A3A5);
+    }
+
+    .progress-connector.completed::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+        animation: progress-shine 1.5s ease-in-out;
+    }
+
+    @keyframes progress-shine {
+        0% { left: -100%; }
+        100% { left: 100%; }
+    }
+
+    /* LUXURY FORM CONTAINER */
+    .form-container {
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.9) 100%);
+        border-radius: 30px;
+        padding: 50px;
+        box-shadow:
+            0 20px 60px rgba(8, 28, 21, 0.1),
+            0 0 0 1px rgba(183, 228, 199, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(183, 228, 199, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .form-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #52B788, #38A3A5, #22577A, #2D6A4F);
+        background-size: 200% 100%;
+        animation: gradient-flow 3s ease infinite;
+    }
+
+    @keyframes gradient-flow {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+
+    .form-section {
+        margin-bottom: 50px;
+        position: relative;
+    }
+
+    .form-section:last-child {
+        margin-bottom: 0;
+    }
+
+    /* ELEGANT SECTION TITLES */
+    .section-title {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #2D6A4F;
+        margin-bottom: 30px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid transparent;
+        background: linear-gradient(white, white) padding-box,
+                    linear-gradient(90deg, #52B788, #38A3A5) border-box;
+        border-bottom: 2px solid;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        position: relative;
+    }
+
+    .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #22577A, #38A3A5);
+        transition: width 0.6s ease;
+    }
+
+    .section-title:hover::after {
+        width: 100%;
+    }
+
+    .section-icon {
+        font-size: 1.8rem;
+        filter: drop-shadow(0 2px 8px rgba(82, 183, 136, 0.3));
+        animation: pulse-icon 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-icon {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+
+    /* PREMIUM FORM GRID */
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 30px;
+        align-items: start;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        position: relative;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    /* BEAUTIFUL LABELS */
+    .form-label {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #2D6A4F;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .form-label.required::after {
+        content: "*";
+        color: #22577A;
+        font-size: 1.2rem;
+        font-weight: 900;
+    }
+
+    .optional-indicator {
+        font-size: 0.75rem;
+        color: #B7E4C7;
+        font-style: italic;
+        font-weight: 400;
+        text-transform: none;
+        letter-spacing: 0;
+    }
+
+    /* LUXURIOUS FORM INPUTS */
+    .form-input,
+    .form-select,
+    .form-textarea {
+        padding: 18px 24px;
+        border: 2px solid #D8F3DC;
+        border-radius: 16px;
+        font-size: 16px;
+        color: #081C15;
+        background: rgba(255, 255, 255, 0.9);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        outline: none;
+        font-weight: 500;
+        box-shadow: 0 2px 10px rgba(8, 28, 21, 0.05);
+        position: relative;
+    }
+
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+        border-color: #52B788;
+        box-shadow:
+            0 0 0 4px rgba(82, 183, 136, 0.15),
+            0 4px 20px rgba(82, 183, 136, 0.1);
+        transform: translateY(-2px);
+        background: white;
+    }
+
+    .form-input::placeholder,
+    .form-textarea::placeholder {
+        color: #B7E4C7;
+        font-weight: 400;
+    }
+
+    .form-textarea {
+        resize: vertical;
+        min-height: 120px;
+        font-family: inherit;
+        line-height: 1.6;
+    }
+
+    .form-select {
+        cursor: pointer;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2352B788' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 20px center;
+        background-repeat: no-repeat;
+        background-size: 20px;
+        padding-right: 60px;
+        appearance: none;
+    }
+
+    /* PREMIUM GENDER SELECTION */
+    .gender-options {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .gender-option {
+        position: relative;
+    }
+
+    .gender-input {
+        display: none;
+    }
+
+    .gender-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 20px 25px;
+        border: 3px solid #D8F3DC;
+        border-radius: 20px;
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.9));
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-weight: 600;
+        color: #2D6A4F;
+        box-shadow: 0 4px 15px rgba(8, 28, 21, 0.05);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .gender-label::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(82, 183, 136, 0.1), transparent);
+        transition: left 0.5s ease;
+    }
+
+    .gender-label:hover::before {
+        left: 100%;
+    }
+
+    .gender-input:checked + .gender-label {
+        border-color: #52B788;
+        background: linear-gradient(145deg, #D8F3DC, #B7E4C7);
+        color: #081C15;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(82, 183, 136, 0.2);
+    }
+
+    .gender-icon {
+        font-size: 24px;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    }
+
+    /* MAGICAL PHOTO UPLOAD */
+    .photo-upload-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 25px;
+        padding: 40px;
+        border: 3px dashed #B7E4C7;
+        border-radius: 25px;
+        background: linear-gradient(145deg,
+            rgba(216, 243, 220, 0.3) 0%,
+            rgba(183, 228, 199, 0.2) 50%,
+            rgba(255, 255, 255, 0.4) 100%);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .photo-upload-container::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(82, 183, 136, 0.1) 0%, transparent 70%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+    }
+
+    .photo-upload-container:hover {
+        border-color: #52B788;
+        background: linear-gradient(145deg,
+            rgba(183, 228, 199, 0.4) 0%,
+            rgba(82, 183, 136, 0.2) 50%,
+            rgba(255, 255, 255, 0.5) 100%);
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(82, 183, 136, 0.2);
+    }
+
+    .photo-upload-container:hover::before {
+        opacity: 1;
+    }
+
+    .photo-upload-container.dragover {
+        border-color: #38A3A5;
+        background: linear-gradient(145deg,
+            rgba(56, 163, 165, 0.3) 0%,
+            rgba(34, 87, 122, 0.2) 50%,
+            rgba(255, 255, 255, 0.6) 100%);
+        transform: scale(1.02);
+        box-shadow: 0 15px 40px rgba(56, 163, 165, 0.3);
+    }
+
+    .photo-preview-container {
+        position: relative;
+        width: 160px;
+        height: 160px;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 4px solid #52B788;
+        background: linear-gradient(145deg, #D8F3DC, #B7E4C7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 30px rgba(82, 183, 136, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .photo-preview-container:hover {
+        transform: scale(1.05);
+        box-shadow: 0 12px 40px rgba(82, 183, 136, 0.4);
+    }
+
+    .photo-preview {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: all 0.3s ease;
+    }
+
+    .photo-placeholder {
+        font-size: 70px;
+        color: #52B788;
+        filter: drop-shadow(0 4px 15px rgba(82, 183, 136, 0.3));
+        animation: photo-pulse 3s ease-in-out infinite;
+    }
+
+    @keyframes photo-pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+    }
+
+    .photo-upload-text {
+        text-align: center;
+        color: #2D6A4F;
+    }
+
+    .photo-upload-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+        background: linear-gradient(135deg, #2D6A4F, #52B788);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .photo-upload-subtitle {
+        font-size: 1rem;
+        opacity: 0.8;
+        font-weight: 500;
+        line-height: 1.5;
+    }
+
+    .remove-photo-btn {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        width: 35px;
+        height: 35px;
+        background: linear-gradient(135deg, #22577A, #081C15);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(34, 87, 122, 0.4);
+    }
+
+    .remove-photo-btn:hover {
+        background: linear-gradient(135deg, #081C15, #22577A);
+        transform: scale(1.1) rotate(90deg);
+        box-shadow: 0 6px 20px rgba(34, 87, 122, 0.6);
+    }
+
+    /* PREMIUM FORM VALIDATION */
+    .form-input.error,
+    .form-select.error,
+    .form-textarea.error {
+        border-color: #22577A;
+        background-color: rgba(34, 87, 122, 0.05);
+        animation: shake 0.5s ease-in-out;
+    }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+
+    .error-message {
+        color: #22577A;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: rgba(34, 87, 122, 0.1);
+        border-radius: 8px;
+        border-left: 4px solid #22577A;
+    }
+
+    .success-message {
+        color: #2D6A4F;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: rgba(45, 106, 79, 0.1);
+        border-radius: 8px;
+        border-left: 4px solid #2D6A4F;
+    }
+
+    /* LUXURIOUS HELP TEXT */
+    .help-text {
+        font-size: 0.85rem;
+        color: #52B788;
+        margin-top: 6px;
+        opacity: 0.9;
+        font-weight: 500;
+        font-style: italic;
+    }
+
+    /* SPECTACULAR FORM ACTIONS */
+    .form-actions {
+        display: flex;
+        gap: 25px;
+        justify-content: center;
+        margin-top: 50px;
+        padding-top: 40px;
+        border-top: 2px solid transparent;
+        background: linear-gradient(white, white) padding-box,
+                    linear-gradient(90deg, #D8F3DC, #B7E4C7, #D8F3DC) border-box;
+        border-top: 2px solid;
+    }
+
+    .btn {
+        padding: 18px 35px;
+        border: none;
+        border-radius: 30px;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        min-width: 180px;
+        position: relative;
+        overflow: hidden;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: left 0.5s ease;
+    }
+
+    .btn:hover::before {
+        left: 100%;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        color: white;
+        box-shadow: 0 8px 25px rgba(82, 183, 136, 0.4);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background: linear-gradient(135deg, #38A3A5, #22577A);
+        transform: translateY(-3px);
+        box-shadow: 0 12px 35px rgba(82, 183, 136, 0.5);
+    }
+
+    .btn-primary:active {
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.9));
+        color: #52B788;
+        border: 3px solid #52B788;
+        box-shadow: 0 8px 25px rgba(82, 183, 136, 0.2);
+    }
+
+    .btn-secondary:hover {
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        color: white;
+        transform: translateY(-3px);
+        box-shadow: 0 12px 35px rgba(82, 183, 136, 0.4);
+    }
+
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .btn-loading {
+        position: relative;
+        color: transparent;
+    }
+
+    .btn-loading::after {
+        content: "";
+        position: absolute;
+        width: 24px;
+        height: 24px;
+        top: 50%;
+        left: 50%;
+        margin-left: -12px;
+        margin-top: -12px;
+        border: 3px solid transparent;
+        border-top-color: currentColor;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    /* DATE INPUT PREMIUM STYLING */
+    .date-input {
+        position: relative;
+    }
+
+    .date-input input[type="date"] {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2352B788' stroke-width='2'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 20px center;
+        background-size: 24px;
+        padding-right: 60px;
+    }
+
+    /* RESPONSIVE PREMIUM DESIGN */
+    @media (max-width: 768px) {
+        .add-pet-container {
+            padding: 0 15px;
+        }
+
+        .form-container {
+            padding: 30px 25px;
+            border-radius: 20px;
+        }
+
+        .page-title {
+            font-size: 2.2rem;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+            gap: 25px;
+        }
+
+        .form-actions {
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .gender-options {
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        .photo-upload-container {
+            padding: 25px 20px;
+        }
+
+        .photo-preview-container {
+            width: 140px;
+            height: 140px;
+        }
+
+        .progress-steps {
+            gap: 15px;
+        }
+
+        .progress-connector {
+            width: 40px;
+        }
+
+        .progress-step {
+            width: 45px;
+            height: 45px;
+        }
+
+        .progress-container {
+            padding: 20px 25px;
+        }
+    }
+
+    /* MICRO-INTERACTIONS */
+    .form-group:hover .form-label {
+        color: #38A3A5;
+        transform: translateX(3px);
+    }
+
+    .form-input:focus + .help-text,
+    .form-select:focus + .help-text,
+    .form-textarea:focus + .help-text {
+        color: #2D6A4F;
+        transform: translateY(-2px);
+    }
+
+    /* SELECTION ANIMATION */
+    .form-select option {
+        padding: 10px;
+        background: white;
+        color: #081C15;
+    }
+
+    /* ADDITIONAL ANIMATIONS */
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* FOCUS RING IMPROVEMENTS */
+    .form-input:focus-visible,
+    .form-select:focus-visible,
+    .form-textarea:focus-visible,
+    .btn:focus-visible {
+        outline: 3px solid rgba(82, 183, 136, 0.5);
+        outline-offset: 2px;
+    }
+
+    /* LOADING STATES */
+    .form-section.loading {
+        opacity: 0.7;
+        pointer-events: none;
+    }
+
+    /* SUCCESS ANIMATION */
+    .form-success {
+        animation: success-bounce 0.6s ease;
+    }
+
+    @keyframes success-bounce {
+        0%, 20%, 50%, 80%, 100% {
+            transform: translateY(0);
+        }
+        40% {
+            transform: translateY(-10px);
+        }
+        60% {
+            transform: translateY(-5px);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="add-pet-container">
+    <!-- MAGICAL HEADER -->
+    <div class="page-header">
+        <span class="page-emoji">🐾</span>
+        <h1 class="page-title">Registrar Nueva Mascota</h1>
+        <p class="page-subtitle">
+            Completa la información de tu querido compañero para que podamos brindarle la atención más especial y personalizada que se merece
+        </p>
+    </div>
+
+    <!-- PREMIUM PROGRESS INDICATOR -->
+    <div class="form-progress">
+        <div class="progress-container">
+            <div class="progress-steps">
+                <div class="progress-step active" id="step1" data-label="Básica">1</div>
+                <div class="progress-connector" id="connector1"></div>
+                <div class="progress-step pending" id="step2" data-label="Médica">2</div>
+                <div class="progress-connector" id="connector2"></div>
+                <div class="progress-step pending" id="step3" data-label="Foto">3</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LUXURY FORM CONTAINER -->
+    <div class="form-container">
+        <form id="addPetForm" enctype="multipart/form-data">
+            <!-- INFORMACIÓN BÁSICA -->
+            <div class="form-section">
+                <h2 class="section-title">
+                    <span class="section-icon">📋</span>
+                    Información Básica
+                </h2>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label required" for="petName">
+                            🏷️ Nombre de la mascota
+                        </label>
+                        <input type="text" id="petName" name="name" class="form-input"
+                               placeholder="Ej: Max, Luna, Rocky..." required maxlength="50">
+                        <div class="help-text">El nombre que usas para llamar a tu querido compañero</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required" for="petSpecies">
+                            🦴 Especie
+                        </label>
+                        <select id="petSpecies" name="species" class="form-select" required>
+                            <option value="">Selecciona la especie</option>
+                            <option value="perro">🐕 Perro</option>
+                            <option value="gato">🐱 Gato</option>
+                        </select>
+                        <div class="help-text">Selecciona la especie de tu mascota</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="petBreed">
+                            🧬 Raza <span class="optional-indicator">(opcional)</span>
+                        </label>
+                        <input type="text" id="petBreed" name="breed" class="form-input"
+                               placeholder="Ej: Golden Retriever, Persa, Mestizo...">
+                        <div class="help-text">Si no conoces la raza exacta, puedes usar "Mestizo" o dejarlo en blanco</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required">
+                            ⚧️ Sexo
+                        </label>
+                        <div class="gender-options">
+                            <div class="gender-option">
+                                <input type="radio" id="genderMale" name="gender" value="male" class="gender-input" required>
+                                <label for="genderMale" class="gender-label">
+                                    <span class="gender-icon">♂️</span>
+                                    <span>Macho</span>
+                                </label>
+                            </div>
+                            <div class="gender-option">
+                                <input type="radio" id="genderFemale" name="gender" value="female" class="gender-input" required>
+                                <label for="genderFemale" class="gender-label">
+                                    <span class="gender-icon">♀️</span>
+                                    <span>Hembra</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="help-text">Selecciona el sexo de tu mascota</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="petBirthDate">
+                            🎂 Fecha de nacimiento <span class="optional-indicator">(aproximada)</span>
+                        </label>
+                        <div class="date-input">
+                            <input type="date" id="petBirthDate" name="birth_date" class="form-input" max="">
+                        </div>
+                        <div class="help-text">Si no conoces la fecha exacta, puedes usar una aproximada</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="petWeight">
+                            ⚖️ Peso (kg) <span class="optional-indicator">(opcional)</span>
+                        </label>
+                        <input type="number" id="petWeight" name="weight" class="form-input"
+                               placeholder="Ej: 5.5" min="0.1" max="200" step="0.1">
+                        <div class="help-text">Peso aproximado en kilogramos</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- INFORMACIÓN MÉDICA -->
+            <div class="form-section">
+                <h2 class="section-title">
+                    <span class="section-icon">🏥</span>
+                    Información Médica
+                </h2>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="vaccinationStatus">
+                            💉 Estado de vacunación
+                        </label>
+                        <select id="vaccinationStatus" name="vaccination_status" class="form-select">
+                            <option value="pendiente">❌ Pendiente</option>
+                            <option value="parcial">⚠️ Parcial</option>
+                            <option value="completo">✅ Completa</option>
+                            <option value="desconocido">❓ No estoy seguro</option>
+                        </select>
+                        <div class="help-text">Estado actual de las vacunas de tu mascota</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="microchipNumber">
+                            🏷️ Número de microchip <span class="optional-indicator">(opcional)</span>
+                        </label>
+                        <input type="text" id="microchipNumber" name="microchip_number" class="form-input"
+                               placeholder="Ej: 123456789012345">
+                        <div class="help-text">Si tu mascota tiene microchip implantado</div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label class="form-label" for="allergies">
+                            🚨 Alergias conocidas <span class="optional-indicator">(opcional)</span>
+                        </label>
+                        <textarea id="allergies" name="allergies" class="form-textarea"
+                                  placeholder="Describe cualquier alergia conocida (alimentos, medicamentos, materiales, etc.)"></textarea>
+                        <div class="help-text">Información importante para evitar reacciones alérgicas</div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label class="form-label" for="specialNotes">
+                            📝 Notas especiales <span class="optional-indicator">(opcional)</span>
+                        </label>
+                        <textarea id="specialNotes" name="special_notes" class="form-textarea"
+                                  placeholder="Cualquier información adicional importante (comportamiento, condiciones médicas, medicamentos actuales, etc.)"></textarea>
+                        <div class="help-text">Comparte detalles que nos ayuden a cuidar mejor de tu mascota</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FOTO DE LA MASCOTA -->
+            <div class="form-section">
+                <h2 class="section-title">
+                    <span class="section-icon">📸</span>
+                    Foto de la Mascota <span class="optional-indicator">(opcional pero recomendada)</span>
+                </h2>
+
+                <div class="photo-upload-container" id="photoUploadContainer">
+                    <div class="photo-preview-container" id="photoPreviewContainer">
+                        <div class="photo-placeholder" id="photoPlaceholder">📷</div>
+                        <img id="photoPreview" class="photo-preview" style="display: none;" alt="Vista previa">
+                        <button type="button" class="remove-photo-btn" id="removePhotoBtn" style="display: none;" onclick="removePhoto()">✕</button>
+                    </div>
+                    <div class="photo-upload-text">
+                        <div class="photo-upload-title">✨ Sube una foto de tu mascota ✨</div>
+                        <div class="photo-upload-subtitle">
+                            Haz clic aquí o arrastra una imagen<br>
+                            <small>📱 Formatos: JPG, PNG, GIF • 🔒 Máximo 5MB</small>
+                        </div>
+                    </div>
+                    <input type="file" id="photoInput" name="photo" class="photo-input"
+                           accept="image/jpeg,image/png,image/gif" onchange="handlePhotoSelect(event)">
+                </div>
+            </div>
+
+            <!-- SPECTACULAR FORM ACTIONS -->
+            <div class="form-actions">
+                <a href="{{ url_for('frontend.client_pets') }}" class="btn btn-secondary">
+                    <span>↩️</span>
+                    <span>Cancelar</span>
+                </a>
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    <span>💾</span>
+                    <span>Registrar Mascota</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // =============== VARIABLES GLOBALES PREMIUM ===============
+    let selectedPhoto = null;
+    let formData = {};
+    let currentStep = 1;
+    let isSubmitting = false;
+
+    // =============== INICIALIZACIÓN PREMIUM ===============
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('✨ Inicializando página PREMIUM de Registro de Mascota...');
+
+        initializePremiumForm();
+        setupAdvancedEventListeners();
+        setMaxBirthDate();
+        addMagicalEffects();
+    });
+
+    function initializePremiumForm() {
+        // Configurar fecha máxima para nacimiento (hoy)
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('petBirthDate').max = today;
+
+        // Configurar drag & drop premium para foto
+        setupPremiumPhotoDragAndDrop();
+
+        // Inicializar efectos visuales
+        addFormAnimations();
+    }
+
+    function setupAdvancedEventListeners() {
+        // Form submission con efectos premium
+        const form = document.getElementById('addPetForm');
+        form.addEventListener('submit', handlePremiumFormSubmit);
+
+        // Validación en tiempo real premium
+        const requiredFields = form.querySelectorAll('[required]');
+        requiredFields.forEach(field => {
+            field.addEventListener('blur', validateFieldPremium);
+            field.addEventListener('input', clearFieldErrorPremium);
+        });
+
+        // Photo upload click con efectos
+        const photoContainer = document.getElementById('photoUploadContainer');
+        photoContainer.addEventListener('click', () => {
+            document.getElementById('photoInput').click();
+        });
+
+        // Species change - update placeholder icon con animación
+        const speciesSelect = document.getElementById('petSpecies');
+        speciesSelect.addEventListener('change', updatePhotoPlaceholderPremium);
+
+        // Form progress tracking premium
+        trackFormProgressPremium();
+
+        // Efectos hover en inputs
+        addInputHoverEffects();
+    }
+
+    // =============== EFECTOS MÁGICOS ===============
+    function addMagicalEffects() {
+        // Efecto de partículas en el header
+        createFloatingParticles();
+
+        // Efecto de ondas en el progreso
+        addProgressWaveEffect();
+
+        // Animaciones de entrada secuencial
+        animateFormSections();
+    }
+
+    function addFormAnimations() {
+        // Función que estaba siendo llamada pero no definida
+        // Agregar animaciones específicas del formulario
+        const inputs = document.querySelectorAll('.form-input, .form-select, .form-textarea');
+        inputs.forEach((input, index) => {
+            input.style.opacity = '0';
+            input.style.transform = 'translateY(20px)';
+
+            setTimeout(() => {
+                input.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                input.style.opacity = '1';
+                input.style.transform = 'translateY(0)';
+            }, index * 50);
+        });
+
+        // Animación para labels
+        const labels = document.querySelectorAll('.form-label');
+        labels.forEach((label, index) => {
+            label.style.opacity = '0';
+            label.style.transform = 'translateX(-20px)';
+
+            setTimeout(() => {
+                label.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                label.style.opacity = '1';
+                label.style.transform = 'translateX(0)';
+            }, (index * 30) + 200);
+        });
+    }
+
+    function createFloatingParticles() {
+        const header = document.querySelector('.page-header');
+        const particles = ['🐾', '❤️', '✨', '🌟', '💫'];
+
+        setInterval(() => {
+            if (Math.random() > 0.7) {
+                const particle = document.createElement('div');
+                particle.textContent = particles[Math.floor(Math.random() * particles.length)];
+                particle.style.cssText = `
+                    position: absolute;
+                    font-size: 20px;
+                    opacity: 0.8;
+                    pointer-events: none;
+                    animation: float-up 3s ease-out forwards;
+                    left: ${Math.random() * 100}%;
+                    top: 100%;
+                `;
+
+                header.appendChild(particle);
+
+                setTimeout(() => particle.remove(), 3000);
+            }
+        }, 2000);
+
+        // Agregar keyframes dinámicamente
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes float-up {
+                0% { transform: translateY(0) rotate(0deg); opacity: 0.8; }
+                100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function addProgressWaveEffect() {
+        const connectors = document.querySelectorAll('.progress-connector');
+        connectors.forEach((connector, index) => {
+            connector.style.setProperty('--delay', `${index * 0.2}s`);
+        });
+    }
+
+    function animateFormSections() {
+        const sections = document.querySelectorAll('.form-section');
+        sections.forEach((section, index) => {
+            section.style.opacity = '0';
+            section.style.transform = 'translateY(30px)';
+            section.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+
+            setTimeout(() => {
+                section.style.opacity = '1';
+                section.style.transform = 'translateY(0)';
+            }, (index + 1) * 200);
+        });
+    }
+
+    function addInputHoverEffects() {
+        const inputs = document.querySelectorAll('.form-input, .form-select, .form-textarea');
+        inputs.forEach(input => {
+            input.addEventListener('mouseenter', () => {
+                input.style.transform = 'translateY(-1px)';
+                input.style.boxShadow = '0 6px 20px rgba(82, 183, 136, 0.15)';
+            });
+
+            input.addEventListener('mouseleave', () => {
+                if (!input.matches(':focus')) {
+                    input.style.transform = 'translateY(0)';
+                    input.style.boxShadow = '0 2px 10px rgba(8, 28, 21, 0.05)';
+                }
+            });
+        });
+    }
+
+    // =============== VALIDACIÓN PREMIUM ===============
+    function validateFieldPremium(event) {
+        const field = event.target;
+        const value = field.value.trim();
+        const fieldName = field.name;
+
+        clearFieldErrorPremium(field);
+
+        // Validaciones con efectos premium
+        switch (fieldName) {
+            case 'name':
+                if (!value) {
+                    showFieldErrorPremium(field, '🚨 El nombre es requerido');
+                    return false;
+                }
+                if (value.length < 2) {
+                    showFieldErrorPremium(field, '📏 El nombre debe tener al menos 2 caracteres');
+                    return false;
+                }
+                if (value.length > 50) {
+                    showFieldErrorPremium(field, '📏 El nombre es demasiado largo (máx. 50 caracteres)');
+                    return false;
+                }
+                break;
+
+            case 'species':
+                if (!value) {
+                    showFieldErrorPremium(field, '🦴 Selecciona la especie de tu mascota');
+                    return false;
+                }
+                break;
+
+            case 'gender':
+                if (!document.querySelector('input[name="gender"]:checked')) {
+                    showFieldErrorPremium(field, '⚧️ Selecciona el sexo de tu mascota');
+                    return false;
+                }
+                break;
+
+            case 'weight':
+                if (value && (parseFloat(value) < 0.1 || parseFloat(value) > 200)) {
+                    showFieldErrorPremium(field, '⚖️ El peso debe estar entre 0.1 y 200 kg');
+                    return false;
+                }
+                break;
+
+            case 'birth_date':
+                if (value && new Date(value) > new Date()) {
+                    showFieldErrorPremium(field, '🎂 La fecha de nacimiento no puede ser futura');
+                    return false;
+                }
+                break;
+
+            case 'microchip_number':
+                if (value && (value.length < 10 || value.length > 20)) {
+                    showFieldErrorPremium(field, '🏷️ El número de microchip debe tener entre 10 y 20 caracteres');
+                    return false;
+                }
+                break;
+        }
+
+        showFieldSuccessPremium(field, '✨ ¡Perfecto!');
+        return true;
+    }
+
+    function showFieldErrorPremium(field, message) {
+        field.classList.add('error');
+
+        // Efecto de vibración
+        field.style.animation = 'shake 0.5s ease-in-out';
+
+        // Remover mensaje anterior si existe
+        const existingError = field.parentNode.querySelector('.error-message');
+        if (existingError) {
+            existingError.remove();
+        }
+
+        // Crear nuevo mensaje de error premium
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.innerHTML = `<span>⚠️</span><span>${message}</span>`;
+        errorDiv.style.animation = 'slideInRight 0.3s ease';
+
+        field.parentNode.appendChild(errorDiv);
+
+        // Limpiar animación
+        setTimeout(() => {
+            field.style.animation = '';
+        }, 500);
+    }
+
+    function showFieldSuccessPremium(field, message) {
+        field.classList.remove('error');
+
+        // Remover mensaje anterior si existe
+        const existingMessage = field.parentNode.querySelector('.error-message, .success-message');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+
+        // Crear mensaje de éxito premium
+        const successDiv = document.createElement('div');
+        successDiv.className = 'success-message';
+        successDiv.innerHTML = `<span>✅</span><span>${message}</span>`;
+        successDiv.style.animation = 'slideInRight 0.3s ease';
+
+        field.parentNode.appendChild(successDiv);
+
+        // Remover después de 2 segundos con animación
+        setTimeout(() => {
+            if (successDiv.parentNode) {
+                successDiv.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => successDiv.remove(), 300);
+            }
+        }, 2000);
+    }
+
+    function clearFieldErrorPremium(event) {
+        const field = event.target || event;
+        field.classList.remove('error');
+
+        const errorMessage = field.parentNode.querySelector('.error-message');
+        if (errorMessage) {
+            errorMessage.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => errorMessage.remove(), 300);
+        }
+    }
+
+    // =============== MANEJO PREMIUM DE FOTO ===============
+    function setupPremiumPhotoDragAndDrop() {
+        const container = document.getElementById('photoUploadContainer');
+
+        // Prevenir comportamiento por defecto con efectos
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            container.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Efectos de highlight premium
+        ['dragenter', 'dragover'].forEach(eventName => {
+            container.addEventListener(eventName, highlightPremium, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            container.addEventListener(eventName, unhighlightPremium, false);
+        });
+
+        function highlightPremium(e) {
+            container.classList.add('dragover');
+            container.style.transform = 'scale(1.02) rotateZ(1deg)';
+        }
+
+        function unhighlightPremium(e) {
+            container.classList.remove('dragover');
+            container.style.transform = 'scale(1) rotateZ(0deg)';
+        }
+
+        // Manejar drop con efectos
+        container.addEventListener('drop', handleDropPremium, false);
+
+        function handleDropPremium(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+
+            if (files.length > 0) {
+                handlePhotoFilePremium(files[0]);
+
+                // Efecto de éxito
+                container.style.animation = 'success-bounce 0.6s ease';
+                setTimeout(() => {
+                    container.style.animation = '';
+                }, 600);
+            }
+        }
+    }
+
+    function handlePhotoSelect(event) {
+        const file = event.target.files[0];
+        if (file) {
+            handlePhotoFilePremium(file);
+        }
+    }
+
+    function handlePhotoFilePremium(file) {
+        // Validar tipo de archivo con efectos
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+        if (!allowedTypes.includes(file.type)) {
+            showMessage('🚫 Solo se permiten archivos JPG, PNG o GIF', 'error');
+            return;
+        }
+
+        // Validar tamaño (5MB máximo) con efectos
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+            showMessage('📏 El archivo es demasiado grande. Máximo 5MB', 'error');
+            return;
+        }
+
+        selectedPhoto = file;
+
+        // Mostrar preview con efectos premium
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('photoPreview');
+            const placeholder = document.getElementById('photoPlaceholder');
+            const removeBtn = document.getElementById('removePhotoBtn');
+            const container = document.getElementById('photoPreviewContainer');
+
+            // Animación de transición
+            container.style.transform = 'scale(0.8)';
+            container.style.opacity = '0.5';
+
+            setTimeout(() => {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                placeholder.style.display = 'none';
+                removeBtn.style.display = 'block';
+
+                container.style.transform = 'scale(1)';
+                container.style.opacity = '1';
+                container.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+            }, 200);
+        };
+        reader.readAsDataURL(file);
+
+        showMessage('📸 ¡Foto cargada exitosamente!', 'success');
+        console.log('✨ Foto premium seleccionada:', file.name);
+    }
+
+    function removePhoto() {
+        selectedPhoto = null;
+
+        const preview = document.getElementById('photoPreview');
+        const placeholder = document.getElementById('photoPlaceholder');
+        const removeBtn = document.getElementById('removePhotoBtn');
+        const photoInput = document.getElementById('photoInput');
+        const container = document.getElementById('photoPreviewContainer');
+
+        // Animación de salida
+        container.style.transform = 'scale(0.8)';
+        container.style.opacity = '0.5';
+
+        setTimeout(() => {
+            preview.style.display = 'none';
+            preview.src = '';
+            placeholder.style.display = 'flex';
+            removeBtn.style.display = 'none';
+            photoInput.value = '';
+
+            updatePhotoPlaceholderPremium();
+
+            container.style.transform = 'scale(1)';
+            container.style.opacity = '1';
+        }, 200);
+
+        showMessage('🗑️ Foto removida', 'info');
+        console.log('✨ Foto premium removida');
+    }
+
+    function updatePhotoPlaceholderPremium() {
+        const speciesSelect = document.getElementById('petSpecies');
+        const placeholder = document.getElementById('photoPlaceholder');
+
+        const speciesIcons = {
+            'perro': '🐕',
+            'gato': '🐱',
+            'ave': '🐦',
+            'conejo': '🐰',
+            'reptil': '🦎',
+            'pez': '🐠',
+            'otro': '🐾'
+        };
+
+        const selectedSpecies = speciesSelect.value;
+        const newIcon = speciesIcons[selectedSpecies] || '📷';
+
+        // Animación de cambio de icono
+        placeholder.style.transform = 'scale(0.5) rotate(180deg)';
+        setTimeout(() => {
+            placeholder.textContent = newIcon;
+            placeholder.style.transform = 'scale(1) rotate(0deg)';
+        }, 150);
+    }
+
+    // =============== PROGRESO PREMIUM ===============
+    function trackFormProgressPremium() {
+        const form = document.getElementById('addPetForm');
+        const inputs = form.querySelectorAll('input, select, textarea');
+
+        inputs.forEach(input => {
+            input.addEventListener('input', updateProgressPremium);
+            input.addEventListener('change', updateProgressPremium);
+        });
+    }
+
+    function updateProgressPremium() {
+        const form = document.getElementById('addPetForm');
+        const requiredFields = form.querySelectorAll('[required]');
+        const totalRequired = requiredFields.length;
+        let completed = 0;
+
+        requiredFields.forEach(field => {
+            if (field.type === 'radio') {
+                if (document.querySelector(`input[name="${field.name}"]:checked`)) {
+                    completed++;
+                }
+            } else if (field.value.trim()) {
+                completed++;
+            }
+        });
+
+        const progressPercentage = (completed / totalRequired) * 100;
+
+        // Actualizar pasos visuales con efectos premium
+        updateProgressStepsPremium(progressPercentage);
+    }
+
+    function updateProgressStepsPremium(percentage) {
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+        const step3 = document.getElementById('step3');
+        const connector1 = document.getElementById('connector1');
+        const connector2 = document.getElementById('connector2');
+
+        // Reset classes con animaciones
+        [step1, step2, step3].forEach(step => {
+            step.classList.remove('active', 'completed', 'pending');
+        });
+        [connector1, connector2].forEach(connector => {
+            connector.classList.remove('completed');
+        });
+
+        if (percentage >= 100) {
+            step1.classList.add('completed');
+            step2.classList.add('completed');
+            step3.classList.add('active');
+            connector1.classList.add('completed');
+            connector2.classList.add('completed');
+            currentStep = 3;
+        } else if (percentage >= 50) {
+            step1.classList.add('completed');
+            step2.classList.add('active');
+            step3.classList.add('pending');
+            connector1.classList.add('completed');
+            currentStep = 2;
+        } else {
+            step1.classList.add('active');
+            step2.classList.add('pending');
+            step3.classList.add('pending');
+            currentStep = 1;
+        }
+
+        // Efecto de celebración cuando se completa un paso
+        if (currentStep > 1 && percentage >= 50) {
+            createCelebrationEffect();
+        }
+    }
+
+    function createCelebrationEffect() {
+        const emojis = ['🎉', '✨', '🌟', '💫', '🎊'];
+        const container = document.querySelector('.progress-container');
+
+        for (let i = 0; i < 5; i++) {
+            setTimeout(() => {
+                const emoji = document.createElement('div');
+                emoji.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                emoji.style.cssText = `
+                    position: absolute;
+                    font-size: 20px;
+                    pointer-events: none;
+                    animation: celebration-pop 1s ease-out forwards;
+                    left: ${Math.random() * 100}%;
+                    top: 50%;
+                    z-index: 1000;
+                `;
+                container.appendChild(emoji);
+
+                setTimeout(() => emoji.remove(), 1000);
+            }, i * 100);
+        }
+    }
+
+    // =============== ENVÍO PREMIUM DEL FORMULARIO ===============
+    async function handlePremiumFormSubmit(event) {
+        event.preventDefault();
+
+        if (isSubmitting) return;
+        isSubmitting = true;
+
+        console.log('✨ Procesando registro PREMIUM de mascota...');
+
+        // Validar formulario con efectos
+        if (!validateFormPremium()) {
+            showMessage('🚨 Por favor corrige los errores en el formulario', 'error');
+            isSubmitting = false;
+            return;
+        }
+
+        const submitBtn = document.getElementById('submitBtn');
+        const originalContent = submitBtn.innerHTML;
+
+        try {
+            // Efectos de loading premium
+            submitBtn.disabled = true;
+            submitBtn.classList.add('btn-loading');
+            submitBtn.innerHTML = '<span>✨ Registrando...</span>';
+
+            // Efecto en todo el formulario
+            const formContainer = document.querySelector('.form-container');
+            formContainer.style.opacity = '0.8';
+            formContainer.style.transform = 'scale(0.99)';
+
+            // Preparar datos con validación premium
+            const formData = new FormData();
+
+            // Datos básicos con validación
+            const petName = document.getElementById('petName').value.trim();
+            const species = document.getElementById('petSpecies').value;
+            const breed = document.getElementById('petBreed').value.trim();
+            const gender = document.querySelector('input[name="gender"]:checked').value;
+
+            formData.append('name', petName);
+            formData.append('species', species);
+            if (breed) formData.append('breed', breed);
+            formData.append('gender', gender);
+
+            // Datos opcionales
+            const birthDate = document.getElementById('petBirthDate').value;
+            if (birthDate) formData.append('birth_date', birthDate);
+
+            const weight = document.getElementById('petWeight').value;
+            if (weight) formData.append('weight', parseFloat(weight));
+
+            const vaccinationStatus = document.getElementById('vaccinationStatus').value;
+            if (vaccinationStatus) formData.append('vaccination_status', vaccinationStatus);
+
+            const microchip = document.getElementById('microchipNumber').value.trim();
+            if (microchip) formData.append('microchip_number', microchip);
+
+            const allergies = document.getElementById('allergies').value.trim();
+            if (allergies) formData.append('allergies', allergies);
+
+            const specialNotes = document.getElementById('specialNotes').value.trim();
+            if (specialNotes) formData.append('special_notes', specialNotes);
+
+            // Foto premium (si existe)
+            if (selectedPhoto) {
+                formData.append('photo', selectedPhoto);
+            }
+
+            // Enviar al servidor con efectos
+            const response = await fetch('/api/client/pets', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Efectos de éxito premium
+                showSuccessAnimationPremium();
+                showMessage('🎉 ¡Mascota registrada exitosamente!', 'success');
+
+                // Confetti effect
+                createConfettiEffect();
+
+                // Esperar y redirigir con efecto
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('frontend.client_pets') }}";
+                }, 3000);
+
+                console.log('✨ Mascota premium registrada:', result.pet);
+            } else {
+                throw new Error(result.message || 'Error registrando mascota');
+            }
+
+        } catch (error) {
+            console.error('❌ Error registrando mascota premium:', error);
+            showMessage(`🚨 ${error.message || 'Error registrando mascota. Inténtalo de nuevo.'}`, 'error');
+
+            // Efecto de error
+            const formContainer = document.querySelector('.form-container');
+            formContainer.style.animation = 'shake 0.5s ease-in-out';
+            setTimeout(() => {
+                formContainer.style.animation = '';
+            }, 500);
+
+        } finally {
+            // Restaurar estado con efectos
+            isSubmitting = false;
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('btn-loading');
+            submitBtn.innerHTML = originalContent;
+
+            const formContainer = document.querySelector('.form-container');
+            formContainer.style.opacity = '1';
+            formContainer.style.transform = 'scale(1)';
+        }
+    }
+
+    function validateFormPremium() {
+        const form = document.getElementById('addPetForm');
+        const requiredFields = form.querySelectorAll('[required]');
+        let isValid = true;
+
+        requiredFields.forEach(field => {
+            if (!validateFieldPremium({ target: field })) {
+                isValid = false;
+            }
+        });
+
+        // Validar género específicamente
+        const genderSelected = document.querySelector('input[name="gender"]:checked');
+        if (!genderSelected) {
+            const genderContainer = document.querySelector('.gender-options');
+            showFieldErrorPremium(genderContainer, '⚧️ Selecciona el sexo de tu mascota');
+            isValid = false;
+        }
+
+        return isValid;
+    }
+
+    function showSuccessAnimationPremium() {
+        const formContainer = document.querySelector('.form-container');
+        formContainer.classList.add('form-success');
+
+        // Efecto de brillo
+        formContainer.style.boxShadow = '0 0 50px rgba(82, 183, 136, 0.5)';
+
+        setTimeout(() => {
+            formContainer.classList.remove('form-success');
+            formContainer.style.boxShadow = '';
+        }, 2000);
+    }
+
+    function createConfettiEffect() {
+        const colors = ['#52B788', '#38A3A5', '#22577A', '#2D6A4F', '#B7E4C7'];
+        const confettiCount = 50;
+
+        for (let i = 0; i < confettiCount; i++) {
+            setTimeout(() => {
+                const confetti = document.createElement('div');
+                confetti.style.cssText = `
+                    position: fixed;
+                    width: 10px;
+                    height: 10px;
+                    background: ${colors[Math.floor(Math.random() * colors.length)]};
+                    left: ${Math.random() * 100}%;
+                    top: -10px;
+                    z-index: 10000;
+                    border-radius: 50%;
+                    animation: confetti-fall 3s linear forwards;
+                    pointer-events: none;
+                `;
+                document.body.appendChild(confetti);
+
+                setTimeout(() => confetti.remove(), 3000);
+            }, i * 50);
+        }
+
+        // Agregar keyframes de confetti
+        if (!document.getElementById('confetti-styles')) {
+            const style = document.createElement('style');
+            style.id = 'confetti-styles';
+            style.textContent = `
+                @keyframes confetti-fall {
+                    0% {
+                        transform: translateY(0) rotate(0deg);
+                        opacity: 1;
+                    }
+                    100% {
+                        transform: translateY(100vh) rotate(720deg);
+                        opacity: 0;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+
+    // =============== FUNCIONES DE UTILIDAD PREMIUM ===============
+    function setMaxBirthDate() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('petBirthDate').max = today;
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // =============== AUTOGUARDADO PREMIUM ===============
+    let autoSaveTimeout;
+    let draftKey = 'petFormDraftPremium';
+
+    function setupAutoSavePremium() {
+        const form = document.getElementById('addPetForm');
+        const inputs = form.querySelectorAll('input, select, textarea');
+
+        inputs.forEach(input => {
+            input.addEventListener('input', scheduleAutoSavePremium);
+        });
+    }
+
+    function scheduleAutoSavePremium() {
+        clearTimeout(autoSaveTimeout);
+        autoSaveTimeout = setTimeout(autoSaveFormDataPremium, 3000);
+    }
+
+    function autoSaveFormDataPremium() {
+        try {
+            const form = document.getElementById('addPetForm');
+            const formData = new FormData(form);
+            const data = {};
+
+            for (let [key, value] of formData.entries()) {
+                if (key !== 'photo') {
+                    data[key] = value;
+                }
+            }
+
+            // Incluir datos de radio buttons
+            const genderSelected = document.querySelector('input[name="gender"]:checked');
+            if (genderSelected) {
+                data.gender = genderSelected.value;
+            }
+
+            sessionStorage.setItem(draftKey, JSON.stringify(data));
+
+            // Mostrar indicador visual de autoguardado
+            showAutoSaveIndicator();
+            console.log('💾 Borrador premium autoguardado');
+
+        } catch (error) {
+            console.warn('⚠️ Error en autoguardado premium:', error);
+        }
+    }
+
+    function showAutoSaveIndicator() {
+        // Crear indicador temporal
+        const indicator = document.createElement('div');
+        indicator.textContent = '💾 Borrador guardado';
+        indicator.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(82, 183, 136, 0.9);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 10000;
+            animation: slideInRight 0.3s ease;
+        `;
+
+        document.body.appendChild(indicator);
+
+        setTimeout(() => {
+            indicator.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => indicator.remove(), 300);
+        }, 2000);
+    }
+
+    function loadAutoSavedDataPremium() {
+        try {
+            const savedData = sessionStorage.getItem(draftKey);
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                let fieldsRestored = 0;
+
+                Object.keys(data).forEach(key => {
+                    const field = document.querySelector(`[name="${key}"]`);
+                    if (field) {
+                        if (field.type === 'radio') {
+                            const radioField = document.querySelector(`[name="${key}"][value="${data[key]}"]`);
+                            if (radioField) {
+                                radioField.checked = true;
+                                fieldsRestored++;
+                            }
+                        } else {
+                            field.value = data[key];
+                            fieldsRestored++;
+                        }
+                    }
+                });
+
+                if (fieldsRestored > 0) {
+                    console.log('📋 Borrador premium restaurado');
+                    showMessage(`📋 Se restauró un borrador con ${fieldsRestored} campos guardados`, 'info');
+                    updateProgressPremium();
+                }
+            }
+        } catch (error) {
+            console.warn('⚠️ Error restaurando borrador premium:', error);
+        }
+    }
+
+    function clearAutoSavedDataPremium() {
+        sessionStorage.removeItem(draftKey);
+        console.log('🗑️ Borrador premium eliminado');
+    }
+
+    // =============== EFECTOS ADICIONALES ===============
+    function addResponsiveEffects() {
+        // Detectar cambios de orientación en móviles
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                updateProgressPremium();
+                animateFormSections();
+            }, 500);
+        });
+
+        // Efectos de scroll suave
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const header = document.querySelector('.page-header');
+
+            if (header) {
+                header.style.transform = `translateY(${scrolled * 0.3}px)`;
+                header.style.opacity = Math.max(0.5, 1 - scrolled / 500);
+            }
+        });
+    }
+
+    // =============== INICIALIZACIÓN PREMIUM COMPLETA ===============
+    // Cargar datos autoguardados
+    setTimeout(loadAutoSavedDataPremium, 800);
+
+    // Configurar autoguardado premium
+    setupAutoSavePremium();
+
+    // Agregar efectos responsivos
+    addResponsiveEffects();
+
+    // Limpiar datos al enviar exitosamente
+    document.getElementById('addPetForm').addEventListener('submit', () => {
+        setTimeout(clearAutoSavedDataPremium, 5000);
+    });
+
+    // =============== MANEJO DE ERRORES PREMIUM ===============
+    window.addEventListener('error', (e) => {
+        console.error('❌ Error global premium:', e.error);
+        showMessage('🚨 Ocurrió un error inesperado', 'error');
+    });
+
+    // =============== DEBUGGING PREMIUM ===============
+    window.debugPremiumPetForm = {
+        validateForm: validateFormPremium,
+        selectedPhoto: () => selectedPhoto,
+        formData: () => new FormData(document.getElementById('addPetForm')),
+        clearDraft: clearAutoSavedDataPremium,
+        loadDraft: loadAutoSavedDataPremium,
+        currentStep: () => currentStep,
+        createConfetti: createConfettiEffect,
+        triggerSuccess: showSuccessAnimationPremium
+    };
+
+    // =============== MENSAJES DE BIENVENIDA ===============
+    setTimeout(() => {
+        showMessage('✨ ¡Bienvenido! Completa el formulario para registrar a tu querida mascota', 'info');
+    }, 1000);
+
+    console.log('🎉 Página PREMIUM de Registro de Mascota inicializada correctamente');
+
+    // =============== EASTER EGG ===============
+    let clickCount = 0;
+    document.querySelector('.page-emoji').addEventListener('click', () => {
+        clickCount++;
+        if (clickCount === 5) {
+            createConfettiEffect();
+            showMessage('🎉 ¡Has encontrado el easter egg! ¡Confetti para ti!', 'success');
+            clickCount = 0;
+        }
+    });
+</script>
+{% endblock %}

@@ -4408,6 +4408,175 @@ def api_client_dashboard_stats():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@frontend_bp.route('/api/client/pets', methods=['POST'])
+@role_required(['client'])
+def api_client_create_pet():
+    """API para crear nueva mascota del cliente (solo datos, sin foto)"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Convertir FormData a JSON
+        data = {}
+        for key in request.form:
+            value = request.form[key]
+            if key == 'weight' and value:
+                try:
+                    data[key] = float(value)
+                except ValueError:
+                    data[key] = value
+            else:
+                data[key] = value
+
+        # Agregar owner_id del usuario actual
+        data['owner_id'] = user['id']
+
+        print(f"📡 Enviando datos al Medical Service: {data}")
+
+        # Enviar como JSON al Medical Service
+        medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets"
+        response = requests.post(medical_url, json=data, headers=headers, timeout=15)
+
+        print(f"📡 Respuesta Medical Service: {response.status_code}")
+
+        if response.status_code == 201:
+            result = response.json()
+            if result.get('success'):
+                return jsonify({
+                    'success': True,
+                    'message': 'Mascota registrada exitosamente',
+                    'pet': result.get('pet', {})
+                })
+
+        # Manejar errores
+        try:
+            error_data = response.json()
+            error_message = error_data.get('message', f'Error del Medical Service: {response.status_code}')
+        except:
+            error_message = f'Error del Medical Service: {response.status_code}'
+
+        return jsonify({
+            'success': False,
+            'message': error_message
+        }), 400
+
+    except Exception as e:
+        print(f"❌ Error en api_client_create_pet: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
+""""@frontend_bp.route('/api/client/pets', methods=['POST'])
+@role_required(['client'])
+def api_client_create_pet():
+
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener datos del formulario
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            # Si viene como FormData (con posible foto)
+            data = {}
+
+            # Obtener todos los campos del formulario
+            for key in request.form:
+                value = request.form[key]
+                # Convertir valores numéricos
+                if key == 'weight' and value:
+                    try:
+                        data[key] = float(value)
+                    except ValueError:
+                        data[key] = value
+                else:
+                    data[key] = value
+
+            # Agregar owner_id del usuario actual
+            data['owner_id'] = user['id']
+
+            # PASO 1: Crear la mascota sin foto primero
+            medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets"
+            response = requests.post(medical_url, json=data, headers=headers, timeout=15)
+
+            if response.status_code == 201:
+                result = response.json()
+                if result.get('success'):
+                    pet = result.get('pet', {})
+                    pet_id = pet.get('id')
+
+                    # PASO 2: Subir foto si existe
+                    if 'photo' in request.files:
+                        photo = request.files['photo']
+                        if photo and photo.filename:
+                            try:
+                                # Subir foto por separado
+                                files = {'photo': photo}
+                                photo_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}/photo"
+                                photo_response = requests.post(
+                                    photo_url,
+                                    files=files,
+                                    headers={'Authorization': headers['Authorization']},
+                                    timeout=15
+                                )
+
+                                if photo_response.status_code == 200:
+                                    photo_result = photo_response.json()
+                                    if photo_result.get('success'):
+                                        pet['photo_url'] = photo_result.get('photo_url')
+                                        print(f"✅ Foto subida exitosamente: {pet['photo_url']}")
+                                else:
+                                    print(f"⚠️ Error subiendo foto: {photo_response.status_code}")
+                            except Exception as photo_error:
+                                print(f"⚠️ Error subiendo foto: {photo_error}")
+                                # No fallar la creación de la mascota por la foto
+
+                    return jsonify({
+                        'success': True,
+                        'message': 'Mascota registrada exitosamente',
+                        'pet': pet
+                    })
+
+        else:
+            # Si viene como JSON directo
+            data = request.get_json()
+            data['owner_id'] = user['id']
+
+            medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets"
+            response = requests.post(medical_url, json=data, headers=headers, timeout=15)
+
+        # Manejar errores del Medical Service
+        if response.status_code != 201:
+            try:
+                error_data = response.json()
+                error_message = error_data.get('message', f'Error del Medical Service: {response.status_code}')
+            except:
+                error_message = f'Error del Medical Service: {response.status_code}'
+
+            print(f"❌ Error Medical Service: {response.status_code} - {error_message}")
+            return jsonify({
+                'success': False,
+                'message': error_message
+            }), 400
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Medical Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio médico'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_client_create_pet: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
+"""
+
+# =============== PROXY ROUTES PARA MICROSERVICIOS ===============
+
 @frontend_bp.route('/api/client/notifications/count')
 @role_required(['client'])
 def api_client_notifications_count():
@@ -4432,7 +4601,7 @@ def api_client_notifications_count():
         except:
             pass
 
-        # Obtener citas pendientes de confirmación
+        # Intentar obtener citas pendientes
         try:
             appointments_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/client/{user['id']}/upcoming"
             appointments_response = requests.get(appointments_url, headers=headers, timeout=5)
@@ -4450,8 +4619,29 @@ def api_client_notifications_count():
         })
     except Exception as e:
         print(f"❌ Error en api_client_notifications_count: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({
+            'success': True, 
+            'data': {'unread_notifications': 0, 'pending_appointments': 0}
+        })
 
+@frontend_bp.route('/api/client/appointments/upcoming')
+@role_required(['client'])
+def api_client_appointments_upcoming_proxy():
+    """Proxy para citas próximas del cliente"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        apt_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/client/{user['id']}/upcoming"
+        response = requests.get(apt_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify({'success': True, 'appointments': []})
+
+    except Exception as e:
+        return jsonify({'success': True, 'appointments': []})
 
 @frontend_bp.route('/health')
 def health():
