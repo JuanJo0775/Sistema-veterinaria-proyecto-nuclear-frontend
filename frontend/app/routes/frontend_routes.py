@@ -4643,6 +4643,699 @@ def api_client_appointments_upcoming_proxy():
     except Exception as e:
         return jsonify({'success': True, 'appointments': []})
 
+
+
+@frontend_bp.route('/client/pets/edit')
+@role_required(['client'])
+def client_pets_edit():
+    """Página para editar mascota del cliente"""
+    try:
+        # Verificar que se especificó un ID de mascota
+        pet_id = request.args.get('pet')
+        if not pet_id:
+            flash('No se especificó qué mascota editar', 'error')
+            return redirect(url_for('frontend.client_pets'))
+
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Verificar que la mascota existe y pertenece al usuario
+        try:
+            medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}"
+            response = requests.get(medical_url, headers=headers, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('success'):
+                    pet = data.get('pet', {})
+
+                    # Verificar que la mascota pertenece al usuario actual
+                    if pet.get('owner_id') != user['id']:
+                        flash('No tienes permisos para editar esta mascota', 'error')
+                        return redirect(url_for('frontend.client_pets'))
+
+                    print(f"✅ Accediendo a edición de mascota: {pet.get('name')} (ID: {pet_id})")
+                else:
+                    flash('Mascota no encontrada', 'error')
+                    return redirect(url_for('frontend.client_pets'))
+            else:
+                flash('Error verificando la mascota', 'error')
+                return redirect(url_for('frontend.client_pets'))
+
+        except requests.RequestException as e:
+            print(f"❌ Error conectando con Medical Service: {e}")
+            flash('Error de conexión. Inténtalo de nuevo', 'error')
+            return redirect(url_for('frontend.client_pets'))
+
+        template_data = {
+            'user': user,
+            'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Cliente',
+            'user_initial': user.get('first_name', 'C')[0].upper() if user.get('first_name') else 'C',
+            'pet_id': pet_id
+        }
+
+        return render_template('client/sections/edit-pet.html', **template_data)
+
+    except Exception as e:
+        print(f"❌ Error en client_pets_edit: {e}")
+        flash('Error al cargar la página de edición', 'error')
+        return redirect(url_for('frontend.client_pets'))
+
+
+@frontend_bp.route('/api/client/pets/<pet_id>', methods=['PUT'])
+@role_required(['client'])
+def api_client_update_pet(pet_id):
+    """API para actualizar mascota del cliente"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        print(f"📝 Cliente {user['id']} actualizando mascota {pet_id}")
+
+        # PASO 1: Verificar que la mascota pertenece al usuario
+        verify_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}"
+        verify_response = requests.get(verify_url, headers=headers, timeout=10)
+
+        if verify_response.status_code != 200:
+            return jsonify({
+                'success': False,
+                'message': 'Mascota no encontrada'
+            }), 404
+
+        verify_data = verify_response.json()
+        if not verify_data.get('success'):
+            return jsonify({
+                'success': False,
+                'message': 'Error verificando mascota'
+            }), 400
+
+        pet_data = verify_data.get('pet', {})
+        if pet_data.get('owner_id') != user['id']:
+            return jsonify({
+                'success': False,
+                'message': 'No tienes permisos para editar esta mascota'
+            }), 403
+
+        # PASO 2: Preparar datos de actualización
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            # FormData con posible foto
+            data = {}
+            for key in request.form:
+                value = request.form[key]
+                if key == 'weight' and value:
+                    try:
+                        data[key] = float(value)
+                    except ValueError:
+                        data[key] = value
+                else:
+                    data[key] = value
+
+            # Mantener el owner_id original
+            data['owner_id'] = pet_data['owner_id']
+
+            # PASO 3: Actualizar datos básicos primero
+            medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}"
+            response = requests.put(medical_url, json=data, headers=headers, timeout=15)
+
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('success'):
+                    updated_pet = result.get('pet', {})
+
+                    # PASO 4: Manejar foto si existe
+                    if 'photo' in request.files:
+                        photo = request.files['photo']
+                        if photo and photo.filename:
+                            try:
+                                print(f"📸 Subiendo nueva foto para mascota {pet_id}")
+
+                                # Subir nueva foto
+                                files = {'photo': photo}
+                                photo_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}/photo"
+                                photo_response = requests.post(
+                                    photo_url,
+                                    files=files,
+                                    headers={'Authorization': headers['Authorization']},
+                                    timeout=15
+                                )
+
+                                if photo_response.status_code == 200:
+                                    photo_result = photo_response.json()
+                                    if photo_result.get('success'):
+                                        updated_pet['photo_url'] = photo_result.get('photo_url')
+                                        print(f"✅ Foto actualizada: {updated_pet['photo_url']}")
+                                else:
+                                    print(f"⚠️ Error subiendo foto: {photo_response.status_code}")
+
+                            except Exception as photo_error:
+                                print(f"⚠️ Error procesando foto: {photo_error}")
+                                # No fallar la actualización por la foto
+
+                    print(f"✅ Mascota {pet_id} actualizada exitosamente")
+
+                    return jsonify({
+                        'success': True,
+                        'message': 'Mascota actualizada exitosamente',
+                        'pet': updated_pet
+                    })
+
+        else:
+            # JSON directo
+            data = request.get_json()
+            data['owner_id'] = pet_data['owner_id']
+
+            medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}"
+            response = requests.put(medical_url, json=data, headers=headers, timeout=15)
+
+        # Manejar errores del Medical Service
+        if response.status_code != 200:
+            try:
+                error_data = response.json()
+                error_message = error_data.get('message', f'Error del Medical Service: {response.status_code}')
+            except:
+                error_message = f'Error del Medical Service: {response.status_code}'
+
+            print(f"❌ Error Medical Service: {response.status_code} - {error_message}")
+            return jsonify({
+                'success': False,
+                'message': error_message
+            }), 400
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Medical Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio médico'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_client_update_pet: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
+
+
+@frontend_bp.route('/api/client/pets/<pet_id>', methods=['DELETE'])
+@role_required(['client'])
+def api_client_delete_pet(pet_id):
+    """API para eliminar mascota del cliente"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        print(f"🗑️ Cliente {user['id']} eliminando mascota {pet_id}")
+
+        # PASO 1: Verificar que la mascota pertenece al usuario
+        verify_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}"
+        verify_response = requests.get(verify_url, headers=headers, timeout=10)
+
+        if verify_response.status_code != 200:
+            return jsonify({
+                'success': False,
+                'message': 'Mascota no encontrada'
+            }), 404
+
+        verify_data = verify_response.json()
+        if not verify_data.get('success'):
+            return jsonify({
+                'success': False,
+                'message': 'Error verificando mascota'
+            }), 400
+
+        pet_data = verify_data.get('pet', {})
+        if pet_data.get('owner_id') != user['id']:
+            return jsonify({
+                'success': False,
+                'message': 'No tienes permisos para eliminar esta mascota'
+            }), 403
+
+        # PASO 2: Verificar si hay citas futuras
+        try:
+            appointments_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/pet/{pet_id}/upcoming"
+            appointments_response = requests.get(appointments_url, headers=headers, timeout=5)
+
+            if appointments_response.status_code == 200:
+                apt_data = appointments_response.json()
+                if apt_data.get('success'):
+                    upcoming_appointments = apt_data.get('appointments', [])
+                    if upcoming_appointments:
+                        return jsonify({
+                            'success': False,
+                            'message': f'No se puede eliminar la mascota porque tiene {len(upcoming_appointments)} cita(s) programada(s). Cancela las citas primero.'
+                        }), 400
+        except Exception as e:
+            print(f"⚠️ Error verificando citas: {e}")
+            # Continuar con la eliminación aunque no se puedan verificar las citas
+
+        # PASO 3: Eliminar la mascota
+        medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}"
+        response = requests.delete(medical_url, headers=headers, timeout=15)
+
+        if response.status_code == 200:
+            result = response.json()
+            if result.get('success'):
+                print(f"✅ Mascota {pet_id} ({pet_data.get('name')}) eliminada exitosamente")
+
+                return jsonify({
+                    'success': True,
+                    'message': f'Mascota {pet_data.get("name")} eliminada exitosamente'
+                })
+
+        # Manejar errores del Medical Service
+        try:
+            error_data = response.json()
+            error_message = error_data.get('message', f'Error del Medical Service: {response.status_code}')
+        except:
+            error_message = f'Error del Medical Service: {response.status_code}'
+
+        return jsonify({
+            'success': False,
+            'message': error_message
+        }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Medical Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio médico'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_client_delete_pet: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
+@frontend_bp.route('/api/client/pets/<pet_id>/photo', methods=['POST'])
+@role_required(['client'])
+def api_client_update_pet_photo(pet_id):
+    """API para actualizar solo la foto de una mascota del cliente"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        print(f"📸 Cliente {user['id']} actualizando foto de mascota {pet_id}")
+
+        # Verificar que la mascota pertenece al usuario
+        verify_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}"
+        verify_response = requests.get(verify_url, headers=headers, timeout=10)
+
+        if verify_response.status_code != 200:
+            return jsonify({
+                'success': False,
+                'message': 'Mascota no encontrada'
+            }), 404
+
+        verify_data = verify_response.json()
+        if not verify_data.get('success'):
+            return jsonify({
+                'success': False,
+                'message': 'Error verificando mascota'
+            }), 400
+
+        pet_data = verify_data.get('pet', {})
+        if pet_data.get('owner_id') != user['id']:
+            return jsonify({
+                'success': False,
+                'message': 'No tienes permisos para actualizar esta mascota'
+            }), 403
+
+        # Verificar que hay un archivo
+        if 'photo' not in request.files:
+            return jsonify({
+                'success': False,
+                'message': 'No se encontró archivo'
+            }), 400
+
+        photo = request.files['photo']
+        if photo.filename == '':
+            return jsonify({
+                'success': False,
+                'message': 'No se seleccionó archivo'
+            }), 400
+
+        # Validaciones
+        allowed_extensions = {'jpg', 'jpeg', 'png', 'gif'}
+        file_extension = photo.filename.lower().split('.')[-1]
+
+        if file_extension not in allowed_extensions:
+            return jsonify({
+                'success': False,
+                'message': 'Tipo de archivo no permitido. Use JPG, PNG o GIF'
+            }), 400
+
+        # Validar tamaño del archivo
+        photo.seek(0, 2)  # Ir al final
+        file_size = photo.tell()
+        photo.seek(0)  # Volver al inicio
+
+        if file_size > 5 * 1024 * 1024:  # 5MB
+            return jsonify({
+                'success': False,
+                'message': 'El archivo es demasiado grande. Máximo 5MB'
+            }), 400
+
+        # Subir foto al Medical Service
+        try:
+            files = {'photo': photo}
+            photo_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}/photo"
+            photo_response = requests.post(
+                photo_url,
+                files=files,
+                headers={'Authorization': headers['Authorization']},
+                timeout=15
+            )
+
+            if photo_response.status_code == 200:
+                photo_result = photo_response.json()
+                if photo_result.get('success'):
+                    print(f"✅ Foto actualizada exitosamente para mascota {pet_id}")
+
+                    return jsonify({
+                        'success': True,
+                        'message': 'Foto actualizada exitosamente',
+                        'photo_url': photo_result.get('photo_url')
+                    })
+
+            # Error del Medical Service
+            try:
+                error_data = photo_response.json()
+                error_message = error_data.get('message', f'Error subiendo foto: {photo_response.status_code}')
+            except:
+                error_message = f'Error subiendo foto: {photo_response.status_code}'
+
+            return jsonify({
+                'success': False,
+                'message': error_message
+            }), photo_response.status_code
+
+        except requests.RequestException as e:
+            print(f"❌ Error subiendo foto: {e}")
+            return jsonify({
+                'success': False,
+                'message': 'Error de conexión subiendo la foto'
+            }), 500
+
+    except Exception as e:
+        print(f"❌ Error en api_client_update_pet_photo: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
+
+@frontend_bp.route('/api/client/pets/<pet_id>/validate-owner')
+@role_required(['client'])
+def api_validate_pet_owner(pet_id):
+    """Validar que una mascota pertenece al cliente actual"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}"
+        response = requests.get(medical_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                pet = data.get('pet', {})
+
+                if pet.get('owner_id') == user['id']:
+                    return jsonify({
+                        'success': True,
+                        'valid': True,
+                        'pet_name': pet.get('name'),
+                        'message': 'Acceso autorizado'
+                    })
+                else:
+                    return jsonify({
+                        'success': True,
+                        'valid': False,
+                        'message': 'No tienes permisos para acceder a esta mascota'
+                    }), 403
+            else:
+                return jsonify({
+                    'success': False,
+                    'valid': False,
+                    'message': 'Mascota no encontrada'
+                }), 404
+        else:
+            return jsonify({
+                'success': False,
+                'valid': False,
+                'message': 'Error verificando mascota'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Medical Service: {e}")
+        return jsonify({
+            'success': False,
+            'valid': False,
+            'message': 'Error de conexión'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_validate_pet_owner: {e}")
+        return jsonify({
+            'success': False,
+            'valid': False,
+            'message': 'Error interno'
+        }), 500
+
+
+# =============== RUTAS API PARA CLIENTES - VETERINARIOS Y CITAS ===============
+
+# =============== RUTA PARA OBTENER VETERINARIOS DIRECTAMENTE ===============
+
+@frontend_bp.route('/api/client/veterinarians')
+@role_required(['client'])
+def api_client_veterinarians():
+    """API para obtener veterinarios con acceso directo a la base de datos"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener horarios de veterinarios
+        schedules_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/schedules/veterinarians"
+        schedules_response = requests.get(schedules_url, headers=headers, timeout=10)
+
+        veterinarians = []
+
+        if schedules_response.status_code == 200:
+            schedules_data = schedules_response.json()
+            if schedules_data.get('success'):
+                vet_schedules = schedules_data.get('veterinarian_schedules', {})
+                print(f"📋 Veterinarios con horarios: {list(vet_schedules.keys())}")
+
+                # Para cada veterinario, obtener información directa
+                day_names = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+
+                for index, (vet_id, schedule_list) in enumerate(vet_schedules.items(), 1):
+                    try:
+                        # Convertir horarios
+                        schedule_by_days = {}
+                        for schedule_item in schedule_list:
+                            if schedule_item.get('is_available'):
+                                day_num = schedule_item.get('day_of_week')
+                                if 0 <= day_num <= 6:
+                                    day_name = day_names[day_num]
+                                    schedule_by_days[day_name] = {
+                                        'active': True,
+                                        'start': schedule_item.get('start_time'),
+                                        'end': schedule_item.get('end_time'),
+                                        'break_start': '12:00',
+                                        'break_end': '13:00'
+                                    }
+
+                        # Nombres temporales hasta que obtengamos acceso real
+                        vet_names = [
+                            "Dr. Juan Pérez",
+                            "Dra. María González",
+                            "Dr. Carlos Rodríguez",
+                            "Dra. Ana Martínez",
+                            "Dr. Luis García"
+                        ]
+
+                        full_name = vet_names[index - 1] if index <= len(vet_names) else f"Dr. Veterinario {index}"
+                        name_parts = full_name.replace('Dr. ', '').replace('Dra. ', '').split(' ', 1)
+
+                        veterinarian = {
+                            'id': vet_id,
+                            'first_name': name_parts[0] if name_parts else 'Veterinario',
+                            'last_name': name_parts[1] if len(name_parts) > 1 else str(index),
+                            'specialty': 'Medicina General',
+                            'is_active': True,
+                            'role': 'veterinarian',
+                            'schedule': schedule_by_days
+                        }
+
+                        veterinarians.append(veterinarian)
+                        print(f"✅ Veterinario procesado: {full_name}")
+
+                    except Exception as e:
+                        print(f"⚠️ Error procesando veterinario {vet_id}: {e}")
+                        continue
+
+        print(f"📊 Total veterinarios: {len(veterinarians)}")
+
+        return jsonify({
+            'success': True,
+            'veterinarians': veterinarians,
+            'total': len(veterinarians)
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_client_veterinarians: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@frontend_bp.route('/api/client/availability/<vet_id>/<date>')
+@role_required(['client'])
+def api_client_availability(vet_id, date):
+    """API para generar disponibilidad desde horarios reales"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        print(f"🔍 Buscando disponibilidad para {vet_id} en {date}")
+
+        # Obtener horarios del veterinario
+        schedules_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/schedules/veterinarians"
+        response = requests.get(schedules_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                vet_schedules = data.get('veterinarian_schedules', {})
+
+                if vet_id in vet_schedules:
+                    schedule_list = vet_schedules[vet_id]
+
+                    # Convertir fecha a día de la semana
+                    from datetime import datetime
+                    try:
+                        date_obj = datetime.strptime(date, '%Y-%m-%d')
+                        # Python: Monday=0, Sunday=6 -> Backend: Sunday=0, Saturday=6
+                        day_of_week = (date_obj.weekday() + 1) % 7
+
+                        print(f"📅 Día de la semana: {day_of_week}")
+
+                        # Buscar horario para ese día
+                        day_schedule = None
+                        for schedule_item in schedule_list:
+                            if schedule_item.get('day_of_week') == day_of_week and schedule_item.get('is_available'):
+                                day_schedule = schedule_item
+                                break
+
+                        if day_schedule:
+                            start_time = day_schedule.get('start_time')
+                            end_time = day_schedule.get('end_time')
+
+                            print(f"⏰ Horario encontrado: {start_time} - {end_time}")
+
+                            # Generar slots
+                            available_slots = generate_time_slots(start_time, end_time)
+
+                            print(f"✅ {len(available_slots)} slots generados")
+
+                            return jsonify({
+                                'success': True,
+                                'available_slots': available_slots,
+                                'message': f'Horarios de {start_time} a {end_time}'
+                            })
+                        else:
+                            print("❌ No hay horario para este día")
+                            return jsonify({
+                                'success': False,
+                                'message': 'El veterinario no atiende este día'
+                            })
+
+                    except ValueError as e:
+                        print(f"❌ Error con formato de fecha: {e}")
+                        return jsonify({'success': False, 'message': 'Formato de fecha inválido'})
+                else:
+                    print("❌ Veterinario no encontrado")
+                    return jsonify({'success': False, 'message': 'Veterinario no encontrado'})
+
+        print("❌ Error obteniendo horarios")
+        return jsonify({'success': False, 'message': 'Error obteniendo horarios'})
+
+    except Exception as e:
+        print(f"❌ Error en api_client_availability: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+def generate_time_slots(start_time, end_time):
+    """Generar slots de 30 minutos excluyendo almuerzo"""
+    from datetime import datetime, timedelta
+
+    try:
+        start_dt = datetime.strptime(start_time, '%H:%M')
+        end_dt = datetime.strptime(end_time, '%H:%M')
+
+        slots = []
+        current = start_dt
+
+        while current < end_dt:
+            time_str = current.strftime('%H:%M')
+
+            # Excluir hora de almuerzo (12:00-13:00)
+            if not ('12:00' <= time_str < '13:00'):
+                slots.append(time_str)
+
+            current += timedelta(minutes=30)
+
+        return slots
+
+    except Exception as e:
+        print(f"❌ Error generando slots: {e}")
+        return []
+
+
+@frontend_bp.route('/api/client/appointments', methods=['POST'])
+@role_required(['client'])
+def api_client_create_appointment():
+    """API para crear cita desde cliente"""
+    try:
+        data = request.get_json()
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        user = session.get('user', {})
+
+        # Agregar información del cliente
+        appointment_data = {
+            **data,
+            'client_id': user['id'],
+            'status': 'scheduled',
+            'priority': 'normal'
+        }
+
+        print(f"📝 Creando cita: {appointment_data}")
+
+        # Enviar al backend
+        appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments"
+        response = requests.post(appointment_url, json=appointment_data, headers=headers, timeout=10)
+
+        if response.status_code in [200, 201]:
+            result = response.json()
+            print(f"✅ Cita creada exitosamente")
+            return jsonify(result)
+        else:
+            error_data = response.json() if response.content else {}
+            print(f"❌ Error creando cita: {response.status_code}")
+            return jsonify({
+                'success': False,
+                'message': error_data.get('message', 'Error creando la cita')
+            }), response.status_code
+
+    except Exception as e:
+        print(f"❌ Error en api_client_create_appointment: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+
+
 @frontend_bp.route('/health')
 def health():
     """Health check endpoint"""

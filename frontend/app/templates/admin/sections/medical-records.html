@@ -805,6 +805,101 @@
             gap: 10px;
         }
     }
+
+    .medication-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.medication-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.medication-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.medication-name {
+    font-weight: 600;
+    color: #2D6A4F;
+    font-size: 16px;
+    margin: 0;
+    flex: 1;
+}
+
+.medication-stock {
+    background: #e8f5e8;
+    color: #1b5e20;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.medication-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.medication-detail {
+    font-size: 14px;
+}
+
+.medication-detail strong {
+    color: #495057;
+}
+
+.medication-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 5px;
+}
+
+.btn-remove {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.btn-remove:hover {
+    background: #c82333;
+}
+
+.stock-warning {
+    color: #856404;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.stock-error {
+    color: #721c24;
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-top: 5px;
+}
 </style>
 {% endblock %}
 
@@ -1078,15 +1173,71 @@
                                   placeholder="Plan de tratamiento recomendado..."></textarea>
                     </div>
                 </div>
-
-                <!-- MEDICAMENTOS PRESCRITOS -->
+                                <!-- MEDICAMENTOS PRESCRITOS - VERSIÓN CORREGIDA -->
                 <div class="form-row full">
                     <div class="form-group">
-                        <label for="medicationsPrescribed" class="form-label">Medicamentos Prescritos</label>
-                        <textarea id="medicationsPrescribed" name="medications_prescribed" class="form-textarea"
-                                  placeholder="Lista de medicamentos prescritos..."></textarea>
+                        <label class="form-label">💊 Medicamentos Prescritos</label>
+
+                        <!-- Selector de medicamentos -->
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <div style="display: flex; gap: 10px; align-items: end; margin-bottom: 10px;">
+                                <div style="flex: 2;">
+                                    <label for="medicationSelect" class="form-label" style="margin-bottom: 5px; font-size: 14px;">Seleccionar Medicamento</label>
+                                    <select id="medicationSelect" class="form-select">
+                                        <option value="">-- Seleccionar medicamento --</option>
+                                        <!-- Se llenará dinámicamente desde el inventario -->
+                                    </select>
+                                </div>
+                                <div style="flex: 1;">
+                                    <label for="medicationQuantity" class="form-label" style="margin-bottom: 5px; font-size: 14px;">Cantidad</label>
+                                    <input type="number" id="medicationQuantity" class="form-input" min="1" placeholder="1">
+                                </div>
+                                <div>
+                                    <button type="button" onclick="addSelectedMedication()" class="btn btn-primary" style="padding: 8px 16px;">
+                                        ➕ Agregar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Campos adicionales para prescripción -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                                <div>
+                                    <label for="medicationDosage" class="form-label" style="margin-bottom: 5px; font-size: 14px;">Dosis</label>
+                                    <input type="text" id="medicationDosage" class="form-input" placeholder="Ej: 250mg">
+                                </div>
+                                <div>
+                                    <label for="medicationFrequency" class="form-label" style="margin-bottom: 5px; font-size: 14px;">Frecuencia</label>
+                                    <input type="text" id="medicationFrequency" class="form-input" placeholder="Ej: Cada 8h">
+                                </div>
+                                <div>
+                                    <label for="medicationDuration" class="form-label" style="margin-bottom: 5px; font-size: 14px;">Duración</label>
+                                    <input type="text" id="medicationDuration" class="form-input" placeholder="Ej: 7 días">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="medicationInstructions" class="form-label" style="margin-bottom: 5px; font-size: 14px;">Instrucciones</label>
+                                <input type="text" id="medicationInstructions" class="form-input" placeholder="Instrucciones especiales...">
+                            </div>
+                        </div>
+
+                        <!-- Lista de medicamentos agregados -->
+                        <div id="prescribedMedicationsList" style="margin-bottom: 15px;">
+                            <h6 style="margin: 0 0 10px 0; color: #2D6A4F; font-weight: 600;">📋 Medicamentos Agregados:</h6>
+                            <div id="medicationsContainer" style="max-height: 300px; overflow-y: auto;">
+                                <div id="noMedicationsMessage" style="padding: 20px; text-align: center; color: #6c757d; border: 2px dashed #dee2e6; border-radius: 8px;">
+                                    No se han agregado medicamentos aún
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Campo oculto para enviar datos al backend -->
+                        <input type="hidden" id="medicationsPrescribed" name="medications_prescribed" value="">
+                        <input type="hidden" id="prescriptionsData" name="prescriptions_data" value="[]">
                     </div>
                 </div>
+
+
 
                 <!-- EXÁMENES SOLICITADOS -->
                 <div class="form-row full">
@@ -1459,7 +1610,7 @@
         try {
             console.log('📡 Obteniendo medicamentos del Inventory Service...');
 
-            const response = await fetch('/api/admin/inventory/medications', {
+            const response = await fetch('/api/admin/inventory/medications/available', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1892,143 +2043,216 @@
         currentEditingRecord = null;
     }
 
-    // =============== GUARDAR HISTORIA CLÍNICA ===============
-    async function saveRecord() {
-        const form = document.getElementById('recordForm');
-        const saveBtn = document.getElementById('saveBtn');
+// =============== GUARDAR HISTORIA CLÍNICA CON PRESCRIPCIONES ===============
+async function saveRecord() {
+    const form = document.getElementById('recordForm');
+    const saveBtn = document.getElementById('saveBtn');
 
-        // Validar formulario
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
+    // Validar formulario
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
 
-        // Validar que la mascota y veterinario estén seleccionados
-        const petId = document.getElementById('petId').value;
-        const veterinarianId = document.getElementById('veterinarianId').value;
+    // Validar que la mascota y veterinario estén seleccionados
+    const petId = document.getElementById('petId').value;
+    const veterinarianId = document.getElementById('veterinarianId').value;
 
-        if (!petId) {
-            showMessage('Debe seleccionar una mascota', 'error');
-            return;
-        }
+    if (!petId) {
+        showMessage('Debe seleccionar una mascota', 'error');
+        return;
+    }
 
-        if (!veterinarianId) {
-            showMessage('Debe seleccionar un veterinario', 'error');
-            return;
-        }
+    if (!veterinarianId) {
+        showMessage('Debe seleccionar un veterinario', 'error');
+        return;
+    }
 
-        // Recopilar datos de la historia clínica
-        const recordData = {
-            pet_id: petId,
-            veterinarian_id: veterinarianId,
-            appointment_id: document.getElementById('appointmentId').value || null,
-            symptoms_description: document.getElementById('symptomsDescription').value,
-            physical_examination: document.getElementById('physicalExamination').value,
-            diagnosis: document.getElementById('diagnosis').value,
-            treatment: document.getElementById('treatment').value,
-            medications_prescribed: document.getElementById('medicationsPrescribed').value,
-            exams_requested: document.getElementById('examsRequested').value,
-            observations: document.getElementById('observations').value,
-            next_appointment_recommendation: document.getElementById('nextAppointment').value,
-            weight_at_visit: parseFloat(document.getElementById('weightAtVisit').value) || null,
-            temperature: parseFloat(document.getElementById('temperature').value) || null,
-            pulse: parseInt(document.getElementById('pulse').value) || null,
-            respiratory_rate: parseInt(document.getElementById('respiratoryRate').value) || null,
-            is_emergency: document.getElementById('isEmergency').value === 'true',
-            status: document.getElementById('recordStatus').value
-        };
+    // Recopilar datos de la historia clínica
+    const recordData = {
+        pet_id: petId,
+        veterinarian_id: veterinarianId,
+        appointment_id: document.getElementById('appointmentId').value || null,
+        symptoms_description: document.getElementById('symptomsDescription').value,
+        physical_examination: document.getElementById('physicalExamination').value,
+        diagnosis: document.getElementById('diagnosis').value,
+        treatment: document.getElementById('treatment').value,
+        medications_prescribed: document.getElementById('medicationsPrescribed').value,
+        exams_requested: document.getElementById('examsRequested').value,
+        observations: document.getElementById('observations').value,
+        next_appointment_recommendation: document.getElementById('nextAppointment').value,
+        weight_at_visit: parseFloat(document.getElementById('weightAtVisit').value) || null,
+        temperature: parseFloat(document.getElementById('temperature').value) || null,
+        pulse: parseInt(document.getElementById('pulse').value) || null,
+        respiratory_rate: parseInt(document.getElementById('respiratoryRate').value) || null,
+        is_emergency: document.getElementById('isEmergency').value === 'true',
+        status: document.getElementById('recordStatus').value
+    };
 
-        // Deshabilitar botón
-        saveBtn.disabled = true;
-        document.getElementById('saveBtnText').textContent = 'Guardando...';
-
+    // ========== NUEVA SECCIÓN: AGREGAR PRESCRIPCIONES ==========
+    const prescriptionsData = document.getElementById('prescriptionsData').value;
+    if (prescriptionsData && prescriptionsData !== '[]') {
         try {
-            let response;
-            let recordId;
+            recordData.prescriptions = JSON.parse(prescriptionsData);
+            console.log(`💊 Agregando ${recordData.prescriptions.length} prescripciones a la historia clínica`);
+        } catch (error) {
+            console.error('❌ Error parseando prescripciones:', error);
+            showMessage('Error en los datos de prescripciones', 'error');
+            return;
+        }
+    }
 
-            if (currentEditingRecord) {
-                // Actualizar historia clínica existente
-                recordId = currentEditingRecord.id;
+    // Deshabilitar botón
+    saveBtn.disabled = true;
+    document.getElementById('saveBtnText').textContent = 'Guardando...';
 
-                // Simular llamada al Medical Service
-                // response = await fetch(`/api/admin/medical-records/${recordId}`, {
-                //     method: 'PUT',
-                //     headers: { 'Content-Type': 'application/json' },
-                //     credentials: 'include',
-                //     body: JSON.stringify(recordData)
-                // });
+    try {
+        let response;
+        let recordId;
 
-                // Simulación para demo
-                const updatedRecord = { ...currentEditingRecord, ...recordData };
-                // Agregar información de mascota y veterinario
-                const pet = allPets.find(p => p.id === recordData.pet_id);
-                const vet = allVeterinarians.find(v => v.id === recordData.veterinarian_id);
+        if (currentEditingRecord) {
+            // ========== ACTUALIZAR HISTORIA CLÍNICA EXISTENTE ==========
+            recordId = currentEditingRecord.id;
 
-                updatedRecord.pet_name = pet?.name;
-                updatedRecord.pet_species = pet?.species;
-                updatedRecord.owner_name = pet?.owner_name;
-                updatedRecord.veterinarian_name = vet ? `${vet.first_name} ${vet.last_name}` : 'Veterinario desconocido';
-                updatedRecord.updated_at = new Date().toISOString();
+            // Llamada real al backend para actualizar
+            response = await fetch(`/api/admin/medical-records/${recordId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(recordData)
+            });
 
-                // Actualizar en datos locales
-                const index = allRecords.findIndex(r => r.id === recordId);
-                if (index !== -1) {
-                    allRecords[index] = updatedRecord;
-                    filteredRecords = [...allRecords];
-                    displayRecordsData();
-                    updateStatistics();
+            if (response.ok) {
+                const responseData = await response.json();
+
+                if (responseData.success) {
+                    // Actualizar en datos locales
+                    const index = allRecords.findIndex(r => r.id === recordId);
+                    if (index !== -1) {
+                        allRecords[index] = responseData.medical_record;
+                        filteredRecords = [...allRecords];
+                        displayRecordsData();
+                        updateStatistics();
+                    }
+
+                    showMessage('Historia clínica actualizada exitosamente', 'success');
+                    closeRecordModal();
+                    return;
                 }
+            }
 
-                showMessage('Historia clínica actualizada exitosamente', 'success');
-            } else {
-                // Crear nueva historia clínica
+            // Si falla la actualización, usar datos locales como fallback
+            console.log('🔄 Fallback: Actualizando localmente...');
+            const updatedRecord = { ...currentEditingRecord, ...recordData };
 
-                // Simular llamada al Medical Service
-                // response = await fetch('/api/admin/medical-records', {
-                //     method: 'POST',
-                //     headers: { 'Content-Type': 'application/json' },
-                //     credentials: 'include',
-                //     body: JSON.stringify(recordData)
-                // });
+            // Agregar información de mascota y veterinario
+            const pet = allPets.find(p => p.id === recordData.pet_id);
+            const vet = allVeterinarians.find(v => v.id === recordData.veterinarian_id);
 
-                // Simulación para demo
-                const newRecord = {
-                    id: `record_${Date.now()}`,
-                    ...recordData,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                };
+            updatedRecord.pet_name = pet?.name;
+            updatedRecord.pet_species = pet?.species;
+            updatedRecord.owner_name = pet?.owner_name;
+            updatedRecord.veterinarian_name = vet ? `${vet.first_name} ${vet.last_name}` : 'Veterinario desconocido';
+            updatedRecord.updated_at = new Date().toISOString();
 
-                // Agregar información de mascota y veterinario
-                const pet = allPets.find(p => p.id === recordData.pet_id);
-                const vet = allVeterinarians.find(v => v.id === recordData.veterinarian_id);
-
-                newRecord.pet_name = pet?.name;
-                newRecord.pet_species = pet?.species;
-                newRecord.owner_name = pet?.owner_name;
-                newRecord.veterinarian_name = vet ? `${vet.first_name} ${vet.last_name}` : 'Veterinario desconocido';
-
-                // Agregar a datos locales
-                allRecords.unshift(newRecord);
+            // Actualizar en datos locales
+            const index = allRecords.findIndex(r => r.id === recordId);
+            if (index !== -1) {
+                allRecords[index] = updatedRecord;
                 filteredRecords = [...allRecords];
                 displayRecordsData();
                 updateStatistics();
-
-                showMessage('Historia clínica creada exitosamente', 'success');
             }
 
-            closeRecordModal();
+            showMessage('Historia clínica actualizada localmente', 'warning');
 
-        } catch (error) {
-            console.error('❌ Error guardando historia clínica:', error);
-            showMessage('Error al guardar historia clínica', 'error');
-        } finally {
-            // Rehabilitar botón
-            saveBtn.disabled = false;
-            document.getElementById('saveBtnText').textContent =
-                currentEditingRecord ? 'Actualizar Historia' : 'Crear Historia';
+        } else {
+            // ========== CREAR NUEVA HISTORIA CLÍNICA CON PRESCRIPCIONES ==========
+
+            // Determinar la URL correcta según si hay prescripciones
+            const apiUrl = recordData.prescriptions && recordData.prescriptions.length > 0
+                ? '/api/admin/medical-records/with-prescriptions'
+                : '/api/admin/medical-records';
+
+            console.log(`📡 Creando historia clínica en: ${apiUrl}`);
+
+            // Llamada real al backend
+            response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(recordData)
+            });
+
+            if (response.ok) {
+                const responseData = await response.json();
+
+                if (responseData.success) {
+                    const newRecord = responseData.medical_record;
+
+                    // Agregar a datos locales
+                    allRecords.unshift(newRecord);
+                    filteredRecords = [...allRecords];
+                    displayRecordsData();
+                    updateStatistics();
+
+                    // Mensaje según el resultado de las prescripciones
+                    let message = 'Historia clínica creada exitosamente';
+                    if (responseData.prescriptions_result) {
+                        const summary = responseData.prescriptions_result.summary || {};
+                        if (summary.successful > 0) {
+                            message += ` con ${summary.successful} prescripción(es)`;
+                            if (summary.failed > 0) {
+                                message += ` (${summary.failed} prescripción(es) fallaron)`;
+                            }
+                        }
+                    }
+
+                    showMessage(message, 'success');
+                    closeRecordModal();
+                    return;
+                }
+            }
+
+            // Si falla la creación, usar datos locales como fallback
+            console.log('🔄 Fallback: Guardando localmente...');
+            const newRecord = {
+                id: `record_${Date.now()}`,
+                ...recordData,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+
+            // Agregar información de mascota y veterinario
+            const pet = allPets.find(p => p.id === recordData.pet_id);
+            const vet = allVeterinarians.find(v => v.id === recordData.veterinarian_id);
+
+            newRecord.pet_name = pet?.name;
+            newRecord.pet_species = pet?.species;
+            newRecord.owner_name = pet?.owner_name;
+            newRecord.veterinarian_name = vet ? `${vet.first_name} ${vet.last_name}` : 'Veterinario desconocido';
+
+            // Agregar a datos locales
+            allRecords.unshift(newRecord);
+            filteredRecords = [...allRecords];
+            displayRecordsData();
+            updateStatistics();
+
+            showMessage('Historia clínica creada localmente (modo offline)', 'warning');
         }
+
+        closeRecordModal();
+
+    } catch (error) {
+        console.error('❌ Error guardando historia clínica:', error);
+        showMessage(`Error al guardar historia clínica: ${error.message}`, 'error');
+    } finally {
+        // Rehabilitar botón
+        saveBtn.disabled = false;
+        document.getElementById('saveBtnText').textContent =
+            currentEditingRecord ? 'Actualizar Historia' : 'Crear Historia';
     }
+}
 
     // =============== ACCIONES DE HISTORIA CLÍNICA ===============
     function viewRecord(recordId) {
@@ -3355,6 +3579,7 @@
     // Actualizar función loadMedicationsData para usar backend real
     async function loadMedicationsData() {
         await loadMedicationsFromInventory();
+        await loadAvailableMedications();
     }
 
     // =============== GUARDAR PRESCRIPCIÓN REAL ===============
@@ -3835,6 +4060,284 @@ async function saveRecord() {
     }
 }
 
+// Variables globales para medicamentos
+    // Variables globales para medicamentos
+let availableMedications = [];
+let prescribedMedications = [];
+
+// Función para cargar medicamentos desde el inventario
+async function loadAvailableMedications() {
+    try {
+        console.log('📡 Cargando medicamentos disponibles...');
+
+        const response = await fetch('/api/admin/inventory/medications/available', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.medications) {
+                availableMedications = data.medications.filter(med => med.is_active && med.stock_quantity > 0);
+                populateMedicationSelect();
+                console.log(`✅ ${availableMedications.length} medicamentos disponibles cargados`);
+            }
+        } else {
+            throw new Error('Error del servidor');
+        }
+    } catch (error) {
+        console.error('❌ Error cargando medicamentos:', error);
+
+        // Datos de ejemplo para desarrollo
+        availableMedications = [
+            {
+                id: '1',
+                name: 'Amoxicilina',
+                concentration: '250mg',
+                stock_quantity: 50,
+                unit_price: 15.50,
+                category: 'Antibiótico'
+            },
+            {
+                id: '2',
+                name: 'Ibuprofeno',
+                concentration: '400mg',
+                stock_quantity: 30,
+                unit_price: 8.75,
+                category: 'Antiinflamatorio'
+            },
+            {
+                id: '3',
+                name: 'Paracetamol',
+                concentration: '500mg',
+                stock_quantity: 25,
+                unit_price: 5.25,
+                category: 'Analgésico'
+            },
+            {
+                id: '4',
+                name: 'Amoxicilina',
+                concentration: '500mg',
+                stock_quantity: 40,
+                unit_price: 18.50,
+                category: 'Antibiótico'
+            }
+        ];
+        populateMedicationSelect();
+        showMessage('Usando medicamentos de ejemplo (modo offline)', 'warning');
+    }
+}
+
+// Poblar el select de medicamentos
+function populateMedicationSelect() {
+    const select = document.getElementById('medicationSelect');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">-- Seleccionar medicamento --</option>';
+
+    availableMedications.forEach(medication => {
+        const option = document.createElement('option');
+        option.value = medication.id;
+        option.textContent = `${medication.name} ${medication.concentration} (Stock: ${medication.stock_quantity})`;
+        option.dataset.medication = JSON.stringify(medication);
+        select.appendChild(option);
+    });
+}
+
+// Función para crear un ID único de medicamento incluyendo todos los parámetros
+function createMedicationUniqueId(medicationId, dosage, frequency, duration, instructions) {
+    return `${medicationId}_${dosage}_${frequency}_${duration}_${instructions}`.toLowerCase().replace(/\s+/g, '_');
+}
+
+// Agregar medicamento seleccionado a la lista (LÓGICA CORREGIDA)
+function addSelectedMedication() {
+    const select = document.getElementById('medicationSelect');
+    const quantityInput = document.getElementById('medicationQuantity');
+    const dosageInput = document.getElementById('medicationDosage');
+    const frequencyInput = document.getElementById('medicationFrequency');
+    const durationInput = document.getElementById('medicationDuration');
+    const instructionsInput = document.getElementById('medicationInstructions');
+
+    // Validaciones básicas
+    if (!select.value) {
+        showMessage('Por favor selecciona un medicamento', 'error');
+        return;
+    }
+
+    const quantity = parseInt(quantityInput.value) || 1;
+    if (quantity <= 0) {
+        showMessage('La cantidad debe ser mayor a 0', 'error');
+        return;
+    }
+
+    const selectedOption = select.options[select.selectedIndex];
+    const medication = JSON.parse(selectedOption.dataset.medication);
+
+    // Verificar stock disponible
+    if (quantity > medication.stock_quantity) {
+        showMessage(`Stock insuficiente. Disponible: ${medication.stock_quantity}`, 'error');
+        return;
+    }
+
+    // Obtener valores actuales del formulario
+    const dosage = dosageInput.value.trim();
+    const frequency = frequencyInput.value.trim();
+    const duration = durationInput.value.trim();
+    const instructions = instructionsInput.value.trim();
+
+    // CORRECCIÓN: Crear ID único basado en medicamento + parámetros de prescripción
+    const uniqueId = createMedicationUniqueId(medication.id, dosage, frequency, duration, instructions);
+
+    // Verificar si ya existe esta combinación exacta (no solo el medicamento)
+    const existingIndex = prescribedMedications.findIndex(med => {
+        const existingId = createMedicationUniqueId(med.medication_id, med.dosage, med.frequency, med.duration, med.instructions);
+        return existingId === uniqueId;
+    });
+
+    if (existingIndex !== -1) {
+        showMessage('Esta combinación específica de medicamento ya fue agregada', 'warning');
+        return;
+    }
+
+    // Crear prescripción
+    const prescription = {
+        medication_id: medication.id,
+        medication_name: `${medication.name} ${medication.concentration}`,
+        quantity: quantity,
+        dosage: dosage,
+        frequency: frequency,
+        duration: duration,
+        instructions: instructions,
+        stock_available: medication.stock_quantity,
+        unit_price: medication.unit_price,
+        category: medication.category,
+        unique_id: uniqueId // Agregar ID único para referencia
+    };
+
+    prescribedMedications.push(prescription);
+    renderPrescribedMedications();
+    updateHiddenFields();
+    clearMedicationForm();
+
+    showMessage(`Medicamento "${medication.name}" agregado correctamente`, 'success');
+}
+
+// CORRECCIÓN: Limpiar formulario de medicamentos completamente
+function clearMedicationForm() {
+    document.getElementById('medicationSelect').value = '';
+    document.getElementById('medicationQuantity').value = '';
+    document.getElementById('medicationDosage').value = '';
+    document.getElementById('medicationFrequency').value = '';
+    document.getElementById('medicationDuration').value = '';
+    document.getElementById('medicationInstructions').value = '';
+}
+
+// CORRECCIÓN: Limpiar completamente la lista al abrir formulario
+function clearPrescriptionForm() {
+    prescribedMedications = [];
+    clearMedicationForm();
+    renderPrescribedMedications();
+    updateHiddenFields();
+    console.log('✅ Formulario de prescripciones limpiado completamente');
+}
+
+// Renderizar lista de medicamentos prescritos (MEJORADO)
+function renderPrescribedMedications() {
+    const container = document.getElementById('medicationsContainer');
+    const noMedicationsMessage = document.getElementById('noMedicationsMessage');
+
+    if (!container) return;
+
+    if (prescribedMedications.length === 0) {
+        container.innerHTML = '<div id="noMedicationsMessage" style="padding: 20px; text-align: center; color: #6c757d; border: 2px dashed #dee2e6; border-radius: 8px;">No se han agregado medicamentos aún</div>';
+        return;
+    }
+
+    const medicationsHTML = prescribedMedications.map((prescription, index) => {
+        const stockWarning = prescription.quantity > prescription.stock_available * 0.8;
+        const stockError = prescription.quantity > prescription.stock_available;
+
+        return `
+            <div class="medication-card" data-index="${index}">
+                <div class="medication-header">
+                    <h5 class="medication-name">${prescription.medication_name}</h5>
+                    <span class="medication-stock">Stock: ${prescription.stock_available}</span>
+                </div>
+
+                <div class="medication-details">
+                    <div class="medication-detail">
+                        <strong>Cantidad:</strong> ${prescription.quantity}
+                    </div>
+                    ${prescription.dosage ? `<div class="medication-detail"><strong>Dosis:</strong> ${prescription.dosage}</div>` : ''}
+                    ${prescription.frequency ? `<div class="medication-detail"><strong>Frecuencia:</strong> ${prescription.frequency}</div>` : ''}
+                    ${prescription.duration ? `<div class="medication-detail"><strong>Duración:</strong> ${prescription.duration}</div>` : ''}
+                </div>
+
+                ${prescription.instructions ? `<div style="margin-bottom: 10px;"><strong>Instrucciones:</strong> ${prescription.instructions}</div>` : ''}
+
+                ${stockWarning && !stockError ? `<div class="stock-warning">⚠️ Cantidad solicitada alta para el stock disponible</div>` : ''}
+                ${stockError ? `<div class="stock-error">❌ Cantidad solicitada excede el stock disponible</div>` : ''}
+
+                <div class="medication-actions">
+                    <button type="button" class="btn-remove" onclick="removePrescribedMedication(${index})" title="Eliminar medicamento">
+                        🗑️ Eliminar
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = medicationsHTML;
+}
+
+// CORRECCIÓN: Eliminar medicamento prescrito con reindexación
+function removePrescribedMedication(index) {
+    if (index >= 0 && index < prescribedMedications.length) {
+        const removedMedication = prescribedMedications.splice(index, 1)[0];
+        renderPrescribedMedications();
+        updateHiddenFields();
+        showMessage(`Medicamento "${removedMedication.medication_name}" eliminado`, 'info');
+        console.log(`🗑️ Medicamento eliminado en índice ${index}:`, removedMedication);
+    } else {
+        console.error(`❌ Índice inválido para eliminar: ${index}`);
+    }
+}
+
+// Actualizar campos ocultos para envío al backend
+function updateHiddenFields() {
+    const medicationsText = prescribedMedications.map(p =>
+        `${p.medication_name} - Cantidad: ${p.quantity}${p.dosage ? `, Dosis: ${p.dosage}` : ''}${p.frequency ? `, Frecuencia: ${p.frequency}` : ''}${p.duration ? `, Duración: ${p.duration}` : ''}`
+    ).join('\n');
+
+    const medicationsPrescribedField = document.getElementById('medicationsPrescribed');
+    const prescriptionsDataField = document.getElementById('prescriptionsData');
+
+    if (medicationsPrescribedField) {
+        medicationsPrescribedField.value = medicationsText;
+    }
+
+    if (prescriptionsDataField) {
+        prescriptionsDataField.value = JSON.stringify(prescribedMedications);
+    }
+
+    console.log('💾 Campos ocultos actualizados:', {
+        medicationsText,
+        prescriptionsCount: prescribedMedications.length
+    });
+}
+
+// Cargar medicamentos al inicializar
+document.addEventListener('DOMContentLoaded', function() {
+    loadAvailableMedications();
+
+    // Asegurar que el formulario esté limpio al inicio
+    setTimeout(() => {
+        clearPrescriptionForm();
+    }, 100);
+});
     // =============== FUNCIONES GLOBALES PARA USO EN HTML ===============
 
     // Hacer funciones disponibles globalmente para los onclick en HTML
@@ -3864,7 +4367,14 @@ async function saveRecord() {
     window.showConfirmModal = showConfirmModal;
     window.closeConfirmModal = closeConfirmModal;
     window.executeConfirmAction = executeConfirmAction;
+    window.addSelectedMedication = addSelectedMedication;
+    window.removePrescribedMedication = removePrescribedMedication;
+    window.loadAvailableMedications = loadAvailableMedications;
+    window.clearPrescriptionForm = clearPrescriptionForm;
+    window.createMedicationUniqueId = createMedicationUniqueId;
 
     console.log('✅ Gestión de Historias Clínicas - JavaScript cargado completamente');
+
+
     </script>
 {% endblock %}

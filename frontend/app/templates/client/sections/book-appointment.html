@@ -1,0 +1,1624 @@
+{% extends "client/client_base.html" %}
+
+{% block title %}Agendar Cita{% endblock %}
+
+{% block custom_styles %}
+<style>
+    /* =============== BOOK APPOINTMENT SPECIFIC STYLES =============== */
+    .booking-content {
+        padding: 30px;
+    }
+
+    .page-header {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 4px 12px rgba(8, 28, 21, 0.08);
+        margin-bottom: 30px;
+        text-align: center;
+    }
+
+    .header-title {
+        color: #2D6A4F;
+        font-size: 2.2rem;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+    }
+
+    .header-subtitle {
+        color: #52B788;
+        font-size: 1.1rem;
+        margin: 0;
+    }
+
+    /* PROGRESS BAR */
+    .progress-container {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 4px 12px rgba(8, 28, 21, 0.08);
+        margin-bottom: 30px;
+    }
+
+    .progress-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        margin-bottom: 20px;
+    }
+
+    .progress-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        z-index: 2;
+    }
+
+    .step-circle {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: #D8F3DC;
+        border: 3px solid #B7E4C7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #52B788;
+        transition: all 0.3s ease;
+    }
+
+    .step-circle.active {
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        border-color: #2D6A4F;
+        color: white;
+        transform: scale(1.1);
+        box-shadow: 0 0 20px rgba(82, 183, 136, 0.3);
+    }
+
+    .step-circle.completed {
+        background: #52B788;
+        border-color: #2D6A4F;
+        color: white;
+    }
+
+    .step-label {
+        margin-top: 8px;
+        font-size: 0.85rem;
+        color: #2D6A4F;
+        font-weight: 500;
+        text-align: center;
+    }
+
+    .progress-line {
+        position: absolute;
+        top: 25px;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: #B7E4C7;
+        z-index: 1;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        transition: width 0.5s ease;
+        border-radius: 3px;
+    }
+
+    /* STEP CONTENT */
+    .step-content {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(8, 28, 21, 0.08);
+        overflow: hidden;
+        min-height: 500px;
+        display: none;
+    }
+
+    .step-content.active {
+        display: block;
+        animation: slideIn 0.5s ease-out;
+    }
+
+    .step-header {
+        padding: 30px 30px 0;
+        text-align: center;
+    }
+
+    .step-title {
+        font-size: 1.8rem;
+        color: #2D6A4F;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .step-description {
+        color: #52B788;
+        margin-bottom: 30px;
+        font-size: 1rem;
+    }
+
+    .step-body {
+        padding: 0 30px 30px;
+    }
+
+    /* STEP 1: MASCOTAS */
+    .pets-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .pet-card {
+        background: #F8FBF9;
+        border-radius: 15px;
+        padding: 25px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+        position: relative;
+    }
+
+    .pet-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(8, 28, 21, 0.1);
+    }
+
+    .pet-card.selected {
+        border-color: #52B788;
+        background: linear-gradient(135deg, rgba(82, 183, 136, 0.1), rgba(56, 163, 165, 0.1));
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(82, 183, 136, 0.2);
+    }
+
+    .pet-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        border-radius: 15px 15px 0 0;
+    }
+
+    .pet-card.selected::before {
+        opacity: 1;
+    }
+
+    .pet-info {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .pet-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        color: white;
+        border: 3px solid #B7E4C7;
+    }
+
+    .pet-details h3 {
+        color: #2D6A4F;
+        font-size: 1.3rem;
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+
+    .pet-details p {
+        color: #52B788;
+        font-size: 0.9rem;
+        margin: 2px 0;
+    }
+
+    /* STEP 2: VETERINARIOS */
+    .vets-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .vet-card {
+        background: #F8FBF9;
+        border-radius: 15px;
+        padding: 25px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+        text-align: center;
+    }
+
+    .vet-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(8, 28, 21, 0.1);
+    }
+
+    .vet-card.selected {
+        border-color: #52B788;
+        background: linear-gradient(135deg, rgba(82, 183, 136, 0.1), rgba(56, 163, 165, 0.1));
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(82, 183, 136, 0.2);
+    }
+
+    .vet-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #38A3A5, #22577A);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: white;
+        margin: 0 auto 15px;
+        border: 3px solid #B7E4C7;
+    }
+
+    .vet-name {
+        font-size: 1.4rem;
+        color: #2D6A4F;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .vet-specialty {
+        color: #52B788;
+        margin-bottom: 15px;
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    .vet-schedule {
+        background: rgba(82, 183, 136, 0.1);
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 0.85rem;
+        color: #2D6A4F;
+        border: 1px solid #B7E4C7;
+    }
+
+    /* STEP 3: CALENDARIO */
+    .calendar-container {
+        background: #F8FBF9;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        border: 1px solid #B7E4C7;
+    }
+
+    .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .calendar-nav {
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        width: 45px;
+        height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+
+    .calendar-nav:hover {
+        background: linear-gradient(135deg, #2D6A4F, #22577A);
+        transform: scale(1.1);
+    }
+
+    .calendar-month {
+        font-size: 1.6rem;
+        font-weight: 600;
+        color: #2D6A4F;
+        text-transform: capitalize;
+    }
+
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 8px;
+    }
+
+    .calendar-day-header {
+        text-align: center;
+        padding: 12px 8px;
+        font-weight: 600;
+        color: #52B788;
+        font-size: 0.9rem;
+    }
+
+    .calendar-day {
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        font-weight: 500;
+        color: #2D6A4F;
+    }
+
+    .calendar-day.available {
+        background: white;
+        border: 1px solid #D8F3DC;
+    }
+
+    .calendar-day.available:hover {
+        background: #B7E4C7;
+        border-color: #52B788;
+        transform: scale(1.05);
+    }
+
+    .calendar-day.selected {
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        color: white;
+        transform: scale(1.1);
+        box-shadow: 0 0 15px rgba(82, 183, 136, 0.4);
+    }
+
+    .calendar-day.disabled {
+        color: #ccc;
+        cursor: not-allowed;
+        background: #f5f5f5;
+    }
+
+    /* STEP 4: HORARIOS */
+    .time-slots {
+        margin-bottom: 30px;
+    }
+
+    .time-period {
+        margin-bottom: 25px;
+    }
+
+    .time-period-title {
+        font-size: 1.3rem;
+        color: #2D6A4F;
+        margin-bottom: 15px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 0;
+        border-bottom: 2px solid #D8F3DC;
+    }
+
+    .time-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 12px;
+    }
+
+    .time-slot {
+        background: white;
+        border: 2px solid #D8F3DC;
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 500;
+        color: #2D6A4F;
+    }
+
+    .time-slot:hover {
+        border-color: #52B788;
+        background: #B7E4C7;
+        transform: translateY(-2px);
+    }
+
+    .time-slot.selected {
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        border-color: #2D6A4F;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(82, 183, 136, 0.3);
+    }
+
+    .time-slot.occupied {
+        background: #f8f9fa;
+        border-color: #dee2e6;
+        color: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    /* STEP 5: DETALLES */
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #2D6A4F;
+        font-size: 1rem;
+    }
+
+    .form-select,
+    .form-textarea {
+        width: 100%;
+        padding: 15px;
+        border: 2px solid #D8F3DC;
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background: white;
+        color: #2D6A4F;
+    }
+
+    .form-select:focus,
+    .form-textarea:focus {
+        outline: none;
+        border-color: #52B788;
+        box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.1);
+    }
+
+    .form-textarea {
+        resize: vertical;
+        min-height: 120px;
+        font-family: inherit;
+    }
+
+    .booking-summary {
+        background: #F8FBF9;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+        border: 1px solid #B7E4C7;
+    }
+
+    .summary-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #2D6A4F;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #D8F3DC;
+    }
+
+    .summary-item:last-child {
+        border-bottom: none;
+    }
+
+    .summary-label {
+        font-weight: 600;
+        color: #52B788;
+    }
+
+    .summary-value {
+        color: #2D6A4F;
+        font-weight: 500;
+    }
+
+    /* NAVEGACIÓN */
+    .step-navigation {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 25px 30px;
+        border-top: 1px solid #D8F3DC;
+        background: #F8FBF9;
+    }
+
+    .btn {
+        padding: 12px 25px;
+        border: none;
+        border-radius: 50px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(82, 183, 136, 0.3);
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #52B788;
+        border: 2px solid #D8F3DC;
+    }
+
+    .btn-secondary:hover {
+        background: #D8F3DC;
+        border-color: #B7E4C7;
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+
+    /* LOADING */
+    .loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 50px;
+        color: #52B788;
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #D8F3DC;
+        border-top: 4px solid #52B788;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 15px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    /* ERROR & SUCCESS STATES */
+    .empty-state {
+        text-align: center;
+        padding: 50px;
+        color: #52B788;
+    }
+
+    .empty-state h3 {
+        color: #2D6A4F;
+        margin: 15px 0 10px;
+        font-size: 1.4rem;
+    }
+
+    .empty-state p {
+        margin-bottom: 20px;
+        font-size: 1rem;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+        .booking-content {
+            padding: 15px;
+        }
+
+        .page-header,
+        .progress-container,
+        .step-content {
+            margin-bottom: 20px;
+        }
+
+        .header-title {
+            font-size: 1.8rem;
+        }
+
+        .pets-grid,
+        .vets-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .step-navigation {
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .calendar-grid {
+            gap: 4px;
+        }
+
+        .time-grid {
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="booking-content">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1 class="header-title">
+            🗓️ Agendar Nueva Cita
+        </h1>
+        <p class="header-subtitle">Programa la atención médica para tu mascota en simples pasos</p>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress-container">
+        <div class="progress-bar">
+            <div class="progress-line">
+                <div class="progress-fill" id="progressFill" style="width: 20%;"></div>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle active" id="step1Circle">1</div>
+                <div class="step-label">Mi Mascota</div>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle" id="step2Circle">2</div>
+                <div class="step-label">Veterinario</div>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle" id="step3Circle">3</div>
+                <div class="step-label">Fecha</div>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle" id="step4Circle">4</div>
+                <div class="step-label">Horario</div>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle" id="step5Circle">5</div>
+                <div class="step-label">Confirmar</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 1: Seleccionar Mascota -->
+    <div class="step-content active" id="step1">
+        <div class="step-header">
+            <h2 class="step-title">Selecciona tu mascota</h2>
+            <p class="step-description">Elige cuál de tus compañeros necesita atención médica</p>
+        </div>
+        <div class="step-body">
+            <div class="pets-grid" id="petsGrid">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>Cargando tus mascotas...</span>
+                </div>
+            </div>
+        </div>
+        <div class="step-navigation">
+            <a href="{{ url_for('frontend.client_dashboard') }}" class="btn btn-secondary">
+                ← Cancelar
+            </a>
+            <button class="btn btn-primary" id="nextStep1" disabled>
+                Continuar →
+            </button>
+        </div>
+    </div>
+
+    <!-- Step 2: Seleccionar Veterinario -->
+    <div class="step-content" id="step2">
+        <div class="step-header">
+            <h2 class="step-title">Elige tu veterinario</h2>
+            <p class="step-description">Selecciona el profesional que atenderá a tu mascota</p>
+        </div>
+        <div class="step-body">
+            <div class="vets-grid" id="vetsGrid">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>Cargando veterinarios disponibles...</span>
+                </div>
+            </div>
+        </div>
+        <div class="step-navigation">
+            <button class="btn btn-secondary" id="prevStep2">
+                ← Anterior
+            </button>
+            <button class="btn btn-primary" id="nextStep2" disabled>
+                Continuar →
+            </button>
+        </div>
+    </div>
+
+    <!-- Step 3: Seleccionar Fecha -->
+    <div class="step-content" id="step3">
+        <div class="step-header">
+            <h2 class="step-title">Selecciona la fecha</h2>
+            <p class="step-description">Elige un día disponible según el horario del veterinario</p>
+        </div>
+        <div class="step-body">
+            <div class="calendar-container">
+                <div class="calendar-header">
+                    <button class="calendar-nav" id="prevMonth">‹</button>
+                    <div class="calendar-month" id="currentMonth"></div>
+                    <button class="calendar-nav" id="nextMonth">›</button>
+                </div>
+                <div class="calendar-grid" id="calendarGrid">
+                    <!-- Calendar will be generated here -->
+                </div>
+            </div>
+        </div>
+        <div class="step-navigation">
+            <button class="btn btn-secondary" id="prevStep3">
+                ← Anterior
+            </button>
+            <button class="btn btn-primary" id="nextStep3" disabled>
+                Continuar →
+            </button>
+        </div>
+    </div>
+
+    <!-- Step 4: Seleccionar Horario -->
+    <div class="step-content" id="step4">
+        <div class="step-header">
+            <h2 class="step-title">Elige el horario</h2>
+            <p class="step-description">Selecciona la hora que mejor se adapte a tu disponibilidad</p>
+        </div>
+        <div class="step-body">
+            <div class="time-slots" id="timeSlots">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>Cargando horarios disponibles...</span>
+                </div>
+            </div>
+        </div>
+        <div class="step-navigation">
+            <button class="btn btn-secondary" id="prevStep4">
+                ← Anterior
+            </button>
+            <button class="btn btn-primary" id="nextStep4" disabled>
+                Continuar →
+            </button>
+        </div>
+    </div>
+
+    <!-- Step 5: Confirmar Detalles -->
+    <div class="step-content" id="step5">
+        <div class="step-header">
+            <h2 class="step-title">Confirma los detalles</h2>
+            <p class="step-description">Revisa la información y completa los datos de tu cita</p>
+        </div>
+        <div class="step-body">
+            <div class="booking-summary" id="bookingSummary">
+                <!-- Summary will be generated here -->
+            </div>
+
+            <form id="appointmentForm">
+                <div class="form-group">
+                    <label class="form-label" for="consultationType">Tipo de consulta *</label>
+                    <select class="form-select" id="consultationType" required>
+                        <option value="">Seleccionar tipo de consulta</option>
+                        <option value="general">Consulta General</option>
+                        <option value="control">Control de Salud</option>
+                        <option value="vaccination">Vacunación</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="consultationReason">Motivo de la consulta *</label>
+                    <textarea class="form-textarea" id="consultationReason" 
+                            placeholder="Describe brevemente el motivo de la consulta, síntomas observados o cualquier información relevante que pueda ayudar al veterinario..." 
+                            required></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="step-navigation">
+            <button class="btn btn-secondary" id="prevStep5">
+                ← Anterior
+            </button>
+            <button class="btn btn-primary" id="confirmBooking" disabled>
+                🗓️ Confirmar Cita
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+    'use strict';
+
+    // =============== VARIABLES DEL TEMPLATE ===============
+    // Estas variables se definen de forma segura desde el template Flask
+    const USER_ID = '{{ user.id if user and user.id else "" }}';
+    const USER_TOKEN = '{{ session.get("token") if session.get("token") else "" }}';
+    const ADD_PET_URL = '{{ url_for("frontend.client_add_pet") }}';
+    const DASHBOARD_URL = '{{ url_for("frontend.client_dashboard") }}';
+
+    // Validar que tenemos los datos necesarios
+    if (!USER_ID || !USER_TOKEN) {
+        console.error('❌ Datos de usuario no disponibles');
+        alert('Error: Sesión no válida. Por favor inicia sesión nuevamente.');
+        window.location.href = '/login';
+        return;
+    }
+
+    // =============== CONFIGURACIÓN Y ESTADO ===============
+    const API_ENDPOINTS = {
+        pets: '/api/client/pets',
+        veterinarians: '/api/client/veterinarians', // Basado en la ruta admin existente
+        appointments: '/api/client/appointments', // Basado en la ruta admin existente
+        availability: '/api/client/availability/' // Basado en la ruta admin existente
+    };
+
+    let currentStep = 1;
+    let selectedPet = null;
+    let selectedVet = null;
+    let selectedDate = null;
+    let selectedTime = null;
+    let currentMonth = new Date();
+    let userPets = [];
+    let veterinarians = [];
+
+    // =============== INICIALIZACIÓN ===============
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Inicializando sistema de agendamiento...');
+        initializeBooking();
+    });
+
+    async function initializeBooking() {
+        setupEventListeners();
+        await loadUserPets();
+    }
+
+    // =============== FUNCIONES DE CARGA DE DATOS ===============
+    async function loadUserPets() {
+        try {
+            console.log('🔄 Cargando mascotas del usuario...');
+            console.log('📡 URL:', API_ENDPOINTS.pets);
+            console.log('🔑 Token disponible:', !!USER_TOKEN);
+
+            const response = await fetch(API_ENDPOINTS.pets, {
+                headers: {
+                    'Authorization': `Bearer ${USER_TOKEN}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('📨 Respuesta del servidor:', response.status, response.statusText);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log('📦 Datos recibidos:', data);
+
+            if (data.success) {
+                userPets = data.pets || data.data || [];
+                console.log('🐾 Mascotas encontradas:', userPets.length);
+                renderPets();
+            } else {
+                throw new Error(data.message || 'Error al cargar mascotas');
+            }
+
+        } catch (error) {
+            console.error('❌ Error cargando mascotas:', error);
+            showEmptyState('petsGrid', '🐾', 'No tienes mascotas registradas', 'Primero debes registrar una mascota para poder agendar citas', 'Registrar Mi Primera Mascota', ADD_PET_URL);
+        }
+    }
+
+    async function loadVeterinarians() {
+        try {
+            console.log('🔄 Cargando veterinarios reales de la base de datos...');
+
+            const response = await fetch(API_ENDPOINTS.veterinarians, {
+                headers: {
+                    'Authorization': `Bearer ${USER_TOKEN}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('📨 Respuesta del servidor (veterinarios):', response.status, response.statusText);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log('📦 Datos de veterinarios recibidos:', data);
+
+            if (data.success) {
+                veterinarians = data.veterinarians || [];
+
+                console.log('👨‍⚕️ Veterinarios encontrados:', veterinarians.length);
+
+                if (veterinarians.length === 0) {
+                    showEmptyState('vetsGrid', '👨‍⚕️', 'No hay veterinarios disponibles', 'No se encontraron veterinarios registrados en el sistema.', null, null);
+                    return;
+                }
+
+                renderVeterinarians();
+            } else {
+                throw new Error(data.message || 'Error al cargar veterinarios');
+            }
+
+        } catch (error) {
+            console.error('❌ Error cargando veterinarios:', error);
+            showEmptyState('vetsGrid', '👨‍⚕️', 'Error al cargar veterinarios', 'No se pudieron cargar los veterinarios disponibles. Verifica tu conexión.', null, null);
+        }
+    }
+
+    async function loadAvailability() {
+        if (!selectedVet || !selectedDate) return;
+
+        try {
+            // Mostrar pantalla de carga inmediatamente
+            const container = document.getElementById('timeSlots');
+            container.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>Cargando horarios disponibles...</span>
+                </div>
+            `;
+
+            console.log('⏰ Cargando horarios disponibles...');
+            console.log('📅 Fecha:', selectedDate, 'Veterinario:', selectedVet);
+
+            const response = await fetch(`${API_ENDPOINTS.availability}${selectedVet}/${selectedDate}`, {
+                headers: {
+                    'Authorization': `Bearer ${USER_TOKEN}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('📨 Respuesta disponibilidad:', response.status);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('📦 Disponibilidad recibida:', data);
+
+            if (data.success && data.available_slots && data.available_slots.length > 0) {
+                renderTimeSlots(data.available_slots);
+            } else {
+                showEmptyState('timeSlots', '⏰', 'Sin horarios disponibles',
+                    data.message || 'No hay horarios disponibles para esta fecha según la agenda del veterinario.',
+                    null, null);
+            }
+
+        } catch (error) {
+            console.error('❌ Error cargando disponibilidad:', error);
+            showEmptyState('timeSlots', '❌', 'Error de conexión',
+                'No se pudo cargar la disponibilidad. Por favor, contacta a la clínica.',
+                null, null);
+        }
+    }
+
+    function generateSlotsFromSchedule(daySchedule) {
+        const slots = [];
+        const slotDuration = 30; // 30 minutos por slot
+
+        // Horario de mañana (antes del break)
+        if (daySchedule.start && daySchedule.break_start) {
+            const morningSlots = generateTimeSlotsBetween(daySchedule.start, daySchedule.break_start, slotDuration);
+            slots.push(...morningSlots);
+        } else if (daySchedule.start && !daySchedule.break_start) {
+            // Si no hay break definido, generar hasta las 12:00
+            const morningSlots = generateTimeSlotsBetween(daySchedule.start, '12:00', slotDuration);
+            slots.push(...morningSlots);
+        }
+
+        // Horario de tarde (después del break)
+        if (daySchedule.break_end && daySchedule.end) {
+            const afternoonSlots = generateTimeSlotsBetween(daySchedule.break_end, daySchedule.end, slotDuration);
+            slots.push(...afternoonSlots);
+        } else if (!daySchedule.break_end && daySchedule.end) {
+            // Si no hay break definido, generar desde las 14:00
+            const afternoonSlots = generateTimeSlotsBetween('14:00', daySchedule.end, slotDuration);
+            slots.push(...afternoonSlots);
+        }
+
+        console.log('⏰ Slots generados desde horario:', slots);
+        return slots;
+    }
+
+    function generateTimeSlotsBetween(startTime, endTime, durationMinutes) {
+        const slots = [];
+        const start = timeToMinutes(startTime);
+        const end = timeToMinutes(endTime);
+
+        for (let time = start; time < end; time += durationMinutes) {
+            slots.push(minutesToTime(time));
+        }
+
+        return slots;
+    }
+
+    // =============== FUNCIONES DE RENDERIZADO ===============
+    function renderPets() {
+        const grid = document.getElementById('petsGrid');
+
+        if (userPets.length === 0) {
+            showEmptyState('petsGrid', '🐾', 'No tienes mascotas registradas', 'Primero debes registrar una mascota para poder agendar citas', 'Registrar Mi Primera Mascota', ADD_PET_URL);
+            return;
+        }
+
+        grid.innerHTML = userPets.map(pet => `
+            <div class="pet-card" onclick="selectPet('${pet.id}')" data-pet-id="${pet.id}">
+                <div class="pet-info">
+                    <div class="pet-avatar">${getPetIcon(pet.species)}</div>
+                    <div class="pet-details">
+                        <h3>${pet.name}</h3>
+                        <p>${capitalizePetSpecies(pet.species)} • ${pet.breed}</p>
+                        <p>${formatPetAge(pet.age_years, pet.age_months)}${pet.weight ? ` • ${pet.weight}kg` : ''}</p>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        console.log('🎨 Mascotas renderizadas, configurando eventos...');
+    }
+
+    function renderVeterinarians() {
+        const grid = document.getElementById('vetsGrid');
+
+        if (veterinarians.length === 0) {
+            showEmptyState('vetsGrid', '👨‍⚕️', 'No hay veterinarios disponibles', 'No se encontraron veterinarios disponibles en este momento.', null, null);
+            return;
+        }
+
+        grid.innerHTML = veterinarians.map(vet => `
+            <div class="vet-card" onclick="selectVet('${vet.id}')" data-vet-id="${vet.id}">
+                <div class="vet-avatar">👨‍⚕️</div>
+                <div class="vet-name">Dr. ${vet.first_name} ${vet.last_name}</div>
+                <div class="vet-specialty">${vet.specialty || 'Medicina General'}</div>
+                <div class="vet-schedule">
+                    ${getScheduleText(vet.schedule)}
+                </div>
+            </div>
+        `).join('');
+
+        console.log('🎨 Veterinarios renderizados con horarios reales');
+    }
+
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid');
+        const monthYear = document.getElementById('currentMonth');
+
+        monthYear.textContent = currentMonth.toLocaleDateString('es-ES', {
+            month: 'long',
+            year: 'numeric'
+        });
+
+        // Headers de días
+        const dayHeaders = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        let calendarHTML = dayHeaders.map(day =>
+            `<div class="calendar-day-header">${day}</div>`
+        ).join('');
+
+        // Días del mes
+        const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+        const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Días vacíos al inicio
+        for (let i = 0; i < firstDay.getDay(); i++) {
+            calendarHTML += '<div class="calendar-day"></div>';
+        }
+
+        // Días del mes
+        for (let day = 1; day <= lastDay.getDate(); day++) {
+            const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+            const dateString = date.toISOString().split('T')[0];
+            const isAvailable = isDateAvailable(date);
+            const isPast = date < today;
+
+            let classes = 'calendar-day';
+            if (isPast) {
+                classes += ' disabled';
+            } else if (isAvailable) {
+                classes += ' available';
+            } else {
+                classes += ' disabled';
+            }
+
+            if (selectedDate === dateString) {
+                classes += ' selected';
+            }
+
+            const clickHandler = (!isPast && isAvailable) ? `selectDate('${dateString}')` : '';
+
+            calendarHTML += `
+                <div class="${classes}" onclick="${clickHandler}" data-date="${dateString}">
+                    ${day}
+                </div>
+            `;
+        }
+
+        grid.innerHTML = calendarHTML;
+    }
+
+    function renderTimeSlots(availableSlots = []) {
+        const container = document.getElementById('timeSlots');
+
+        if (!selectedVet || !selectedDate) {
+            container.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>Selecciona veterinario y fecha primero</span>
+                </div>
+            `;
+            return;
+        }
+
+        if (availableSlots.length === 0) {
+            showEmptyState('timeSlots', '⏰', 'Sin horarios disponibles', 'No hay horarios disponibles para esta fecha según la agenda del veterinario.', null, null);
+            return;
+        }
+
+        let slotsHTML = '';
+
+        // Separar slots por jornada basándose solo en los horarios REALES del backend
+        const morningSlots = availableSlots.filter(slot => {
+            const slotMinutes = timeToMinutes(slot);
+            return slotMinutes < 720; // 12:00 = 720 minutos
+        });
+
+        const afternoonSlots = availableSlots.filter(slot => {
+            const slotMinutes = timeToMinutes(slot);
+            return slotMinutes >= 720; // 12:00 = 720 minutos
+        });
+
+        // Jornada de mañana
+        if (morningSlots.length > 0) {
+            slotsHTML += `
+                <div class="time-period">
+                    <div class="time-period-title">🌅 Jornada de Mañana</div>
+                    <div class="time-grid">
+                        ${morningSlots.map(slot => `
+                            <div class="time-slot" onclick="selectTime('${slot}')" data-time="${slot}">
+                                ${slot}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Jornada de tarde
+        if (afternoonSlots.length > 0) {
+            slotsHTML += `
+                <div class="time-period">
+                    <div class="time-period-title">🌆 Jornada de Tarde</div>
+                    <div class="time-grid">
+                        ${afternoonSlots.map(slot => `
+                            <div class="time-slot" onclick="selectTime('${slot}')" data-time="${slot}">
+                                ${slot}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = slotsHTML;
+        console.log('🎨 Horarios REALES renderizados:', {
+            total: availableSlots.length,
+            morningSlots: morningSlots.length,
+            afternoonSlots: afternoonSlots.length
+        });
+    }
+
+    function renderBookingSummary() {
+        const container = document.getElementById('bookingSummary');
+        const pet = userPets.find(p => p.id === selectedPet);
+        const vet = veterinarians.find(v => v.id === selectedVet);
+
+        container.innerHTML = `
+            <div class="summary-title">📋 Resumen de la Cita</div>
+            <div class="summary-item">
+                <span class="summary-label">🐾 Mascota:</span>
+                <span class="summary-value">${pet.name} (${capitalizePetSpecies(pet.species)})</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">👨‍⚕️ Veterinario:</span>
+                <span class="summary-value">Dr. ${vet.first_name} ${vet.last_name}</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">📅 Fecha:</span>
+                <span class="summary-value">${formatDate(selectedDate)}</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">🕐 Hora:</span>
+                <span class="summary-value">${selectedTime}</span>
+            </div>
+        `;
+    }
+
+    // =============== FUNCIONES DE SELECCIÓN ===============
+    function selectPet(petId) {
+        console.log('🐾 Intentando seleccionar mascota:', petId);
+
+        // Remover selección anterior
+        document.querySelectorAll('.pet-card').forEach(card => card.classList.remove('selected'));
+
+        // Seleccionar nueva mascota
+        const petCard = document.querySelector(`[data-pet-id="${petId}"]`);
+        if (petCard) {
+            petCard.classList.add('selected');
+            selectedPet = petId;
+            document.getElementById('nextStep1').disabled = false;
+            console.log('✅ Mascota seleccionada:', petId);
+        } else {
+            console.error('❌ No se encontró la card de la mascota:', petId);
+        }
+    }
+
+    function selectVet(vetId) {
+        document.querySelectorAll('.vet-card').forEach(card => card.classList.remove('selected'));
+        document.querySelector(`[data-vet-id="${vetId}"]`).classList.add('selected');
+        selectedVet = vetId;
+
+        // Resetear fecha y hora seleccionadas
+        selectedDate = null;
+        selectedTime = null;
+
+        document.getElementById('nextStep2').disabled = false;
+        console.log('👨‍⚕️ Veterinario seleccionado:', vetId);
+    }
+
+    function selectDate(dateString) {
+        const dateElement = document.querySelector(`[data-date="${dateString}"]`);
+
+        if (dateElement.classList.contains('disabled')) {
+            return;
+        }
+
+        document.querySelectorAll('.calendar-day').forEach(day => day.classList.remove('selected'));
+        dateElement.classList.add('selected');
+        selectedDate = dateString;
+
+        // Resetear hora seleccionada
+        selectedTime = null;
+
+        document.getElementById('nextStep3').disabled = false;
+        console.log('📅 Fecha seleccionada:', dateString);
+
+        // Cargar horarios disponibles
+        loadAvailability();
+    }
+
+    function selectTime(time) {
+        document.querySelectorAll('.time-slot').forEach(slot => slot.classList.remove('selected'));
+        document.querySelector(`[data-time="${time}"]`).classList.add('selected');
+        selectedTime = time;
+        document.getElementById('nextStep4').disabled = false;
+        console.log('🕐 Hora seleccionada:', time);
+    }
+
+    // =============== NAVEGACIÓN ENTRE PASOS ===============
+    function goToStep(step) {
+        // Ocultar paso actual
+        document.querySelectorAll('.step-content').forEach(content => content.classList.remove('active'));
+        document.querySelectorAll('.step-circle').forEach(circle => circle.classList.remove('active'));
+
+        // Mostrar nuevo paso
+        document.getElementById(`step${step}`).classList.add('active');
+        document.getElementById(`step${step}Circle`).classList.add('active');
+
+        // Actualizar conectores y círculos completados
+        for (let i = 1; i < step; i++) {
+            document.getElementById(`step${i}Circle`).classList.add('completed');
+        }
+
+        // Actualizar barra de progreso
+        const progressFill = document.getElementById('progressFill');
+        progressFill.style.width = `${(step * 20)}%`;
+
+        currentStep = step;
+
+        // Cargar datos específicos del paso
+        switch(step) {
+            case 2:
+                loadVeterinarians();
+                break;
+            case 3:
+                renderCalendar();
+                break;
+            case 4:
+                renderTimeSlots();
+                break;
+            case 5:
+                renderBookingSummary();
+                break;
+        }
+    }
+
+    // =============== EVENT LISTENERS ===============
+    function setupEventListeners() {
+        // Navegación entre pasos
+        document.getElementById('nextStep1').addEventListener('click', () => goToStep(2));
+        document.getElementById('nextStep2').addEventListener('click', () => goToStep(3));
+        document.getElementById('nextStep3').addEventListener('click', () => goToStep(4));
+        document.getElementById('nextStep4').addEventListener('click', () => goToStep(5));
+
+        document.getElementById('prevStep2').addEventListener('click', () => goToStep(1));
+        document.getElementById('prevStep3').addEventListener('click', () => goToStep(2));
+        document.getElementById('prevStep4').addEventListener('click', () => goToStep(3));
+        document.getElementById('prevStep5').addEventListener('click', () => goToStep(4));
+
+        // Navegación del calendario
+        document.getElementById('prevMonth').addEventListener('click', () => {
+            currentMonth.setMonth(currentMonth.getMonth() - 1);
+            renderCalendar();
+        });
+
+        document.getElementById('nextMonth').addEventListener('click', () => {
+            currentMonth.setMonth(currentMonth.getMonth() + 1);
+            renderCalendar();
+        });
+
+        // Validación del formulario final
+        document.getElementById('consultationType').addEventListener('change', validateFinalForm);
+        document.getElementById('consultationReason').addEventListener('input', validateFinalForm);
+
+        // Confirmación de cita
+        document.getElementById('confirmBooking').addEventListener('click', confirmAppointment);
+    }
+
+    function validateFinalForm() {
+        const type = document.getElementById('consultationType').value;
+        const reason = document.getElementById('consultationReason').value.trim();
+
+        document.getElementById('confirmBooking').disabled = !type || !reason;
+    }
+
+    // =============== FUNCIONES AUXILIARES ===============
+    function formatPetAge(years, months) {
+        years = parseInt(years) || 0;
+        months = parseInt(months) || 0;
+
+        if (years === 0 && months === 0) {
+            return 'Cachorro';
+        } else if (years === 0) {
+            return `${months} ${months === 1 ? 'mes' : 'meses'}`;
+        } else if (months === 0) {
+            return `${years} ${years === 1 ? 'año' : 'años'}`;
+        } else {
+            return `${years} ${years === 1 ? 'año' : 'años'} y ${months} ${months === 1 ? 'mes' : 'meses'}`;
+        }
+    }
+
+    function getPetIcon(species) {
+        const icons = {
+            'perro': '🐕',
+            'gato': '🐱',
+            'ave': '🐦',
+            'conejo': '🐰',
+            'reptil': '🦎',
+            'pez': '🐠'
+        };
+        return icons[species.toLowerCase()] || '🐾';
+    }
+
+    function capitalizePetSpecies(species) {
+        const translations = {
+            'perro': 'Perro',
+            'gato': 'Gato',
+            'ave': 'Ave',
+            'conejo': 'Conejo',
+            'reptil': 'Reptil',
+            'pez': 'Pez'
+        };
+        return translations[species.toLowerCase()] || species;
+    }
+
+    function getScheduleText(schedule) {
+        if (!schedule || Object.keys(schedule).length === 0) {
+            return 'Sin horarios configurados';
+        }
+
+        const dayNames = {
+            'monday': 'Lun',
+            'tuesday': 'Mar',
+            'wednesday': 'Mié',
+            'thursday': 'Jue',
+            'friday': 'Vie',
+            'saturday': 'Sáb',
+            'sunday': 'Dom'
+        };
+
+        const activeDays = Object.keys(schedule).filter(day =>
+            schedule[day] && schedule[day].active
+        );
+
+        if (activeDays.length === 0) {
+            return 'Sin disponibilidad';
+        }
+
+        return `Disponible: ${activeDays.map(day => dayNames[day]).join(', ')}`;
+    }
+
+    function isDateAvailable(date) {
+        if (!selectedVet) return false;
+
+        const vet = veterinarians.find(v => v.id === selectedVet);
+        if (!vet || !vet.schedule) {
+            // Si no hay horario definido, permitir selección (la validación real será en el backend)
+            return true;
+        }
+
+        const dayOfWeek = getDayOfWeek(date.toISOString().split('T')[0]);
+        const daySchedule = vet.schedule[dayOfWeek];
+
+        return daySchedule && daySchedule.active;
+    }
+
+    function getDayOfWeek(dateString) {
+        const date = new Date(dateString);
+        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        return days[date.getDay()];
+    }
+
+    function generateTimeSlots(timeRange, availableSlots = []) {
+        const [startTime, endTime] = timeRange.split('-');
+        const slots = [];
+
+        const start = timeToMinutes(startTime);
+        const end = timeToMinutes(endTime);
+
+        // Generar slots cada 30 minutos
+        for (let time = start; time < end; time += 30) {
+            const timeString = minutesToTime(time);
+
+            // Verificar si el slot está disponible
+            const occupied = !availableSlots.includes(timeString);
+
+            slots.push({
+                time: timeString,
+                occupied: occupied
+            });
+        }
+
+        return slots;
+    }
+
+    function timeToMinutes(timeString) {
+        const [hours, minutes] = timeString.split(':').map(Number);
+        return hours * 60 + minutes;
+    }
+
+    function minutesToTime(minutes) {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+    }
+
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-ES', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
+
+    function showEmptyState(containerId, icon, title, message, buttonText = null, buttonAction = null) {
+        const container = document.getElementById(containerId);
+        let buttonHTML = '';
+
+        if (buttonText && buttonAction) {
+            if (buttonAction.startsWith('http') || buttonAction.startsWith('/')) {
+                buttonHTML = `<a href="${buttonAction}" class="btn btn-primary">${buttonText}</a>`;
+            } else {
+                buttonHTML = `<button class="btn btn-primary" onclick="${buttonAction}">${buttonText}</button>`;
+            }
+        }
+
+        container.innerHTML = `
+            <div class="empty-state">
+                <div style="font-size: 3rem; margin-bottom: 15px;">${icon}</div>
+                <h3>${title}</h3>
+                <p>${message}</p>
+                ${buttonHTML}
+            </div>
+        `;
+    }
+
+    // =============== CONFIRMACIÓN DE CITA ===============
+    async function confirmAppointment() {
+        try {
+            const appointmentData = {
+                pet_id: selectedPet,
+                veterinarian_id: selectedVet,
+                appointment_date: selectedDate,
+                appointment_time: selectedTime,
+                consultation_type: document.getElementById('consultationType').value,
+                reason: document.getElementById('consultationReason').value
+            };
+
+            console.log('📝 Enviando datos de la cita:', appointmentData);
+
+            const response = await fetch(API_ENDPOINTS.appointments, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${USER_TOKEN}`
+                },
+                body: JSON.stringify(appointmentData)
+            });
+
+            console.log('📨 Respuesta del servidor:', response.status);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('📦 Respuesta:', data);
+
+            if (data.success) {
+                alert('✅ ¡Cita agendada exitosamente!\n\nRecibirás una confirmación por email. Recuerda confirmar tu asistencia 24 horas antes de la cita.');
+
+                // Redirigir al dashboard
+                setTimeout(() => {
+                    window.location.href = DASHBOARD_URL;
+                }, 2000);
+            } else {
+                throw new Error(data.message || 'Error al agendar la cita');
+            }
+
+        } catch (error) {
+            console.error('❌ Error al confirmar cita:', error);
+            alert('Error al agendar la cita: ' + error.message + '\n\nPor favor intenta nuevamente.');
+        }
+    }
+
+    // =============== HACER FUNCIONES GLOBALES PARA ONCLICK ===============
+    window.selectPet = selectPet;
+    window.selectVet = selectVet;
+    window.selectDate = selectDate;
+    window.selectTime = selectTime;
+
+    console.log('✅ Sistema de agendamiento de citas inicializado correctamente');
+})();
+</script>
+{% endblock %}
