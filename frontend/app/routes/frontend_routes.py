@@ -5334,6 +5334,316 @@ def api_client_create_appointment():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+# =============== RUTAS DEL SISTEMA DE FACTURACIÓN ===============
+# Agregar estas rutas al archivo frontend/app/routes/frontend_routes.py
+
+@frontend_bp.route('/admin/billing')
+@role_required(['admin', 'receptionist'])
+def admin_billing():
+    """Página principal del sistema de facturación"""
+    try:
+        user = session.get('user', {})
+        template_data = {
+            'user': user,
+            'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Administrador',
+            'user_role': user.get('role', 'admin').title(),
+            'user_initial': user.get('first_name', 'A')[0].upper() if user.get('first_name') else 'A'
+        }
+
+        return render_template('admin/sections/billing-system.html', **template_data)
+
+    except Exception as e:
+        print(f"❌ Error en admin billing: {e}")
+        flash('Error al cargar el sistema de facturación', 'error')
+        return redirect(url_for('frontend.admin_dashboard'))
+
+
+@frontend_bp.route('/admin/billing/search-patients')
+@role_required(['admin', 'receptionist'])
+def billing_search_patients():
+    """API para buscar pacientes en el sistema de facturación"""
+    try:
+        query = request.args.get('q', '').strip()
+        if len(query) < 2:
+            return jsonify({'success': False, 'message': 'Query demasiado corto'})
+
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Buscar en el servicio médico
+        medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/patients/search"
+        params = {'q': query, 'limit': 10}
+
+        response = requests.get(medical_url, headers=headers, params=params, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return jsonify({
+                    'success': True,
+                    'patients': data.get('patients', [])
+                })
+
+        return jsonify({'success': False, 'message': 'No se encontraron pacientes'})
+
+    except requests.RequestException as e:
+        print(f"❌ Error buscando pacientes: {e}")
+        return jsonify({'success': False, 'message': 'Error de conexión'})
+    except Exception as e:
+        print(f"❌ Error en búsqueda de pacientes: {e}")
+        return jsonify({'success': False, 'message': 'Error interno'})
+
+
+@frontend_bp.route('/admin/billing/patient/<patient_id>/history')
+@role_required(['admin', 'receptionist'])
+def billing_patient_history(patient_id):
+    """API para obtener el historial clínico de un paciente"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener historial del servicio médico
+        medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/patients/{patient_id}/history"
+
+        response = requests.get(medical_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return jsonify({
+                    'success': True,
+                    'history': data.get('history', [])
+                })
+
+        return jsonify({'success': False, 'message': 'No se pudo obtener el historial'})
+
+    except requests.RequestException as e:
+        print(f"❌ Error obteniendo historial: {e}")
+        return jsonify({'success': False, 'message': 'Error de conexión'})
+    except Exception as e:
+        print(f"❌ Error en historial del paciente: {e}")
+        return jsonify({'success': False, 'message': 'Error interno'})
+
+
+@frontend_bp.route('/admin/billing/search-medications')
+@role_required(['admin', 'receptionist'])
+def billing_search_medications():
+    """API para buscar medicamentos en el inventario"""
+    try:
+        query = request.args.get('q', '').strip()
+        if len(query) < 2:
+            return jsonify({'success': False, 'message': 'Query demasiado corto'})
+
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Buscar en el servicio de inventario
+        inventory_url = f"{current_app.config['INVENTORY_SERVICE_URL']}/medications/search"
+        params = {'q': query, 'limit': 15, 'available_only': True}
+
+        response = requests.get(inventory_url, headers=headers, params=params, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return jsonify({
+                    'success': True,
+                    'medications': data.get('medications', [])
+                })
+
+        return jsonify({'success': False, 'message': 'No se encontraron medicamentos'})
+
+    except requests.RequestException as e:
+        print(f"❌ Error buscando medicamentos: {e}")
+        return jsonify({'success': False, 'message': 'Error de conexión'})
+    except Exception as e:
+        print(f"❌ Error en búsqueda de medicamentos: {e}")
+        return jsonify({'success': False, 'message': 'Error interno'})
+
+
+@frontend_bp.route('/admin/billing/generate-invoice', methods=['POST'])
+@role_required(['admin', 'receptionist'])
+def billing_generate_invoice():
+    """API para generar una factura"""
+    try:
+        data = request.get_json()
+
+        # Validar datos requeridos
+        required_fields = ['patient_id', 'medications', 'total_amount']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'success': False, 'message': f'Campo requerido: {field}'})
+
+        if not data['medications']:
+            return jsonify({'success': False, 'message': 'Debe agregar al menos un medicamento'})
+
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Preparar datos de la factura
+        invoice_data = {
+            'patient_id': data['patient_id'],
+            'veterinarian_id': session['user']['id'],
+            'medications': data['medications'],
+            'total_amount': data['total_amount'],
+            'notes': data.get('notes', ''),
+            'created_by': session['user']['id']
+        }
+
+        # Enviar al servicio médico para crear la factura
+        medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/invoices"
+
+        response = requests.post(medical_url, json=invoice_data, headers=headers, timeout=15)
+
+        if response.status_code == 201:
+            invoice_response = response.json()
+            if invoice_response.get('success'):
+                return jsonify({
+                    'success': True,
+                    'invoice': invoice_response.get('invoice'),
+                    'message': 'Factura generada exitosamente'
+                })
+
+        return jsonify({'success': False, 'message': 'Error al generar la factura'})
+
+    except requests.RequestException as e:
+        print(f"❌ Error generando factura: {e}")
+        return jsonify({'success': False, 'message': 'Error de conexión'})
+    except Exception as e:
+        print(f"❌ Error en generación de factura: {e}")
+        return jsonify({'success': False, 'message': 'Error interno'})
+
+
+@frontend_bp.route('/admin/billing/download-pdf/<invoice_id>')
+@role_required(['admin', 'receptionist'])
+def billing_download_pdf(invoice_id):
+    """Descargar PDF de una factura"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Solicitar PDF al servicio médico
+        medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/invoices/{invoice_id}/pdf"
+
+        response = requests.get(medical_url, headers=headers, timeout=30)
+
+        if response.status_code == 200:
+            # Verificar si es un PDF
+            if response.headers.get('content-type') == 'application/pdf':
+                return send_file(
+                    io.BytesIO(response.content),
+                    as_attachment=True,
+                    download_name=f'factura_{invoice_id}.pdf',
+                    mimetype='application/pdf'
+                )
+            else:
+                # Si no es PDF, probablemente sea JSON con error
+                data = response.json()
+                flash(data.get('message', 'Error al generar PDF'), 'error')
+        else:
+            flash('No se pudo generar el PDF de la factura', 'error')
+
+        return redirect(url_for('frontend.admin_billing'))
+
+    except requests.RequestException as e:
+        print(f"❌ Error descargando PDF: {e}")
+        flash('Error de conexión al generar PDF', 'error')
+        return redirect(url_for('frontend.admin_billing'))
+    except Exception as e:
+        print(f"❌ Error en descarga de PDF: {e}")
+        flash('Error interno al generar PDF', 'error')
+        return redirect(url_for('frontend.admin_billing'))
+
+
+@frontend_bp.route('/admin/billing/invoices')
+@role_required(['admin', 'receptionist'])
+def billing_invoices_list():
+    """Lista de facturas generadas"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener parámetros de filtro
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 20, type=int)
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+
+        params = {
+            'page': page,
+            'limit': limit
+        }
+
+        if date_from:
+            params['date_from'] = date_from
+        if date_to:
+            params['date_to'] = date_to
+
+        # Obtener facturas del servicio médico
+        medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/invoices"
+
+        response = requests.get(medical_url, headers=headers, params=params, timeout=10)
+
+        invoices = []
+        total_pages = 1
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                invoices = data.get('invoices', [])
+                total_pages = data.get('total_pages', 1)
+
+        user = session.get('user', {})
+        template_data = {
+            'user': user,
+            'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Administrador',
+            'user_role': user.get('role', 'admin').title(),
+            'user_initial': user.get('first_name', 'A')[0].upper() if user.get('first_name') else 'A',
+            'invoices': invoices,
+            'current_page': page,
+            'total_pages': total_pages,
+            'date_from': date_from,
+            'date_to': date_to
+        }
+
+        return render_template('admin/sections/billing-invoices.html', **template_data)
+
+    except Exception as e:
+        print(f"❌ Error en lista de facturas: {e}")
+        flash('Error al cargar las facturas', 'error')
+        return redirect(url_for('frontend.admin_dashboard'))
+
+
+# =============== RUTAS PARA RECEPCIONISTA ===============
+
+@frontend_bp.route('/receptionist/billing')
+@role_required(['receptionist'])
+def receptionist_billing():
+    """Sistema de facturación para recepcionista - misma funcionalidad que admin"""
+    return admin_billing()
+
+
+@frontend_bp.route('/receptionist/billing/search-patients')
+@role_required(['receptionist'])
+def receptionist_billing_search_patients():
+    """Búsqueda de pacientes para recepcionista"""
+    return billing_search_patients()
+
+
+@frontend_bp.route('/receptionist/billing/search-medications')
+@role_required(['receptionist'])
+def receptionist_billing_search_medications():
+    """Búsqueda de medicamentos para recepcionista"""
+    return billing_search_medications()
+
+
+@frontend_bp.route('/receptionist/billing/generate-invoice', methods=['POST'])
+@role_required(['receptionist'])
+def receptionist_billing_generate_invoice():
+    """Generar factura para recepcionista"""
+    return billing_generate_invoice()
+
+
+# =============== IMPORTACIONES NECESARIAS ===============
+# Agregar estas importaciones al inicio del archivo frontend_routes.py si no están:
+
+import io
+from flask import send_file
+
 
 
 @frontend_bp.route('/health')
@@ -5343,4 +5653,6 @@ def health():
         'status': 'healthy',
         'service': 'frontend_service'
     }), 200
+
+
 
