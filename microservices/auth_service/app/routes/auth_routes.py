@@ -804,3 +804,21 @@ def get_user_role_internal(user_id):
     except Exception as e:
         print(f"⚠️ Error obteniendo rol del usuario {user_id}: {e}")
         return None
+
+
+# En el Auth Service, agregar:
+@auth_bp.route('/auth/users/veterinarians', methods=['GET'])
+def get_public_veterinarians():
+    """Endpoint público para obtener lista de veterinarios"""
+    try:
+        veterinarians = User.query.filter_by(
+            role='veterinarian',
+            is_active=True
+        ).all()
+
+        return jsonify({
+            'success': True,
+            'veterinarians': [vet.to_dict() for vet in veterinarians]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500

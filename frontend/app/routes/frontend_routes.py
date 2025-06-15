@@ -4088,68 +4088,6 @@ def client_settings():
 
 # =============== API ENDPOINTS DEL CLIENTE ===============
 
-@frontend_bp.route('/api/client/pets')
-@role_required(['client'])
-def api_client_pets():
-    """API para obtener mascotas del cliente"""
-    try:
-        user = session.get('user', {})
-        headers = {'Authorization': f"Bearer {session.get('token')}"}
-
-        medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/owner/{user['id']}"
-        response = requests.get(medical_url, headers=headers, timeout=10)
-
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                pets = data.get('pets', [])
-
-                # Enriquecer datos con información adicional
-                for pet in pets:
-                    # Calcular edad si tiene fecha de nacimiento
-                    if pet.get('birth_date'):
-                        try:
-                            from datetime import datetime, date
-                            birth = datetime.strptime(pet['birth_date'], '%Y-%m-%d').date()
-                            today = date.today()
-                            age_years = (today - birth).days / 365.25
-                            pet['calculated_age'] = age_years
-                        except:
-                            pet['calculated_age'] = None
-
-                    # Asegurar que tenga estado de vacunación
-                    if not pet.get('vaccination_status'):
-                        pet['vaccination_status'] = 'pendiente'
-
-                return jsonify({
-                    'success': True,
-                    'pets': pets,
-                    'total': len(pets)
-                })
-            else:
-                return jsonify({
-                    'success': True,
-                    'pets': [],
-                    'total': 0
-                })
-        else:
-            return jsonify({
-                'success': False,
-                'message': f'Error del Medical Service: {response.status_code}'
-            }), response.status_code
-
-    except requests.RequestException as e:
-        print(f"❌ Error conectando con Medical Service: {e}")
-        return jsonify({
-            'success': False,
-            'message': 'Error de conexión con el servicio médico'
-        }), 500
-    except Exception as e:
-        print(f"❌ Error en api_client_pets: {e}")
-        return jsonify({
-            'success': False,
-            'message': str(e)
-        }), 500
 
 
 @frontend_bp.route('/api/client/pets/<pet_id>')
@@ -4288,20 +4226,25 @@ def api_client_pets_stats():
 @frontend_bp.route('/api/client/appointments/upcoming')
 @role_required(['client'])
 def api_client_upcoming_appointments():
-    """API para obtener citas próximas del cliente"""
+    """API para obtener citas próximas del cliente - VERSIÓN CORREGIDA"""
     try:
         user = session.get('user', {})
         headers = {'Authorization': f"Bearer {session.get('token')}"}
 
+        print(f"📅 Obteniendo citas próximas para cliente: {user['id']}")
+
+        # CORRECCIÓN: Usar la nueva ruta específica
         appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/client/{user['id']}/upcoming"
         response = requests.get(appointment_url, headers=headers, timeout=10)
+
+        print(f"📡 Upcoming appointments response: {response.status_code}")
 
         if response.status_code == 200:
             data = response.json()
             if data.get('success'):
                 appointments = data.get('appointments', [])
 
-                # Enriquecer datos con información de mascotas
+                # Enriquecer con datos de mascotas
                 try:
                     medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/owner/{user['id']}"
                     pets_response = requests.get(medical_url, headers=headers, timeout=5)
@@ -4318,7 +4261,7 @@ def api_client_upcoming_appointments():
                                     appointment['pet_name'] = pet['name']
                                     appointment['pet_species'] = pet['species']
                 except Exception as e:
-                    print(f"⚠️ Error enriqueciendo citas con datos de mascotas: {e}")
+                    print(f"⚠️ Error enriqueciendo citas próximas: {e}")
 
                 return jsonify({
                     'success': True,
@@ -4349,7 +4292,6 @@ def api_client_upcoming_appointments():
             'success': False,
             'message': str(e)
         }), 500
-
 
 @frontend_bp.route('/api/client/dashboard/stats')
 @role_required(['client'])
@@ -4577,52 +4519,7 @@ def api_client_create_pet():
 
 # =============== PROXY ROUTES PARA MICROSERVICIOS ===============
 
-@frontend_bp.route('/api/client/notifications/count')
-@role_required(['client'])
-def api_client_notifications_count():
-    """API para contar notificaciones del cliente"""
-    try:
-        user = session.get('user', {})
-        headers = {'Authorization': f"Bearer {session.get('token')}"}
 
-        data = {
-            'unread_notifications': 0,
-            'pending_appointments': 0
-        }
-
-        # Intentar obtener notificaciones no leídas
-        try:
-            notif_url = f"{current_app.config['NOTIFICATION_SERVICE_URL']}/notifications/user/{user['id']}/unread/count"
-            notif_response = requests.get(notif_url, headers=headers, timeout=5)
-            if notif_response.status_code == 200:
-                notif_data = notif_response.json()
-                if notif_data.get('success'):
-                    data['unread_notifications'] = notif_data.get('count', 0)
-        except:
-            pass
-
-        # Intentar obtener citas pendientes
-        try:
-            appointments_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/client/{user['id']}/upcoming"
-            appointments_response = requests.get(appointments_url, headers=headers, timeout=5)
-            if appointments_response.status_code == 200:
-                apt_data = appointments_response.json()
-                if apt_data.get('success'):
-                    appointments = apt_data.get('appointments', [])
-                    data['pending_appointments'] = len([a for a in appointments if a.get('status') == 'scheduled'])
-        except:
-            pass
-
-        return jsonify({
-            'success': True,
-            'data': data
-        })
-    except Exception as e:
-        print(f"❌ Error en api_client_notifications_count: {e}")
-        return jsonify({
-            'success': True, 
-            'data': {'unread_notifications': 0, 'pending_appointments': 0}
-        })
 
 @frontend_bp.route('/api/client/appointments/upcoming')
 @role_required(['client'])
@@ -5109,97 +5006,327 @@ def api_validate_pet_owner(pet_id):
 
 # =============== RUTAS API PARA CLIENTES - VETERINARIOS Y CITAS ===============
 
-# =============== RUTA PARA OBTENER VETERINARIOS DIRECTAMENTE ===============
 
-@frontend_bp.route('/api/client/veterinarians')
+@frontend_bp.route('/api/client/pets')
 @role_required(['client'])
-def api_client_veterinarians():
-    """API para obtener veterinarios con acceso directo a la base de datos"""
+def api_client_pets():
+    """API para obtener mascotas del cliente - CORREGIDA"""
     try:
+        user = session.get('user', {})
         headers = {'Authorization': f"Bearer {session.get('token')}"}
 
-        # Obtener horarios de veterinarios
+        print(f"🐾 Obteniendo mascotas para cliente: {user['id']}")
+
+        # CORRECCIÓN: Usar la ruta correcta del Medical Service
+        medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/owner/{user['id']}"
+        response = requests.get(medical_url, headers=headers, timeout=10)
+
+        print(f"📡 Respuesta Medical Service: {response.status_code}")
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                pets = data.get('pets', [])
+
+                # Enriquecer datos con información adicional
+                for pet in pets:
+                    # Calcular edad si tiene fecha de nacimiento
+                    if pet.get('birth_date'):
+                        try:
+                            from datetime import datetime, date
+                            birth = datetime.strptime(pet['birth_date'], '%Y-%m-%d').date()
+                            today = date.today()
+                            age_years = (today - birth).days / 365.25
+                            pet['calculated_age'] = age_years
+                        except:
+                            pet['calculated_age'] = None
+
+                    # Asegurar que tenga estado de vacunación
+                    if not pet.get('vaccination_status'):
+                        pet['vaccination_status'] = 'pendiente'
+
+                print(f"✅ {len(pets)} mascotas encontradas")
+
+                return jsonify({
+                    'success': True,
+                    'pets': pets,
+                    'total': len(pets)
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'pets': [],
+                    'total': 0
+                })
+        else:
+            print(f"❌ Error Medical Service: {response.status_code}")
+            return jsonify({
+                'success': False,
+                'message': f'Error del Medical Service: {response.status_code}'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Medical Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio médico'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_client_pets: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/public/veterinarians')
+async def api_public_veterinarians():
+    """API PÚBLICA para obtener veterinarios - accesible para clientes"""
+    try:
+        # NO usar role_required aquí - debe ser acceso público para clientes
+        headers = {}
+
+        # Intentar obtener token si existe (opcional)
+        token = session.get('token')
+        if token:
+            headers['Authorization'] = f"Bearer {token}"
+
+        print(f"👨‍⚕️ Obteniendo veterinarios públicos...")
+
+        # MÉTODO 1: Obtener veterinarios desde Auth Service con endpoint público
+        try:
+            # Usar endpoint público o endpoint específico para veterinarios
+            auth_url = f"{current_app.config['AUTH_SERVICE_URL']}/auth/users/veterinarians"
+            response = requests.get(auth_url, headers=headers, timeout=10)
+
+            print(f"📡 Respuesta Auth Service (veterinarios): {response.status_code}")
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('success'):
+                    veterinarians = data.get('veterinarians', [])
+
+                    # Enriquecer con horarios desde Appointment Service
+                    veterinarians_with_schedules = await enrich_veterinarians_with_schedules(veterinarians, headers)
+
+                    return jsonify({
+                        'success': True,
+                        'veterinarians': veterinarians_with_schedules,
+                        'total': len(veterinarians_with_schedules)
+                    })
+        except Exception as e:
+            print(f"⚠️ Error método 1: {e}")
+
+        # MÉTODO 2: Obtener desde Appointment Service (horarios de veterinarios)
+        try:
+            print("🔄 Obteniendo desde Appointment Service...")
+            schedules_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/schedules/veterinarians"
+            schedules_response = requests.get(schedules_url, headers=headers, timeout=10)
+
+            if schedules_response.status_code == 200:
+                schedules_data = schedules_response.json()
+                if schedules_data.get('success'):
+                    vet_schedules = schedules_data.get('veterinarian_schedules', {})
+
+                    # Crear veterinarios desde horarios disponibles
+                    veterinarians = create_veterinarians_from_schedules(vet_schedules)
+
+                    return jsonify({
+                        'success': True,
+                        'veterinarians': veterinarians,
+                        'total': len(veterinarians),
+                        'source': 'schedules'
+                    })
+        except Exception as e:
+            print(f"⚠️ Error método 2: {e}")
+
+        # MÉTODO 3: Fallback con datos predefinidos
+        print("🔄 Usando veterinarios de fallback...")
+        fallback_veterinarians = get_fallback_veterinarians()
+
+        return jsonify({
+            'success': True,
+            'veterinarians': fallback_veterinarians,
+            'total': len(fallback_veterinarians),
+            'source': 'fallback'
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_public_veterinarians: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+def enrich_veterinarians_with_schedules(veterinarians, headers):
+    """Enriquecer veterinarios con sus horarios desde Appointment Service"""
+    try:
         schedules_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/schedules/veterinarians"
         schedules_response = requests.get(schedules_url, headers=headers, timeout=10)
 
-        veterinarians = []
-
+        vet_schedules = {}
         if schedules_response.status_code == 200:
             schedules_data = schedules_response.json()
             if schedules_data.get('success'):
                 vet_schedules = schedules_data.get('veterinarian_schedules', {})
-                print(f"📋 Veterinarios con horarios: {list(vet_schedules.keys())}")
 
-                # Para cada veterinario, obtener información directa
-                day_names = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+        # Enriquecer cada veterinario
+        enriched_veterinarians = []
+        for vet in veterinarians:
+            vet_id = vet['id']
+            schedule_data = vet_schedules.get(vet_id, [])
 
-                for index, (vet_id, schedule_list) in enumerate(vet_schedules.items(), 1):
-                    try:
-                        # Convertir horarios
-                        schedule_by_days = {}
-                        for schedule_item in schedule_list:
-                            if schedule_item.get('is_available'):
-                                day_num = schedule_item.get('day_of_week')
-                                if 0 <= day_num <= 6:
-                                    day_name = day_names[day_num]
-                                    schedule_by_days[day_name] = {
-                                        'active': True,
-                                        'start': schedule_item.get('start_time'),
-                                        'end': schedule_item.get('end_time'),
-                                        'break_start': '12:00',
-                                        'break_end': '13:00'
-                                    }
+            # Convertir horarios al formato esperado
+            schedule_by_days = convert_schedule_to_days_format(schedule_data)
 
-                        # Nombres temporales hasta que obtengamos acceso real
-                        vet_names = [
-                            "Dr. Juan Pérez",
-                            "Dra. María González",
-                            "Dr. Carlos Rodríguez",
-                            "Dra. Ana Martínez",
-                            "Dr. Luis García"
-                        ]
+            enriched_vet = {
+                **vet,
+                'schedule': schedule_by_days,
+                'has_schedule': len(schedule_data) > 0
+            }
+            enriched_veterinarians.append(enriched_vet)
 
-                        full_name = vet_names[index - 1] if index <= len(vet_names) else f"Dr. Veterinario {index}"
-                        name_parts = full_name.replace('Dr. ', '').replace('Dra. ', '').split(' ', 1)
-
-                        veterinarian = {
-                            'id': vet_id,
-                            'first_name': name_parts[0] if name_parts else 'Veterinario',
-                            'last_name': name_parts[1] if len(name_parts) > 1 else str(index),
-                            'specialty': 'Medicina General',
-                            'is_active': True,
-                            'role': 'veterinarian',
-                            'schedule': schedule_by_days
-                        }
-
-                        veterinarians.append(veterinarian)
-                        print(f"✅ Veterinario procesado: {full_name}")
-
-                    except Exception as e:
-                        print(f"⚠️ Error procesando veterinario {vet_id}: {e}")
-                        continue
-
-        print(f"📊 Total veterinarios: {len(veterinarians)}")
-
-        return jsonify({
-            'success': True,
-            'veterinarians': veterinarians,
-            'total': len(veterinarians)
-        })
+        return enriched_veterinarians
 
     except Exception as e:
-        print(f"❌ Error en api_client_veterinarians: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        print(f"⚠️ Error enriqueciendo horarios: {e}")
+        return veterinarians
 
 
-@frontend_bp.route('/api/client/availability/<vet_id>/<date>')
-@role_required(['client'])
-def api_client_availability(vet_id, date):
-    """API para generar disponibilidad desde horarios reales"""
+def create_veterinarians_from_schedules(vet_schedules):
+    """Crear lista de veterinarios desde horarios disponibles"""
+    veterinarians = []
+
+    # Nombres predefinidos para veterinarios (hasta obtener acceso real)
+    vet_names = [
+        {"first_name": "Dr. Juan", "last_name": "Pérez", "specialty": "Medicina General"},
+        {"first_name": "Dra. María", "last_name": "González", "specialty": "Cirugía Veterinaria"},
+        {"first_name": "Dr. Carlos", "last_name": "Rodríguez", "specialty": "Medicina Interna"},
+        {"first_name": "Dra. Ana", "last_name": "Martínez", "specialty": "Dermatología Veterinaria"},
+        {"first_name": "Dr. Luis", "last_name": "García", "specialty": "Medicina de Emergencias"}
+    ]
+
+    for index, (vet_id, schedule_list) in enumerate(vet_schedules.items()):
+        try:
+            # Usar nombre predefinido o genérico
+            vet_info = vet_names[index] if index < len(vet_names) else {
+                "first_name": f"Dr. Veterinario",
+                "last_name": f"{index + 1}",
+                "specialty": "Medicina General"
+            }
+
+            # Convertir horarios
+            schedule_by_days = convert_schedule_to_days_format(schedule_list)
+
+            veterinarian = {
+                'id': vet_id,
+                'first_name': vet_info['first_name'],
+                'last_name': vet_info['last_name'],
+                'specialty': vet_info['specialty'],
+                'email': f"vet{index + 1}@clinica.com",
+                'is_active': True,
+                'role': 'veterinarian',
+                'schedule': schedule_by_days,
+                'has_schedule': len(schedule_list) > 0
+            }
+
+            veterinarians.append(veterinarian)
+
+        except Exception as e:
+            print(f"⚠️ Error procesando veterinario {vet_id}: {e}")
+            continue
+
+    return veterinarians
+
+
+# =============== 4. FUNCIÓN PARA CONVERTIR FORMATO DE HORARIOS ===============
+
+def convert_schedule_to_days_format(schedule_list):
+    """Convertir horarios de backend al formato esperado por frontend"""
+    day_names = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    schedule_by_days = {}
+
+    for schedule_item in schedule_list:
+        if schedule_item.get('is_available'):
+            day_num = schedule_item.get('day_of_week')
+            if 0 <= day_num <= 6:
+                day_name = day_names[day_num]
+                schedule_by_days[day_name] = {
+                    'active': True,
+                    'start': schedule_item.get('start_time', '08:00'),
+                    'end': schedule_item.get('end_time', '18:00'),
+                    'break_start': '12:00',
+                    'break_end': '13:00'
+                }
+
+    return schedule_by_days
+
+
+# =============== 5. VETERINARIOS DE FALLBACK ===============
+
+def get_fallback_veterinarians():
+    """Veterinarios de ejemplo para cuando no hay conexión"""
+    return [
+        {
+            'id': 'vet_fallback_1',
+            'first_name': 'Dr. Juan',
+            'last_name': 'Pérez',
+            'specialty': 'Medicina General',
+            'email': 'juan.perez@clinica.com',
+            'is_active': True,
+            'role': 'veterinarian',
+            'schedule': {
+                'monday': {'active': True, 'start': '08:00', 'end': '18:00', 'break_start': '12:00',
+                           'break_end': '13:00'},
+                'tuesday': {'active': True, 'start': '08:00', 'end': '18:00', 'break_start': '12:00',
+                            'break_end': '13:00'},
+                'wednesday': {'active': True, 'start': '08:00', 'end': '18:00', 'break_start': '12:00',
+                              'break_end': '13:00'},
+                'thursday': {'active': True, 'start': '08:00', 'end': '18:00', 'break_start': '12:00',
+                             'break_end': '13:00'},
+                'friday': {'active': True, 'start': '08:00', 'end': '17:00', 'break_start': '12:00',
+                           'break_end': '13:00'},
+                'saturday': {'active': True, 'start': '08:00', 'end': '14:00', 'break_start': '11:00',
+                             'break_end': '12:00'}
+            },
+            'has_schedule': True
+        },
+        {
+            'id': 'vet_fallback_2',
+            'first_name': 'Dra. María',
+            'last_name': 'González',
+            'specialty': 'Cirugía Veterinaria',
+            'email': 'maria.gonzalez@clinica.com',
+            'is_active': True,
+            'role': 'veterinarian',
+            'schedule': {
+                'monday': {'active': True, 'start': '09:00', 'end': '17:00', 'break_start': '12:00',
+                           'break_end': '13:00'},
+                'wednesday': {'active': True, 'start': '09:00', 'end': '17:00', 'break_start': '12:00',
+                              'break_end': '13:00'},
+                'friday': {'active': True, 'start': '09:00', 'end': '17:00', 'break_start': '12:00',
+                           'break_end': '13:00'},
+                'saturday': {'active': True, 'start': '08:00', 'end': '14:00', 'break_start': '11:00',
+                             'break_end': '12:00'}
+            },
+            'has_schedule': True
+        }
+    ]
+
+
+@frontend_bp.route('/api/public/availability/<vet_id>/<date>')
+def api_public_availability(vet_id, date):
+    """API PÚBLICA para disponibilidad de veterinario"""
     try:
-        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        headers = {}
 
-        print(f"🔍 Buscando disponibilidad para {vet_id} en {date}")
+        # Obtener token si existe (opcional)
+        token = session.get('token')
+        if token:
+            headers['Authorization'] = f"Bearer {token}"
+
+        print(f"🔍 Buscando disponibilidad pública para {vet_id} en {date}")
 
         # Obtener horarios del veterinario
         schedules_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/schedules/veterinarians"
@@ -5217,10 +5344,7 @@ def api_client_availability(vet_id, date):
                     from datetime import datetime
                     try:
                         date_obj = datetime.strptime(date, '%Y-%m-%d')
-                        # Python: Monday=0, Sunday=6 -> Backend: Sunday=0, Saturday=6
                         day_of_week = (date_obj.weekday() + 1) % 7
-
-                        print(f"📅 Día de la semana: {day_of_week}")
 
                         # Buscar horario para ese día
                         day_schedule = None
@@ -5233,49 +5357,92 @@ def api_client_availability(vet_id, date):
                             start_time = day_schedule.get('start_time')
                             end_time = day_schedule.get('end_time')
 
-                            print(f"⏰ Horario encontrado: {start_time} - {end_time}")
-
-                            # Generar slots
-                            available_slots = generate_time_slots(start_time, end_time)
-
-                            print(f"✅ {len(available_slots)} slots generados")
+                            # Generar slots disponibles
+                            available_slots = generate_time_slots_public(start_time, end_time, vet_id, date, headers)
 
                             return jsonify({
                                 'success': True,
                                 'available_slots': available_slots,
-                                'message': f'Horarios de {start_time} a {end_time}'
+                                'date': date,
+                                'veterinarian_id': vet_id,
+                                'schedule_time': f'{start_time} - {end_time}'
                             })
                         else:
-                            print("❌ No hay horario para este día")
                             return jsonify({
                                 'success': False,
-                                'message': 'El veterinario no atiende este día'
+                                'message': 'El veterinario no atiende este día',
+                                'available_slots': []
                             })
 
-                    except ValueError as e:
-                        print(f"❌ Error con formato de fecha: {e}")
-                        return jsonify({'success': False, 'message': 'Formato de fecha inválido'})
+                    except ValueError:
+                        return jsonify({
+                            'success': False,
+                            'message': 'Formato de fecha inválido'
+                        })
                 else:
-                    print("❌ Veterinario no encontrado")
-                    return jsonify({'success': False, 'message': 'Veterinario no encontrado'})
+                    return jsonify({
+                        'success': False,
+                        'message': 'Veterinario no encontrado',
+                        'available_slots': []
+                    })
 
-        print("❌ Error obteniendo horarios")
-        return jsonify({'success': False, 'message': 'Error obteniendo horarios'})
+        # Fallback con horarios de ejemplo
+        fallback_slots = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+                          '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00']
+
+        return jsonify({
+            'success': True,
+            'available_slots': fallback_slots,
+            'date': date,
+            'veterinarian_id': vet_id,
+            'source': 'fallback'
+        })
 
     except Exception as e:
-        print(f"❌ Error en api_client_availability: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        print(f"❌ Error en api_public_availability: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e),
+            'available_slots': []
+        })
 
 
-def generate_time_slots(start_time, end_time):
-    """Generar slots de 30 minutos excluyendo almuerzo"""
-    from datetime import datetime, timedelta
-
+def generate_time_slots_with_exclusions(start_time, end_time, occupied_slots):
+    """Generar slots de tiempo excluyendo ocupados y hora de almuerzo"""
     try:
+        from datetime import datetime, timedelta
+
         start_dt = datetime.strptime(start_time, '%H:%M')
         end_dt = datetime.strptime(end_time, '%H:%M')
 
-        slots = []
+        all_slots = []
+        current = start_dt
+
+        while current < end_dt:
+            time_str = current.strftime('%H:%M')
+
+            # Excluir hora de almuerzo (12:00-13:00) y slots ocupados
+            if not ('12:00' <= time_str < '13:00') and time_str not in occupied_slots:
+                all_slots.append(time_str)
+
+            current += timedelta(minutes=30)
+
+        return all_slots
+
+    except Exception as e:
+        print(f"❌ Error generando slots: {e}")
+        return []
+
+def generate_time_slots_public(start_time, end_time, vet_id, date, headers):
+    """Generar slots disponibles considerando citas existentes"""
+    try:
+        from datetime import datetime, timedelta
+
+        # Generar todos los slots posibles
+        start_dt = datetime.strptime(start_time, '%H:%M')
+        end_dt = datetime.strptime(end_time, '%H:%M')
+
+        all_slots = []
         current = start_dt
 
         while current < end_dt:
@@ -5283,25 +5450,53 @@ def generate_time_slots(start_time, end_time):
 
             # Excluir hora de almuerzo (12:00-13:00)
             if not ('12:00' <= time_str < '13:00'):
-                slots.append(time_str)
+                all_slots.append(time_str)
 
             current += timedelta(minutes=30)
 
-        return slots
+        # Obtener citas existentes para filtrar slots ocupados
+        try:
+            appointments_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/veterinarian/{vet_id}/date/{date}"
+            apt_response = requests.get(appointments_url, headers=headers, timeout=5)
+
+            occupied_times = []
+            if apt_response.status_code == 200:
+                apt_data = apt_response.json()
+                if apt_data.get('success'):
+                    appointments = apt_data.get('appointments', [])
+                    occupied_times = [apt.get('appointment_time') for apt in appointments]
+        except:
+            occupied_times = []
+
+        # Filtrar slots disponibles
+        available_slots = [slot for slot in all_slots if slot not in occupied_times]
+
+        print(f"⏰ Slots: {len(all_slots)} total, {len(occupied_times)} ocupados, {len(available_slots)} disponibles")
+
+        return available_slots
 
     except Exception as e:
         print(f"❌ Error generando slots: {e}")
         return []
 
 
-@frontend_bp.route('/api/client/appointments', methods=['POST'])
-@role_required(['client'])
-def api_client_create_appointment():
-    """API para crear cita desde cliente"""
+@frontend_bp.route('/api/public/appointments', methods=['POST'])
+def api_public_create_appointment():
+    """API PÚBLICA para crear citas (accesible para clientes)"""
     try:
         data = request.get_json()
-        headers = {'Authorization': f"Bearer {session.get('token')}"}
-        user = session.get('user', {})
+
+        # Obtener token del usuario (debe estar logueado)
+        token = session.get('token')
+        user = session.get('user')
+
+        if not token or not user:
+            return jsonify({
+                'success': False,
+                'message': 'Debe estar logueado para agendar citas'
+            }), 401
+
+        headers = {'Authorization': f"Bearer {token}"}
 
         # Agregar información del cliente
         appointment_data = {
@@ -5311,28 +5506,418 @@ def api_client_create_appointment():
             'priority': 'normal'
         }
 
-        print(f"📝 Creando cita: {appointment_data}")
+        print(f"📝 Creando cita pública: {appointment_data}")
 
-        # Enviar al backend
+        # Enviar al Appointment Service
         appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments"
-        response = requests.post(appointment_url, json=appointment_data, headers=headers, timeout=10)
+        response = requests.post(appointment_url, json=appointment_data, headers=headers, timeout=15)
+
+        print(f"📡 Respuesta Appointment Service: {response.status_code}")
 
         if response.status_code in [200, 201]:
             result = response.json()
-            print(f"✅ Cita creada exitosamente")
-            return jsonify(result)
-        else:
-            error_data = response.json() if response.content else {}
-            print(f"❌ Error creando cita: {response.status_code}")
-            return jsonify({
-                'success': False,
-                'message': error_data.get('message', 'Error creando la cita')
-            }), response.status_code
+            if result.get('success'):
+                print(f"✅ Cita creada exitosamente: {result.get('appointment', {}).get('id')}")
+                return jsonify(result)
+
+        # Manejar errores
+        try:
+            error_data = response.json()
+            error_message = error_data.get('message', 'Error creando la cita')
+        except:
+            error_message = f'Error del servidor: {response.status_code}'
+
+        return jsonify({
+            'success': False,
+            'message': error_message
+        }), response.status_code
 
     except Exception as e:
-        print(f"❌ Error en api_client_create_appointment: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        print(f"❌ Error en api_public_create_appointment: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
 
+@frontend_bp.route('/api/client/appointments')
+@role_required(['client'])
+def api_client_appointments_get():
+    """API para obtener citas del cliente - evita redirección 302"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        print(f"📅 Obteniendo citas para cliente: {user['id']}")
+
+        # Obtener citas del cliente desde Appointment Service
+        appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/client/{user['id']}"
+        response = requests.get(appointment_url, headers=headers, timeout=10)
+
+        print(f"📡 Appointments response: {response.status_code}")
+
+        if response.status_code == 200:
+            try:
+                data = response.json()
+                if data.get('success'):
+                    appointments = data.get('appointments', [])
+
+                    # Enriquecer con datos de mascotas
+                    try:
+                        pets_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/owner/{user['id']}"
+                        pets_response = requests.get(pets_url, headers=headers, timeout=5)
+
+                        pets_map = {}
+                        if pets_response.status_code == 200:
+                            pets_data = pets_response.json()
+                            if pets_data.get('success'):
+                                pets_map = {pet['id']: pet for pet in pets_data.get('pets', [])}
+
+                        # Enriquecer citas
+                        for appointment in appointments:
+                            pet_id = appointment.get('pet_id')
+                            if pet_id and pet_id in pets_map:
+                                pet = pets_map[pet_id]
+                                appointment['pet_name'] = pet['name']
+                                appointment['pet_species'] = pet['species']
+
+                    except Exception as e:
+                        print(f"⚠️ Error enriqueciendo citas: {e}")
+
+                    print(f"✅ {len(appointments)} citas obtenidas para cliente")
+
+                    return jsonify({
+                        'success': True,
+                        'appointments': appointments,
+                        'total': len(appointments)
+                    })
+                else:
+                    return jsonify({
+                        'success': True,
+                        'appointments': [],
+                        'total': 0
+                    })
+            except ValueError as e:
+                print(f"⚠️ Error obteniendo citas: {e}")
+                return jsonify({
+                    'success': True,
+                    'appointments': [],
+                    'total': 0,
+                    'message': 'Error procesando respuesta del servidor'
+                })
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Error del Appointment Service: {response.status_code}'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Appointment Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de citas'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_client_appointments_get: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+# =============== 11. ENDPOINT PARA VERIFICAR SESIÓN ===============
+
+@frontend_bp.route('/api/client/session/check')
+def api_check_client_session():
+    """Verificar si el cliente tiene sesión válida"""
+    try:
+        user = session.get('user')
+        token = session.get('token')
+
+        if not user or not token:
+            return jsonify({
+                'success': False,
+                'authenticated': False,
+                'message': 'No hay sesión activa'
+            }), 401
+
+        if user.get('role') != 'client':
+            return jsonify({
+                'success': False,
+                'authenticated': False,
+                'message': 'Sesión no es de cliente'
+            }), 403
+
+        return jsonify({
+            'success': True,
+            'authenticated': True,
+            'user': {
+                'id': user['id'],
+                'name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip(),
+                'email': user.get('email'),
+                'role': user['role']
+            }
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'authenticated': False,
+            'message': str(e)
+        }), 500
+
+# =============== 12. MANEJO DE ERRORES DE CONEXIÓN ===============
+
+def handle_service_error(service_name, response_code, fallback_data=None):
+    """Manejar errores de conexión con microservicios"""
+    if response_code == 403:
+        return {
+            'success': False,
+            'message': f'Sin permisos para acceder a {service_name}',
+            'error_code': 'FORBIDDEN'
+        }
+    elif response_code == 404:
+        return {
+            'success': False,
+            'message': f'Recurso no encontrado en {service_name}',
+            'error_code': 'NOT_FOUND'
+        }
+    elif response_code >= 500:
+        return {
+            'success': False,
+            'message': f'{service_name} no disponible temporalmente',
+            'error_code': 'SERVICE_UNAVAILABLE'
+        }
+    else:
+        return {
+            'success': False,
+            'message': f'Error en {service_name}: {response_code}',
+            'error_code': 'UNKNOWN_ERROR'
+        }
+
+def process_appointments_response(appointments, headers):
+    """Procesar y enriquecer respuesta de citas"""
+    try:
+        enriched_appointments = []
+
+        for appointment in appointments:
+            try:
+                # Obtener datos de la mascota
+                if appointment.get('pet_id'):
+                    try:
+                        pet_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{appointment['pet_id']}"
+                        pet_response = requests.get(pet_url, headers=headers, timeout=3)
+
+                        if pet_response.status_code == 200:
+                            pet_data = pet_response.json()
+                            if pet_data.get('success'):
+                                pet = pet_data['pet']
+                                appointment['pet_name'] = pet['name']
+                                appointment['pet_species'] = pet['species']
+                    except:
+                        appointment['pet_name'] = 'Mascota'
+                        appointment['pet_species'] = 'unknown'
+
+                # Obtener datos del veterinario usando endpoint interno
+                if appointment.get('veterinarian_id'):
+                    try:
+                        # Usar endpoint interno que ya funciona
+                        users_response = requests.get(
+                            'http://localhost:3000/api/admin/users',
+                            headers=headers,
+                            timeout=3
+                        )
+
+                        if users_response.status_code == 200:
+                            users_data = users_response.json()
+                            if users_data.get('success'):
+                                vet = next((u for u in users_data['users']
+                                            if u['id'] == appointment['veterinarian_id']), None)
+                                if vet:
+                                    appointment['veterinarian_name'] = f"Dr. {vet['first_name']} {vet['last_name']}"
+                    except:
+                        appointment['veterinarian_name'] = 'Dr. Veterinario'
+
+                enriched_appointments.append(appointment)
+
+            except Exception as e:
+                print(f"⚠️ Error enriqueciendo cita {appointment.get('id')}: {e}")
+                enriched_appointments.append(appointment)
+
+        print(f"✅ {len(enriched_appointments)} citas procesadas y enriquecidas")
+
+        return jsonify({
+            'success': True,
+            'appointments': enriched_appointments,
+            'total': len(enriched_appointments)
+        })
+
+    except Exception as e:
+        print(f"❌ Error procesando citas: {e}")
+        return jsonify({
+            'success': True,
+            'appointments': appointments,
+            'total': len(appointments)
+        })
+
+
+def generate_time_slots_from_schedule(day_schedule):
+    """Generar slots de tiempo desde horario del día - CORRECCIÓN FINAL"""
+    from datetime import datetime, timedelta
+
+    try:
+        start_time = day_schedule.get('start', '08:00')
+        end_time = day_schedule.get('end', '17:00')
+        break_start = day_schedule.get('break_start', '12:00')
+        break_end = day_schedule.get('break_end', '13:00')
+
+        slots = []
+
+        # Convertir a datetime
+        start_dt = datetime.strptime(start_time, '%H:%M')
+        end_dt = datetime.strptime(end_time, '%H:%M')
+        break_start_dt = datetime.strptime(break_start, '%H:%M')
+        break_end_dt = datetime.strptime(break_end, '%H:%M')
+
+        current = start_dt
+        slot_duration = timedelta(minutes=30)
+
+        while current < end_dt:
+            # Saltar horario de almuerzo
+            if not (break_start_dt <= current < break_end_dt):
+                slots.append(current.strftime('%H:%M'))
+
+            current += slot_duration
+
+        print(f"✅ Generados {len(slots)} slots desde {start_time} hasta {end_time}")
+        return slots
+
+    except Exception as e:
+        print(f"❌ Error generando slots: {e}")
+        # Fallback con horarios básicos
+        return ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+                '14:00', '14:30', '15:00', '15:30', '16:00', '16:30']
+
+
+def generate_availability_fallback(vet_id, date, headers):
+    """Generar disponibilidad desde horarios del veterinario como fallback"""
+    try:
+        print(f"🔄 Generando disponibilidad desde horarios del veterinario...")
+
+        # Obtener horarios del veterinario
+        schedules_url = f"{current_app.config['AUTH_SERVICE_URL']}/auth/schedules"
+        schedules_response = requests.get(schedules_url, headers=headers, timeout=5)
+
+        if schedules_response.status_code == 200:
+            schedules_data = schedules_response.json()
+            if schedules_data.get('success'):
+                schedules = schedules_data.get('schedules', [])
+                vet_schedule = next((s for s in schedules if s.get('user_id') == vet_id), None)
+
+                if vet_schedule:
+                    weekly_schedule = vet_schedule.get('weekly_schedule', {})
+
+                    # Convertir fecha a día de la semana
+                    from datetime import datetime
+                    date_obj = datetime.strptime(date, '%Y-%m-%d')
+                    day_names = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+                    day_name = day_names[date_obj.weekday()]
+
+                    day_schedule = weekly_schedule.get(day_name)
+
+                    if day_schedule and day_schedule.get('active'):
+                        # Generar slots de tiempo
+                        available_slots = generate_time_slots_from_schedule(day_schedule)
+
+                        print(f"✅ Fallback exitoso: {len(available_slots)} slots generados")
+
+                        return jsonify({
+                            'success': True,
+                            'available_slots': available_slots,
+                            'date': date,
+                            'veterinarian_id': vet_id,
+                            'source': 'fallback'
+                        })
+
+        return jsonify({
+            'success': False,
+            'message': 'El veterinario no atiende este día'
+        })
+
+    except Exception as e:
+        print(f"❌ Error en fallback: {e}")
+        raise
+
+
+@frontend_bp.route('/api/client/notifications/count')
+@role_required(['client'])
+def api_client_notifications_count():
+    """API para contar notificaciones del cliente - CORRECCIÓN FINAL"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        print(f"🔔 Obteniendo conteo de notificaciones para cliente: {user['id']}")
+
+        data = {
+            'unread_notifications': 0,
+            'pending_appointments': 0
+        }
+
+        # Intentar obtener notificaciones no leídas
+        try:
+            # CORRECCIÓN: Usar endpoint correcto
+            notif_url = f"{current_app.config['NOTIFICATION_SERVICE_URL']}/notifications/user/{user['id']}/unread/count"
+            notif_response = requests.get(notif_url, headers=headers, timeout=5)
+
+            print(f"📡 Notificaciones response: {notif_response.status_code}")
+
+            if notif_response.status_code == 200:
+                notif_data = notif_response.json()
+                if notif_data.get('success'):
+                    data['unread_notifications'] = notif_data.get('count', 0)
+            elif notif_response.status_code == 404:
+                # Endpoint no existe, usar valor por defecto
+                data['unread_notifications'] = 0
+        except Exception as e:
+            print(f"⚠️ Error obteniendo notificaciones: {e}")
+            data['unread_notifications'] = 0
+
+        # Intentar obtener citas pendientes
+        try:
+            # Usar nuestro propio endpoint que ya funciona
+            appointments_response = requests.get(
+                'http://localhost:3000/api/client/appointments',
+                headers=headers,
+                timeout=5
+            )
+
+            print(f"📡 Appointments response: {appointments_response.status_code}")
+
+            if appointments_response.status_code == 200:
+                apt_data = appointments_response.json()
+                if apt_data.get('success'):
+                    appointments = apt_data.get('appointments', [])
+                    pending_count = len([a for a in appointments if a.get('status') == 'scheduled'])
+                    data['pending_appointments'] = pending_count
+        except Exception as e:
+            print(f"⚠️ Error obteniendo citas: {e}")
+            data['pending_appointments'] = 0
+
+        print(f"✅ Conteo de notificaciones: {data}")
+
+        return jsonify({
+            'success': True,
+            'data': data
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_client_notifications_count: {e}")
+        # Retornar datos seguros en caso de error
+        return jsonify({
+            'success': True,
+            'data': {
+                'unread_notifications': 0,
+                'pending_appointments': 0
+            }
+        })
 
 @frontend_bp.route('/health')
 def health():

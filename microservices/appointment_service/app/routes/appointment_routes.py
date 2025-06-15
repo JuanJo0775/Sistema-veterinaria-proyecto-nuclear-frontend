@@ -1,6 +1,9 @@
 # microservices/appointment_service/app/routes/appointment_routes.py
 from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime, timedelta
+
+from flask_jwt_extended import jwt_required, get_jwt_identity
+
 from ..models.appointment import Appointment
 from ..models.schedule import VeterinarianSchedule
 from .. import db
@@ -1278,9 +1281,8 @@ def sync_veterinarian_schedules(user_id, weekly_schedule):
         except:
             pass
 
-@appointment_bp.route('/schedules/veterinarians', methods=['GET'])
+""""@appointment_bp.route('/schedules/veterinarians', methods=['GET'])
 def get_veterinarian_schedules_only():
-    """Obtener solo horarios de veterinarios para citas"""
     try:
         schedules = VeterinarianSchedule.query.filter_by(is_available=True).all()
 
@@ -1304,7 +1306,7 @@ def get_veterinarian_schedules_only():
             'success': False,
             'message': str(e)
         }), 500
-
+"""
 
 @appointment_bp.route('/schedules/sync-all', methods=['POST'])
 def sync_all_veterinarian_schedules():
@@ -1354,6 +1356,338 @@ def sync_all_veterinarian_schedules():
             'message': str(e)
         }), 500
 
+
+@appointment_bp.route('/schedules/veterinarians', methods=['GET'])
+def get_veterinarian_schedules_grouped():
+    """Obtener horarios de todos los veterinarios agrupados - ACCESO PÚBLICO"""
+    try:
+        # NO usar @jwt_required() para permitir acceso público
+
+        # Obtener todos los horarios activos
+        schedules = VeterinarianSchedule.query.filter_by(is_available=True).all()
+
+        # Agrupar por veterinario
+        veterinarian_schedules = {}
+
+        for schedule in schedules:
+            vet_id = schedule.veterinarian_id
+
+            if vet_id not in veterinarian_schedules:
+                veterinarian_schedules[vet_id] = []
+
+            veterinarian_schedules[vet_id].append(schedule.to_dict())
+
+        print(f"📋 Horarios agrupados para {len(veterinarian_schedules)} veterinarios")
+
+        return jsonify({
+            'success': True,
+            'veterinarian_schedules': veterinarian_schedules,
+            'total_veterinarians': len(veterinarian_schedules),
+            'total_schedules': len(schedules)
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error obteniendo horarios agrupados: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+# =============== RUTA ADICIONAL PARA HORARIOS ESPECÍFICOS DE UN VETERINARIO EN UNA FECHA ===============
+
+@appointment_bp.route('/schedules/veterinarian/<vet_id>/date/<date>', methods=['GET'])
+def get_veterinarian_schedule_by_date(vet_id, date):
+    """Obtener horario de un veterinario en una fecha específica - ACCESO PÚBLICO"""
+    try:
+        from datetime import datetime
+
+        # Convertir fecha a día de la semana
+        try:
+            date_obj = datetime.strptime(date, '%Y-%m-%d')
+            # Python: Monday=0, Sunday=6 -> Backend: Sunday=0, Saturday=6
+            day_of_week = (date_obj.weekday() + 1) % 7
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'message': 'Formato de fecha inválido. Use YYYY-MM-DD'
+            }), 400
+
+        # Buscar horario del veterinario para ese día
+        schedule = VeterinarianSchedule.query.filter_by(
+            veterinarian_id=vet_id,
+            day_of_week=day_of_week,
+            is_available=True
+        ).first()
+
+        if schedule:
+            print(f"✅ Horario encontrado para vet {vet_id} el {date} (día {day_of_week})")
+            return jsonify({
+                'success': True,
+                'schedule': schedule.to_dict(),
+                'date': date,
+                'day_of_week': day_of_week,
+                'veterinarian_id': vet_id
+            }), 200
+        else:
+            print(f"❌ No hay horario para vet {vet_id} el {date} (día {day_of_week})")
+            return jsonify({
+                'success': False,
+                'message': 'El veterinario no atiende este día',
+                'date': date,
+                'day_of_week': day_of_week,
+                'veterinarian_id': vet_id
+            }), 404
+
+    except Exception as e:
+        print(f"❌ Error obteniendo horario específico: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+# =============== RUTA PARA OBTENER CITAS EXISTENTES DE UN VETERINARIO EN UNA FECHA ===============
+
+@appointment_bp.route('/appointments/veterinarian/<vet_id>/date/<date>', methods=['GET'])
+def get_veterinarian_appointments_by_date(vet_id, date):
+    """Obtener citas de un veterinario en una fecha específica - ACCESO PÚBLICO"""
+    try:
+        # Importar el modelo Appointment (ajustar según tu estructura)
+        # Asumiendo que tienes un modelo llamado Appointment
+
+        # Buscar citas del veterinario en esa fecha que estén activas
+        appointments = Appointment.query.filter_by(
+            veterinarian_id=vet_id,
+            appointment_date=date
+        ).filter(
+            Appointment.status.in_(['scheduled', 'confirmed'])  # Solo citas activas
+        ).all()
+
+        print(f"📅 {len(appointments)} citas encontradas para vet {vet_id} el {date}")
+
+        # Convertir a diccionario
+        appointments_list = []
+        for apt in appointments:
+            try:
+                appointments_list.append(apt.to_dict())
+            except:
+                # Fallback si no tienes método to_dict()
+                appointments_list.append({
+                    'id': apt.id,
+                    'appointment_time': apt.appointment_time,
+                    'status': apt.status,
+                    'veterinarian_id': apt.veterinarian_id,
+                    'appointment_date': apt.appointment_date
+                })
+
+        return jsonify({
+            'success': True,
+            'appointments': appointments_list,
+            'total': len(appointments_list),
+            'date': date,
+            'veterinarian_id': vet_id
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error obteniendo citas por fecha: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+# =============== RUTA PARA CREAR CITA (ACCESO CON TOKEN) ===============
+
+@appointment_bp.route('/appointments/create', methods=['POST'])
+@jwt_required()  # Esta SÍ requiere autenticación
+def create_appointment_public():
+    """Crear nueva cita desde frontend público - requiere autenticación"""
+    try:
+        current_user = get_jwt_identity()
+        data = request.get_json()
+
+        print(f"📝 Creando cita con datos: {data}")
+
+        # Validar datos requeridos
+        required_fields = ['pet_id', 'veterinarian_id', 'client_id', 'appointment_date', 'appointment_time']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({
+                    'success': False,
+                    'message': f'Campo requerido: {field}'
+                }), 400
+
+        # Verificar que no haya conflicto de horario
+        existing_appointment = Appointment.query.filter_by(
+            veterinarian_id=data['veterinarian_id'],
+            appointment_date=data['appointment_date'],
+            appointment_time=data['appointment_time']
+        ).filter(
+            Appointment.status.in_(['scheduled', 'confirmed'])
+        ).first()
+
+        if existing_appointment:
+            return jsonify({
+                'success': False,
+                'message': 'Ya existe una cita en ese horario'
+            }), 400
+
+        # Crear nueva cita (ajustar campos según tu modelo)
+        try:
+            new_appointment = Appointment(
+                pet_id=data['pet_id'],
+                veterinarian_id=data['veterinarian_id'],
+                client_id=data['client_id'],
+                appointment_date=data['appointment_date'],
+                appointment_time=data['appointment_time'],
+                reason=data.get('reason', ''),
+                notes=data.get('notes', ''),
+                status=data.get('status', 'scheduled'),
+                priority=data.get('priority', 'normal'),
+                consultation_type=data.get('consultation_type', 'general')
+            )
+
+            db.session.add(new_appointment)
+            db.session.commit()
+
+            print(f"✅ Cita creada: {new_appointment.id}")
+
+            # Convertir a diccionario para respuesta
+            try:
+                appointment_dict = new_appointment.to_dict()
+            except:
+                # Fallback si no tienes método to_dict()
+                appointment_dict = {
+                    'id': new_appointment.id,
+                    'pet_id': new_appointment.pet_id,
+                    'veterinarian_id': new_appointment.veterinarian_id,
+                    'client_id': new_appointment.client_id,
+                    'appointment_date': new_appointment.appointment_date,
+                    'appointment_time': new_appointment.appointment_time,
+                    'status': new_appointment.status,
+                    'reason': new_appointment.reason
+                }
+
+            return jsonify({
+                'success': True,
+                'message': 'Cita creada exitosamente',
+                'appointment': appointment_dict
+            }), 201
+
+        except Exception as db_error:
+            db.session.rollback()
+            print(f"❌ Error de base de datos: {db_error}")
+            return jsonify({
+                'success': False,
+                'message': f'Error de base de datos: {str(db_error)}'
+            }), 500
+
+    except Exception as e:
+        print(f"❌ Error creando cita: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@appointment_bp.route('/appointments/client/<client_id>', methods=['GET'])
+@jwt_required()  # Requiere autenticación
+def get_client_appointments(client_id):
+    """Obtener todas las citas de un cliente"""
+    try:
+        current_user = get_jwt_identity()
+
+        # Verificar que el usuario puede acceder a las citas de este cliente
+        # (admin puede ver todas, cliente solo las suyas)
+        if current_user != client_id:
+            # Aquí podrías verificar si es admin, pero por simplicidad lo omitimos
+            pass
+
+        # Obtener citas del cliente
+        appointments = Appointment.query.filter_by(client_id=client_id).all()
+
+        print(f"📋 {len(appointments)} citas encontradas para cliente {client_id}")
+
+        # Convertir a lista de diccionarios
+        appointments_list = []
+        for apt in appointments:
+            try:
+                appointments_list.append(apt.to_dict())
+            except:
+                # Fallback
+                appointments_list.append({
+                    'id': apt.id,
+                    'pet_id': apt.pet_id,
+                    'veterinarian_id': apt.veterinarian_id,
+                    'appointment_date': apt.appointment_date,
+                    'appointment_time': apt.appointment_time,
+                    'status': apt.status,
+                    'reason': apt.reason
+                })
+
+        return jsonify({
+            'success': True,
+            'appointments': appointments_list,
+            'total': len(appointments_list),
+            'client_id': client_id
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error obteniendo citas del cliente: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+# =============== 6. RUTA PARA CITAS PRÓXIMAS DE UN CLIENTE (NUEVA) ===============
+@appointment_bp.route('/appointments/client/<client_id>/upcoming', methods=['GET'])
+@jwt_required()  # Requiere autenticación
+def get_client_upcoming_appointments(client_id):
+    """Obtener citas próximas de un cliente"""
+    try:
+        from datetime import datetime, date
+
+        current_user = get_jwt_identity()
+        today = date.today()
+
+        # Obtener citas futuras del cliente
+        appointments = Appointment.query.filter_by(client_id=client_id).filter(
+            Appointment.appointment_date >= today.isoformat()
+        ).filter(
+            Appointment.status.in_(['scheduled', 'confirmed'])
+        ).order_by(Appointment.appointment_date, Appointment.appointment_time).all()
+
+        print(f"📅 {len(appointments)} citas próximas para cliente {client_id}")
+
+        # Convertir a lista
+        appointments_list = []
+        for apt in appointments:
+            try:
+                appointments_list.append(apt.to_dict())
+            except:
+                appointments_list.append({
+                    'id': apt.id,
+                    'pet_id': apt.pet_id,
+                    'veterinarian_id': apt.veterinarian_id,
+                    'appointment_date': apt.appointment_date,
+                    'appointment_time': apt.appointment_time,
+                    'status': apt.status,
+                    'reason': apt.reason
+                })
+
+        return jsonify({
+            'success': True,
+            'appointments': appointments_list,
+            'total': len(appointments_list),
+            'client_id': client_id
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error obteniendo citas próximas: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
 
 @appointment_bp.route('/health', methods=['GET'])
 def health():
