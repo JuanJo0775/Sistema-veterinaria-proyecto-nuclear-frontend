@@ -476,7 +476,7 @@
                 <div class="menu-section-title">Reportes</div>
                 <ul>
                     <li class="menu-item">
-                        <a href="#financial-reports" class="menu-link">
+                        <a class="nav-link" href="{{ url_for('frontend.admin_billing') }}" class="menu-link {% if request.endpoint == 'frontend.admin_billing' %}active{% endif %}">
                             <span class="menu-icon">💰</span>
                             <span>Facturación</span>
                         </a>

@@ -1,0 +1,2900 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Sistema de Facturación{% endblock %}
+
+{% block page_title %}Sistema de Facturación{% endblock %}
+
+{% block custom_styles %}
+<style>
+    /* =============== BILLING MANAGEMENT SPECIFIC STYLES =============== */
+    .billing-content {
+        padding: 30px;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, #52B788 0%, #2D6A4F 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(45, 106, 79, 0.3);
+        text-align: center;
+    }
+
+    .page-header h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+    }
+
+    .page-header p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+    }
+
+    /* TABS */
+    .tabs-container {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 30px;
+        background: white;
+        padding: 10px;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(8, 28, 21, 0.1);
+    }
+
+    .tab-btn {
+        flex: 1;
+        padding: 15px 25px;
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        color: #2D6A4F;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .tab-btn:hover {
+        background: #B7E4C7;
+        transform: translateY(-2px);
+    }
+
+    .tab-btn.active {
+        background: linear-gradient(135deg, #52B788 0%, #38A3A5 100%);
+        color: white;
+        box-shadow: 0 5px 15px rgba(82, 183, 136, 0.4);
+    }
+
+    .tab-content {
+        display: none;
+        animation: fadeIn 0.5s ease;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* CARDS */
+    .card {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(8, 28, 21, 0.1);
+        margin-bottom: 30px;
+        border: 1px solid #B7E4C7;
+    }
+
+    .card-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 25px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #B7E4C7;
+    }
+
+    .card-header h2 {
+        color: #2D6A4F;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    /* FORM STYLES */
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-group label {
+        color: #2D6A4F;
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+    }
+
+    .form-control {
+        padding: 15px;
+        border: 2px solid #B7E4C7;
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background: #fafafa;
+        color: #2D6A4F;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #52B788;
+        box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.1);
+        background: white;
+    }
+
+    .form-control:disabled {
+        background: #f5f5f5;
+        color: #6c757d;
+        cursor: not-allowed;
+    }
+
+    /* BUTTONS */
+    .btn {
+        padding: 15px 30px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #52B788 0%, #38A3A5 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(82, 183, 136, 0.4);
+    }
+
+    .btn-secondary {
+        background: #22577A;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #38A3A5;
+        transform: translateY(-2px);
+    }
+
+    .btn-success {
+        background: #52B788;
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #2D6A4F;
+        transform: translateY(-2px);
+    }
+
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+
+    /* MEDICATIONS SECTION */
+    .medications-section {
+        background: #D8F3DC;
+        border-radius: 15px;
+        padding: 25px;
+        margin: 25px 0;
+        border: 1px solid #B7E4C7;
+    }
+
+    .medication-selector {
+        display: flex;
+        gap: 15px;
+        align-items: end;
+        margin-bottom: 20px;
+    }
+
+    .medication-item {
+        background: white;
+        border: 2px solid #B7E4C7;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.3s ease;
+    }
+
+    .medication-item:hover {
+        border-color: #52B788;
+        box-shadow: 0 5px 15px rgba(82, 183, 136, 0.2);
+    }
+
+    .medication-info {
+        flex: 1;
+    }
+
+    .medication-name {
+        font-weight: 700;
+        color: #2D6A4F;
+        font-size: 1.1rem;
+        margin-bottom: 5px;
+    }
+
+    .medication-details {
+        color: #52B788;
+        font-size: 0.9rem;
+    }
+
+    .medication-price {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #38A3A5;
+        margin: 0 15px;
+    }
+
+    .remove-btn {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .remove-btn:hover {
+        background: #c82333;
+        transform: scale(1.05);
+    }
+
+    /* TOTAL SECTION */
+    .total-section {
+        background: linear-gradient(135deg, #2D6A4F 0%, #22577A 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 15px;
+        text-align: center;
+        margin: 25px 0;
+        box-shadow: 0 10px 25px rgba(45, 106, 79, 0.3);
+    }
+
+    .total-section h3 {
+        margin-bottom: 15px;
+        font-size: 1.3rem;
+    }
+
+    .total-amount {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 15px 0;
+    }
+
+    /* STATISTICS */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: linear-gradient(135deg, #52B788 0%, #38A3A5 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 15px;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(82, 183, 136, 0.3);
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    .stat-label {
+        font-size: 1rem;
+        opacity: 0.9;
+    }
+
+    /* HISTORY TABLE */
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    .history-table th,
+    .history-table td {
+        padding: 15px;
+        text-align: left;
+        border-bottom: 1px solid #B7E4C7;
+    }
+
+    .history-table th {
+        background: #2D6A4F;
+        color: white;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+    }
+
+    .history-table tr {
+        transition: all 0.3s ease;
+    }
+
+    .history-table tr:hover {
+        background: #D8F3DC;
+    }
+
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-paid {
+        background: #52B788;
+        color: white;
+    }
+
+    .status-pending {
+        background: #22577A;
+        color: white;
+    }
+
+    .status-cancelled {
+        background: #6c757d;
+        color: white;
+    }
+
+    /* SEARCH BAR */
+    .search-bar {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+
+    .search-bar input {
+        flex: 1;
+    }
+
+    /* INVOICE ACTIONS */
+    .invoice-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        margin-top: 30px;
+        flex-wrap: wrap;
+    }
+
+    /* LOADING STATES */
+    .loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        color: #52B788;
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #D8F3DC;
+        border-top: 4px solid #52B788;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 15px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* EMPTY STATES */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #52B788;
+    }
+
+    .empty-state h3 {
+        color: #2D6A4F;
+        margin-bottom: 15px;
+        font-size: 1.4rem;
+    }
+
+    .empty-state p {
+        margin-bottom: 25px;
+        font-size: 1rem;
+    }
+
+    /* NOTIFICATIONS */
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 25px;
+        border-radius: 10px;
+        color: white;
+        font-weight: 600;
+        z-index: 10000;
+        max-width: 400px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        animation: slideInRight 0.3s ease;
+    }
+
+    .notification.success { background: #52B788; }
+    .notification.error { background: #dc3545; }
+    .notification.warning { background: #ffc107; color: #2D6A4F; }
+    .notification.info { background: #38A3A5; }
+
+    @keyframes slideInRight {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes slideOutRight {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+        .billing-content {
+            padding: 15px;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .medication-selector {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .invoice-actions {
+            flex-direction: column;
+        }
+
+        .search-bar {
+            flex-direction: column;
+        }
+
+        .medication-item {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+        }
+
+        .medication-price {
+            margin: 10px 0;
+            text-align: center;
+        }
+    }
+
+    /* VALIDATION STYLES */
+    .form-control.error {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+    }
+
+    .form-control.success {
+        border-color: #52B788;
+        box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.1);
+    }
+
+    .error-message {
+        color: #dc3545;
+        font-size: 0.85rem;
+        margin-top: 5px;
+    }
+
+    .success-message {
+        color: #52B788;
+        font-size: 0.85rem;
+        margin-top: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="billing-content">
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+        <h1>
+            🧾 Sistema de Facturación
+        </h1>
+        <p>Gestión completa de facturación de la clínica veterinaria</p>
+    </div>
+
+    <!-- TABS NAVIGATION -->
+    <div class="tabs-container">
+        <button class="tab-btn active" onclick="showTab('billing')" data-tab="billing">
+        <span>💰</span> Nueva Factura
+        </button>
+        <button class="tab-btn" onclick="showTab('history')" data-tab="history">
+                <span>📋</span> Historial
+        </button>
+    </div>
+
+    <!-- TAB: NUEVA FACTURA -->
+    <div id="billing" class="tab-content active">
+        <div class="card">
+            <div class="card-header">
+                <span style="font-size: 2rem;">💰</span>
+                <h2>Nueva Factura</h2>
+            </div>
+
+            <form id="billingForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="ownerId">👤 Propietario *</label>
+                        <select id="ownerId" class="form-control" onchange="loadOwnerPets()" required>
+                            <option value="">Seleccionar propietario...</option>
+                        </select>
+                        <div class="error-message" id="ownerIdError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="petId">🐕 Mascota *</label>
+                        <select id="petId" class="form-control" onchange="loadMedicalHistory()" required>
+                            <option value="">Primero selecciona un propietario...</option>
+                        </select>
+                        <div class="error-message" id="petIdError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="appointmentId">📅 Cita (Opcional)</label>
+                        <select id="appointmentId" class="form-control">
+                            <option value="">Sin cita asociada</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="paymentMethod">💳 Método de Pago</label>
+                        <select id="paymentMethod" class="form-control" required>
+                            <option value="">Seleccionar método...</option>
+                            <option value="cash">💵 Efectivo</option>
+                            <option value="card">💳 Tarjeta</option>
+                            <option value="transfer">🏦 Transferencia</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="medications-section">
+                    <div class="card-header">
+                        <span style="font-size: 1.5rem;">💊</span>
+                        <h3>Medicamentos y Servicios</h3>
+                    </div>
+
+                    <div class="medication-selector">
+                        <div class="form-group" style="flex: 2;">
+                            <label for="medicationSelect">Seleccionar Medicamento</label>
+                            <select id="medicationSelect" class="form-control">
+                                <option value="">Cargar medicamentos...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="quantity">Cantidad</label>
+                            <input type="number" id="quantity" class="form-control" min="1" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label>&nbsp;</label>
+                            <button type="button" class="btn btn-primary" onclick="addMedication()">
+                                ➕ Agregar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="selectedMedications">
+                        <div class="empty-state">
+                            <h3>💊 No hay medicamentos seleccionados</h3>
+                            <p>Agrega medicamentos para generar la factura</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="observations">📝 Observaciones</label>
+                    <textarea id="observations" class="form-control" rows="3"
+                              placeholder="Observaciones adicionales para la factura..."></textarea>
+                </div>
+
+                <div class="total-section">
+                    <h3>💵 Total de la Factura</h3>
+                    <div class="total-amount">$<span id="totalAmount">0.00</span></div>
+                    <p>Total de <span id="totalItems">0</span> artículo(s)</p>
+                </div>
+
+                <div class="invoice-actions">
+                    <button type="button" class="btn btn-success" onclick="generateInvoice()">
+                        📄 Generar Factura
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="downloadPDF()" id="downloadPDFBtn" disabled>
+                        📥 Descargar PDF
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="printInvoice()" id="printInvoiceBtn" disabled>
+                        🖨️ Imprimir
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="clearForm()">
+                        🗑️ Limpiar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- TAB: HISTORIAL -->
+    <div id="history" class="tab-content">
+        <div class="card">
+            <div class="card-header">
+                <span style="font-size: 2rem;">📋</span>
+                <h2>Historial de Facturación</h2>
+            </div>
+
+            <div class="search-bar">
+                <input type="text" id="searchInput" class="form-control"
+                       placeholder="🔍 Buscar por propietario, mascota o ID de factura..."
+                       onkeyup="searchInvoices()">
+                <select id="statusFilter" class="form-control" onchange="filterInvoices()">
+                    <option value="">Todos los estados</option>
+                    <option value="paid">✅ Pagadas</option>
+                    <option value="pending">⏳ Pendientes</option>
+                    <option value="cancelled">❌ Canceladas</option>
+                </select>
+                <button type="button" class="btn btn-primary" onclick="exportHistory()">
+                    📊 Exportar
+                </button>
+            </div>
+
+            <div class="table-container">
+                <table class="history-table" id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Propietario</th>
+                            <th>Mascota</th>
+                            <th>Total</th>
+                            <th>Método Pago</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <tr>
+                            <td colspan="8">
+                                <div class="loading">
+                                    <div class="spinner"></div>
+                                    <span>Cargando historial de facturación...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // =============== VARIABLES GLOBALES ===============
+    let clients = [];
+    let pets = [];
+    let medications = [];
+    let appointments = [];
+    let selectedMedications = [];
+    let currentInvoice = null;
+    let allInvoices = [];
+    let filteredInvoices = [];
+
+    // =============== INICIALIZACIÓN PRINCIPAL ===============
+    document.addEventListener('DOMContentLoaded', async function() {
+    console.log('🚀 Inicializando Sistema de Facturación...');
+
+    try {
+        // Verificar conectividad primero
+        await checkConnectivity();
+
+        // Mostrar mensaje de carga inicial
+        showNotification('Inicializando sistema de facturación...', 'info');
+
+        // Cargar datos iniciales de la base de datos
+        await loadInitialData();
+
+        // Configurar event listeners
+        setupEventListeners();
+
+        // Hacer funciones disponibles globalmente
+        makeGlobalFunctions();
+
+        // Ejecutar diagnóstico
+        setTimeout(diagnosticDatabase, 2000);
+
+        console.log('✅ Sistema de Facturación inicializado correctamente');
+        showNotification('Sistema inicializado correctamente', 'success');
+
+    } catch (error) {
+        console.error('❌ Error inicializando sistema:', error);
+        showNotification('Error inicializando el sistema: ' + error.message, 'error');
+    }
+});
+
+
+    async function loadInitialData() {
+        try {
+            console.log('📡 Cargando datos desde la base de datos...');
+
+            // Cargar datos en paralelo para mejor rendimiento
+            await Promise.all([
+                loadClients(),
+                loadMedications(),
+                loadInvoiceHistory()
+            ]);
+
+            console.log('✅ Todos los datos iniciales cargados exitosamente');
+        } catch (error) {
+            console.error('❌ Error cargando datos iniciales:', error);
+            showNotification('Error cargando datos del sistema', 'error');
+            throw error;
+        }
+    }
+
+    function setupEventListeners() {
+        try {
+            // Validación en tiempo real para campos requeridos
+            const ownerId = document.getElementById('ownerId');
+            const petId = document.getElementById('petId');
+            const paymentMethod = document.getElementById('paymentMethod');
+
+            if (ownerId) ownerId.addEventListener('change', validateOwner);
+            if (petId) petId.addEventListener('change', validatePet);
+            if (paymentMethod) paymentMethod.addEventListener('change', validatePaymentMethod);
+
+            // Configurar fechas por defecto para estadísticas
+            const today = new Date().toISOString().split('T')[0];
+            const lastMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+            const statsDateFrom = document.getElementById('statsDateFrom');
+            const statsDateTo = document.getElementById('statsDateTo');
+
+            if (statsDateFrom) statsDateFrom.value = lastMonth;
+            if (statsDateTo) statsDateTo.value = today;
+
+            console.log('✅ Event listeners configurados correctamente');
+        } catch (error) {
+            console.error('❌ Error configurando event listeners:', error);
+        }
+    }
+
+    // =============== CARGA DE CLIENTES DESDE BASE DE DATOS ===============
+    async function loadClients() {
+    try {
+        console.log('📡 Obteniendo clientes desde Auth Service...');
+
+        const response = await fetch('/api/admin/users', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.users) {
+                // Filtrar solo clientes activos
+                clients = data.users.filter(user =>
+                    user.role === 'client' && user.is_active === true
+                );
+
+                populateOwnerSelect();
+                console.log(`✅ ${clients.length} clientes cargados desde la base de datos`);
+
+                // AGREGAR ESTA LÍNEA PARA MOSTRAR CONFIRMACIÓN
+                if (clients.length > 0) {
+                    showNotification(`${clients.length} clientes cargados exitosamente`, 'success');
+                } else {
+                    showNotification('No se encontraron clientes en la base de datos', 'warning');
+                }
+            } else {
+                throw new Error('No se pudieron obtener clientes de la base de datos');
+            }
+        } else {
+            throw new Error(`Error HTTP ${response.status} al cargar clientes`);
+        }
+
+    } catch (error) {
+        console.error('❌ Error obteniendo clientes desde la base de datos:', error);
+        showNotification('Error cargando clientes. Verificando conexión...', 'error');
+
+        // MOSTRAR DIAGNÓSTICO DETALLADO
+        const errorDetails = `
+            Error: ${error.message}
+            Verificar:
+            1. Auth Service está corriendo
+            2. Base de datos conectada
+            3. Hay usuarios con rol 'client'
+        `;
+        console.error(errorDetails);
+
+        // Fallback: crear datos de prueba mínimos
+        clients = [];
+        populateOwnerSelect();
+    }
+}
+
+    function populateOwnerSelect() {
+        const select = document.getElementById('ownerId');
+        if (!select) return;
+
+        select.innerHTML = '<option value="">Seleccionar propietario...</option>';
+
+        if (clients.length === 0) {
+            select.innerHTML += '<option value="" disabled>No hay clientes disponibles</option>';
+            return;
+        }
+
+        // Ordenar clientes alfabéticamente
+        const sortedClients = clients.sort((a, b) =>
+            `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)
+        );
+
+        sortedClients.forEach(client => {
+            const option = document.createElement('option');
+            option.value = client.id;
+            option.textContent = `${client.first_name} ${client.last_name}`;
+            option.dataset.email = client.email;
+            option.dataset.phone = client.phone;
+            select.appendChild(option);
+        });
+
+        console.log(`✅ Select de propietarios poblado con ${clients.length} clientes`);
+    }
+
+    // =============== CARGA DE MASCOTAS DESDE BASE DE DATOS ===============
+    async function loadOwnerPets() {
+    const ownerId = document.getElementById('ownerId').value;
+    const petSelect = document.getElementById('petId');
+    const appointmentSelect = document.getElementById('appointmentId');
+
+    console.log(`🔍 Cargando mascotas para propietario: ${ownerId}`);
+
+    // Limpiar selecciones previas
+    if (petSelect) {
+        petSelect.innerHTML = '<option value="">Cargando mascotas...</option>';
+        petSelect.disabled = true;
+    }
+    if (appointmentSelect) {
+        appointmentSelect.innerHTML = '<option value="">Sin cita asociada</option>';
+    }
+
+    clearValidationError('petId');
+
+    if (!ownerId) {
+        if (petSelect) {
+            petSelect.innerHTML = '<option value="">Primero selecciona un propietario...</option>';
+            petSelect.disabled = false;
+        }
+        return;
+    }
+
+    try {
+        console.log(`📡 Obteniendo mascotas del propietario ${ownerId} desde la base de datos...`);
+
+        // CAMBIO PRINCIPAL: Usar la ruta correcta para obtener mascotas por propietario
+        const response = await fetch(`/api/admin/pets/by-owner/${ownerId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+        });
+
+        console.log(`📡 Respuesta del servidor: ${response.status}`);
+
+        if (response.ok) {
+            const data = await response.json();
+            console.log('📦 Datos recibidos:', data);
+
+            if (data.success) {
+                const ownerPets = data.pets || [];
+                pets = ownerPets; // Actualizar variable global
+
+                console.log(`✅ ${ownerPets.length} mascotas encontradas para el propietario`);
+
+                // Rehabilitar el select
+                petSelect.disabled = false;
+
+                if (ownerPets.length === 0) {
+                    petSelect.innerHTML = '<option value="">Este cliente no tiene mascotas registradas</option>';
+                    showValidationError('petId', 'Este cliente no tiene mascotas registradas');
+                    showNotification('Este cliente no tiene mascotas registradas', 'warning');
+                    return;
+                }
+
+                // Poblae el select con las mascotas
+                petSelect.innerHTML = '<option value="">Seleccionar mascota...</option>';
+
+                // Ordenar mascotas alfabéticamente
+                const sortedPets = ownerPets.sort((a, b) => a.name.localeCompare(b.name));
+
+                sortedPets.forEach(pet => {
+                    const option = document.createElement('option');
+                    option.value = pet.id;
+                    option.textContent = `${pet.name} (${getSpeciesLabel(pet.species)})`;
+                    option.dataset.species = pet.species;
+                    option.dataset.breed = pet.breed || '';
+                    option.dataset.weight = pet.weight || '';
+                    petSelect.appendChild(option);
+                });
+
+                // Cargar citas asociadas al propietario
+                await loadOwnerAppointments(ownerId);
+
+                showValidationSuccess('petId');
+                showNotification(`${ownerPets.length} mascota(s) cargada(s) exitosamente`, 'success');
+                console.log(`✅ ${ownerPets.length} mascotas cargadas desde la base de datos`);
+
+            } else {
+                throw new Error(data.message || 'Error obteniendo mascotas de la base de datos');
+            }
+        } else {
+            // Si la ruta específica falla, intentar con la ruta general y filtrar
+            console.log('⚠️ Ruta específica falló, intentando ruta general...');
+            await loadOwnerPetsFromGeneralAPI(ownerId);
+        }
+
+    } catch (error) {
+        console.error('❌ Error obteniendo mascotas desde la base de datos:', error);
+
+        // Rehabilitar el select
+        if (petSelect) petSelect.disabled = false;
+
+        // Intentar método alternativo
+        await loadOwnerPetsFromGeneralAPI(ownerId);
+    }
+}
+
+
+    // =============== CARGA DE CITAS DESDE BASE DE DATOS ===============
+    async function loadOwnerAppointments(ownerId) {
+        try {
+            console.log(`📡 Obteniendo citas del propietario ${ownerId} desde la base de datos...`);
+
+            const response = await fetch(`/api/admin/appointments?client_id=${ownerId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.appointments) {
+                    // Filtrar solo citas completadas o confirmadas
+                    appointments = data.appointments.filter(apt =>
+                        apt.status === 'completed' || apt.status === 'confirmed'
+                    );
+
+                    const appointmentSelect = document.getElementById('appointmentId');
+                    if (!appointmentSelect) return;
+
+                    if (appointments.length > 0) {
+                        appointments.forEach(appointment => {
+                            const option = document.createElement('option');
+                            option.value = appointment.id;
+                            option.textContent = `${formatDate(appointment.appointment_date)} - ${appointment.pet_name} - ${appointment.veterinarian_name}`;
+                            appointmentSelect.appendChild(option);
+                        });
+                    }
+
+                    console.log(`✅ ${appointments.length} citas cargadas desde la base de datos`);
+                }
+            }
+
+        } catch (error) {
+            console.error('❌ Error obteniendo citas desde la base de datos:', error);
+            // No mostrar error al usuario ya que las citas son opcionales
+        }
+    }
+
+    // =============== CARGA DE MEDICAMENTOS DESDE BASE DE DATOS ===============
+    async function loadMedications() {
+    try {
+        console.log('📡 Obteniendo medicamentos desde Inventory Service...');
+
+        const response = await fetch('/api/admin/inventory/medications', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.medications) {
+                // Filtrar solo medicamentos activos con stock disponible
+                medications = data.medications.filter(med =>
+                    med.is_active === true && med.stock_quantity > 0
+                );
+                populateMedicationSelect();
+
+                console.log(`✅ ${medications.length} medicamentos disponibles cargados desde la base de datos`);
+
+                if (medications.length > 0) {
+                    showNotification(`${medications.length} medicamentos cargados exitosamente`, 'success');
+                } else {
+                    showNotification('No hay medicamentos con stock disponible', 'warning');
+                }
+            } else {
+                throw new Error('No se pudieron obtener medicamentos de la base de datos');
+            }
+        } else {
+            throw new Error(`Error HTTP ${response.status} al cargar medicamentos`);
+        }
+
+    } catch (error) {
+        console.error('❌ Error obteniendo medicamentos desde la base de datos:', error);
+        showNotification('Error cargando medicamentos desde la base de datos', 'error');
+
+        // Fallback: lista vacía
+        medications = [];
+        populateMedicationSelect();
+    }
+}
+
+// PASO 5: Función para verificar conectividad
+async function checkConnectivity() {
+    const services = [
+        { name: 'Auth Service', url: '/api/admin/users' },
+        { name: 'Medical Service', url: '/api/admin/pets' },
+        { name: 'Inventory Service', url: '/api/admin/inventory/medications' },
+        { name: 'Billing Backend', url: '/api/admin/billing/statistics' }
+    ];
+
+    console.log('🔍 Verificando conectividad de servicios...');
+
+    for (const service of services) {
+        try {
+            const response = await fetch(service.url, { method: 'GET' });
+            if (response.ok) {
+                console.log(`✅ ${service.name}: Conectado`);
+            } else {
+                console.log(`⚠️ ${service.name}: Error ${response.status}`);
+            }
+        } catch (error) {
+            console.log(`❌ ${service.name}: No disponible - ${error.message}`);
+        }
+    }
+}
+
+
+    function populateMedicationSelect() {
+        const select = document.getElementById('medicationSelect');
+        if (!select) return;
+
+        select.innerHTML = '<option value="">Seleccionar medicamento...</option>';
+
+        if (medications.length === 0) {
+            select.innerHTML += '<option value="" disabled>No hay medicamentos disponibles</option>';
+            return;
+        }
+
+        // Ordenar medicamentos alfabéticamente
+        const sortedMedications = medications.sort((a, b) => a.name.localeCompare(b.name));
+
+        sortedMedications.forEach(medication => {
+            const option = document.createElement('option');
+            option.value = medication.id;
+            option.textContent = `${medication.name} - ${formatPrice(medication.unit_price)} (Stock: ${medication.stock_quantity})`;
+            option.dataset.price = medication.unit_price;
+            option.dataset.stock = medication.stock_quantity;
+            option.dataset.presentation = medication.presentation;
+            option.dataset.concentration = medication.concentration;
+            select.appendChild(option);
+        });
+
+        console.log(`✅ Select de medicamentos poblado con ${medications.length} medicamentos`);
+    }
+
+    // =============== GESTIÓN DE MEDICAMENTOS SELECCIONADOS ===============
+    function addMedication() {
+        const medicationSelect = document.getElementById('medicationSelect');
+        const quantityInput = document.getElementById('quantity');
+
+        if (!medicationSelect || !quantityInput) {
+            showNotification('Error: Elementos del formulario no encontrados', 'error');
+            return;
+        }
+
+        const medicationId = medicationSelect.value;
+        const quantity = parseInt(quantityInput.value);
+
+        // Validaciones
+        if (!medicationId) {
+            showNotification('Selecciona un medicamento', 'warning');
+            return;
+        }
+
+        if (!quantity || quantity <= 0) {
+            showNotification('La cantidad debe ser mayor a 0', 'warning');
+            return;
+        }
+
+        const medication = medications.find(med => med.id === medicationId);
+        if (!medication) {
+            showNotification('Medicamento no encontrado en la base de datos', 'error');
+            return;
+        }
+
+        if (quantity > medication.stock_quantity) {
+            showNotification(`Stock insuficiente. Disponible: ${medication.stock_quantity}`, 'warning');
+            return;
+        }
+
+        // Verificar si ya está agregado y actualizar cantidad
+        const existingIndex = selectedMedications.findIndex(item => item.id === medicationId);
+        if (existingIndex !== -1) {
+            const newQuantity = selectedMedications[existingIndex].quantity + quantity;
+            if (newQuantity > medication.stock_quantity) {
+                showNotification(`Stock insuficiente. Máximo disponible: ${medication.stock_quantity}`, 'warning');
+                return;
+            }
+            selectedMedications[existingIndex].quantity = newQuantity;
+        } else {
+            selectedMedications.push({
+                id: medicationId,
+                name: medication.name,
+                presentation: medication.presentation,
+                concentration: medication.concentration,
+                unit_price: medication.unit_price,
+                quantity: quantity,
+                stock_available: medication.stock_quantity
+            });
+        }
+
+        // Reset campos de entrada
+        medicationSelect.value = '';
+        quantityInput.value = '1';
+
+        // Actualizar interfaz
+        updateSelectedMedicationsDisplay();
+        updateTotal();
+
+        showNotification('Medicamento agregado exitosamente', 'success');
+        console.log(`✅ Medicamento agregado: ${medication.name} x${quantity}`);
+    }
+
+    function removeMedication(index) {
+        if (index >= 0 && index < selectedMedications.length) {
+            const removedMedication = selectedMedications[index];
+            selectedMedications.splice(index, 1);
+            updateSelectedMedicationsDisplay();
+            updateTotal();
+            showNotification(`Medicamento ${removedMedication.name} removido`, 'info');
+            console.log(`✅ Medicamento removido: ${removedMedication.name}`);
+        }
+    }
+
+    function updateMedicationQuantity(index, newQuantity) {
+        if (newQuantity <= 0) {
+            removeMedication(index);
+            return;
+        }
+
+        if (index < 0 || index >= selectedMedications.length) {
+            showNotification('Error actualizando cantidad', 'error');
+            return;
+        }
+
+        const medication = selectedMedications[index];
+        if (newQuantity > medication.stock_available) {
+            showNotification(`Stock insuficiente. Máximo: ${medication.stock_available}`, 'warning');
+            return;
+        }
+
+        selectedMedications[index].quantity = parseInt(newQuantity);
+        updateSelectedMedicationsDisplay();
+        updateTotal();
+        console.log(`✅ Cantidad actualizada: ${medication.name} x${newQuantity}`);
+    }
+
+    function updateSelectedMedicationsDisplay() {
+        const container = document.getElementById('selectedMedications');
+        if (!container) return;
+
+        if (selectedMedications.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h3>💊 No hay medicamentos seleccionados</h3>
+                    <p>Agrega medicamentos para generar la factura</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = selectedMedications.map((medication, index) => `
+            <div class="medication-item">
+                <div class="medication-info">
+                    <div class="medication-name">${medication.name}</div>
+                    <div class="medication-details">
+                        ${medication.presentation} • ${medication.concentration} •
+                        Cantidad: <input type="number" value="${medication.quantity}"
+                                       min="1" max="${medication.stock_available}"
+                                       onchange="updateMedicationQuantity(${index}, this.value)"
+                                       style="width: 80px; padding: 5px; border: 1px solid #B7E4C7; border-radius: 5px;">
+                    </div>
+                </div>
+                <div class="medication-price">
+                    ${formatPrice(medication.unit_price * medication.quantity)}
+                </div>
+                <button class="remove-btn" onclick="removeMedication(${index})" title="Remover medicamento">
+                    🗑️
+                </button>
+            </div>
+        `).join('');
+    }
+
+    function updateTotal() {
+        const total = selectedMedications.reduce((sum, medication) =>
+            sum + (medication.unit_price * medication.quantity), 0
+        );
+
+        const totalAmountEl = document.getElementById('totalAmount');
+        const totalItemsEl = document.getElementById('totalItems');
+
+        if (totalAmountEl) totalAmountEl.textContent = formatPrice(total);
+        if (totalItemsEl) totalItemsEl.textContent = selectedMedications.length;
+    }
+
+    // =============== HISTORIAL MÉDICO ===============
+    async function loadMedicalHistory() {
+        const petId = document.getElementById('petId')?.value;
+
+        if (!petId) return;
+
+        try {
+            console.log(`📡 Obteniendo historial médico de la mascota ${petId}...`);
+
+            const response = await fetch(`/api/admin/pets/${petId}/medical-records`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.records) {
+                    console.log(`✅ ${data.records.length} registros médicos encontrados en la base de datos`);
+                    // Aquí podrías mostrar información relevante del historial médico en la interfaz
+                }
+            }
+
+        } catch (error) {
+            console.error('❌ Error obteniendo historial médico desde la base de datos:', error);
+            // No mostrar error al usuario ya que es información opcional
+        }
+    }
+
+    // =============== GENERAR FACTURA (GUARDAR EN BASE DE DATOS) ===============
+    async function generateInvoice() {
+    console.log('📄 Generando factura...');
+
+    if (!validateInvoiceForm()) {
+        return;
+    }
+
+    // MEJORAR VALIDACIÓN DE DATOS
+    const ownerId = document.getElementById('ownerId').value;
+    const petId = document.getElementById('petId').value;
+    const paymentMethod = document.getElementById('paymentMethod').value;
+
+    if (!ownerId || !petId || !paymentMethod) {
+        showNotification('Complete todos los campos requeridos', 'error');
+        return;
+    }
+
+    if (selectedMedications.length === 0) {
+        showNotification('Debe agregar al menos un medicamento', 'error');
+        return;
+    }
+
+    const invoiceData = {
+        client_id: ownerId,
+        pet_id: petId,
+        appointment_id: document.getElementById('appointmentId')?.value || null,
+        payment_method: paymentMethod,
+        observations: document.getElementById('observations')?.value || '',
+        medications: selectedMedications,
+        total_amount: selectedMedications.reduce((sum, med) =>
+            sum + (med.unit_price * med.quantity), 0
+        ),
+        status: 'paid',
+        invoice_date: new Date().toISOString()
+    };
+
+    console.log('📊 Datos de factura a enviar:', invoiceData);
+
+    try {
+        console.log('📡 Enviando factura a la base de datos...');
+
+        const response = await fetch('/api/admin/billing/invoices', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(invoiceData)
+        });
+
+        console.log(`📡 Respuesta del servidor: ${response.status}`);
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                currentInvoice = data.invoice;
+
+                // HABILITAR BOTONES DE DESCARGA E IMPRESIÓN
+                const downloadBtn = document.getElementById('downloadPDFBtn');
+                const printBtn = document.getElementById('printInvoiceBtn');
+
+                if (downloadBtn) {
+                    downloadBtn.disabled = false;
+                    downloadBtn.style.opacity = '1';
+                    downloadBtn.style.cursor = 'pointer';
+                }
+                if (printBtn) {
+                    printBtn.disabled = false;
+                    printBtn.style.opacity = '1';
+                    printBtn.style.cursor = 'pointer';
+                }
+
+                showNotification('✅ Factura generada y guardada exitosamente', 'success');
+
+                // Actualizar datos desde la base de datos
+                await Promise.all([
+                    loadInvoiceHistory(),
+                    updateLocalStock()
+                ]);
+
+                console.log(`✅ Factura #${currentInvoice.id} guardada en la base de datos`);
+
+            } else {
+                throw new Error(data.message || 'Error guardando factura en la base de datos');
+            }
+        } else {
+            // MANEJAR ERRORES ESPECÍFICOS
+            let errorMessage = `Error HTTP ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorMessage;
+            } catch (e) {
+                // Si no se puede parsear JSON, usar mensaje genérico
+            }
+
+            throw new Error(errorMessage);
+        }
+
+    } catch (error) {
+        console.error('❌ Error guardando factura en la base de datos:', error);
+
+        // DIAGNÓSTICO DETALLADO
+        let diagnosticMessage = `Error guardando factura: ${error.message}\n\n`;
+        diagnosticMessage += 'Verificar:\n';
+        diagnosticMessage += '1. Base de datos PostgreSQL conectada\n';
+        diagnosticMessage += '2. Tablas de facturación existen\n';
+        diagnosticMessage += '3. Backend de facturación funcionando\n';
+        diagnosticMessage += '4. Datos válidos enviados';
+
+        console.error(diagnosticMessage);
+        showNotification('Error guardando factura. Ver consola para detalles.', 'error');
+    }
+}
+
+    function validateInvoiceForm() {
+        let isValid = true;
+        const errors = [];
+
+        // Validar propietario
+        const ownerId = document.getElementById('ownerId')?.value;
+        if (!ownerId) {
+            showValidationError('ownerId', 'Debe seleccionar un propietario');
+            errors.push('Propietario requerido');
+            isValid = false;
+        } else {
+            clearValidationError('ownerId');
+        }
+
+        // Validar mascota
+        const petId = document.getElementById('petId')?.value;
+        if (!petId) {
+            showValidationError('petId', 'Debe seleccionar una mascota');
+            errors.push('Mascota requerida');
+            isValid = false;
+        } else {
+            clearValidationError('petId');
+        }
+
+        // Validar método de pago
+        const paymentMethod = document.getElementById('paymentMethod')?.value;
+        if (!paymentMethod) {
+            showValidationError('paymentMethod', 'Debe seleccionar un método de pago');
+            errors.push('Método de pago requerido');
+            isValid = false;
+        } else {
+            clearValidationError('paymentMethod');
+        }
+
+        // Validar medicamentos
+        if (selectedMedications.length === 0) {
+            errors.push('Debe agregar al menos un medicamento');
+            isValid = false;
+        }
+
+        if (!isValid) {
+            showNotification('Errores de validación: ' + errors.join(', '), 'error');
+        }
+
+        return isValid;
+    }
+function diagnosticDatabase() {
+    console.log('🔍 === DIAGNÓSTICO DE CONEXIÓN A BASE DE DATOS ===');
+
+    // Verificar Auth Service
+    fetch('/api/admin/users')
+        .then(response => {
+            console.log(`✅ Auth Service: ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            console.log(`📊 Usuarios encontrados: ${data.users ? data.users.length : 0}`);
+            const clients = data.users ? data.users.filter(u => u.role === 'client') : [];
+            console.log(`👥 Clientes encontrados: ${clients.length}`);
+        })
+        .catch(error => {
+            console.error('❌ Auth Service no disponible:', error);
+        });
+
+    // Verificar Medical Service
+    fetch('/api/admin/pets')
+        .then(response => {
+            console.log(`✅ Medical Service: ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            console.log(`🐕 Mascotas encontradas: ${data.pets ? data.pets.length : 0}`);
+        })
+        .catch(error => {
+            console.error('❌ Medical Service no disponible:', error);
+        });
+
+    // Verificar Inventory Service
+    fetch('/api/admin/inventory/medications')
+        .then(response => {
+            console.log(`✅ Inventory Service: ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            console.log(`💊 Medicamentos encontrados: ${data.medications ? data.medications.length : 0}`);
+        })
+        .catch(error => {
+            console.error('❌ Inventory Service no disponible:', error);
+        });
+
+    // Verificar Backend de Facturación
+    fetch('/api/admin/billing/statistics')
+        .then(response => {
+            console.log(`✅ Billing Backend: ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            console.log(`📊 Estadísticas de facturación disponibles:`, data);
+        })
+        .catch(error => {
+            console.error('❌ Billing Backend no disponible:', error);
+        });
+}
+    function updateLocalStock() {
+        // Actualizar stock local para reflejar cambios inmediatos en la interfaz
+        selectedMedications.forEach(selectedMed => {
+            const medication = medications.find(med => med.id === selectedMed.id);
+            if (medication) {
+                medication.stock_quantity -= selectedMed.quantity;
+            }
+        });
+
+        // Actualizar select de medicamentos con nuevo stock
+        populateMedicationSelect();
+        console.log('✅ Stock local actualizado en la interfaz');
+    }
+
+
+    // =============== HISTORIAL DE FACTURAS DESDE BASE DE DATOS ===============
+    async function loadInvoiceHistory() {
+        try {
+            console.log('📋 Obteniendo historial de facturas desde la base de datos...');
+
+            const response = await fetch('/api/admin/billing/invoices', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.invoices) {
+                    allInvoices = data.invoices;
+                    filteredInvoices = [...allInvoices];
+                    displayInvoiceHistory();
+                    console.log(`✅ ${allInvoices.length} facturas cargadas desde la base de datos`);
+                } else {
+                    displayEmptyHistory();
+                    console.log('ℹ️ No hay facturas en la base de datos');
+                }
+            } else {
+                throw new Error(`Error HTTP ${response.status} al cargar historial`);
+            }
+
+        } catch (error) {
+            console.error('❌ Error obteniendo historial desde la base de datos:', error);
+            displayEmptyHistory();
+            showNotification('Error cargando historial desde la base de datos', 'warning');
+        }
+    }
+
+    function displayInvoiceHistory() {
+        const tbody = document.getElementById('historyTableBody');
+        if (!tbody) return;
+
+        if (filteredInvoices.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8">
+                        <div class="empty-state">
+                            <h3>📋 No hay facturas</h3>
+                            <p>No se encontraron facturas que coincidan con los filtros aplicados en la base de datos</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = filteredInvoices.map(invoice => {
+            // Buscar información del cliente y mascota en los datos cargados
+            const client = clients.find(c => c.id === invoice.client_id);
+            const pet = pets.find(p => p.id === invoice.pet_id);
+
+            return `
+                <tr>
+                    <td><strong>#${invoice.id}</strong></td>
+                    <td>${formatDate(invoice.invoice_date)}</td>
+                    <td>${client ? `${client.first_name} ${client.last_name}` : (invoice.client_name || 'Cliente desconocido')}</td>
+                    <td>${pet ? pet.name : (invoice.pet_name || 'Mascota desconocida')}</td>
+                    <td><strong>${formatPrice(invoice.total_amount)}</strong></td>
+                    <td>${getPaymentMethodLabel(invoice.payment_method)}</td>
+                    <td>${getStatusBadge(invoice.status)}</td>
+                    <td>
+                        <button onclick="viewInvoice('${invoice.id}')" class="btn btn-primary" style="padding: 5px 10px; font-size: 0.8rem;">
+                            👁️ Ver
+                        </button>
+                        <button onclick="downloadInvoicePDF('${invoice.id}')" class="btn btn-secondary" style="padding: 5px 10px; font-size: 0.8rem;">
+                            📥 PDF
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        console.log(`✅ Historial mostrado: ${filteredInvoices.length} facturas`);
+    }
+
+    function displayEmptyHistory() {
+        const tbody = document.getElementById('historyTableBody');
+        if (!tbody) return;
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8">
+                    <div class="empty-state">
+                        <h3>📋 Sin historial de facturas</h3>
+                        <p>No hay facturas registradas en la base de datos</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+
+    // =============== BÚSQUEDA Y FILTROS EN HISTORIAL ===============
+    function searchInvoices() {
+        const searchInput = document.getElementById('searchInput');
+        if (!searchInput) return;
+
+        const searchTerm = searchInput.value.toLowerCase();
+
+        filteredInvoices = allInvoices.filter(invoice => {
+            // Buscar en datos de la base de datos
+            const client = clients.find(c => c.id === invoice.client_id);
+            const pet = pets.find(p => p.id === invoice.pet_id);
+
+            const clientName = client ?
+                `${client.first_name} ${client.last_name}`.toLowerCase() :
+                (invoice.client_name || '').toLowerCase();
+            const petName = pet ?
+                pet.name.toLowerCase() :
+                (invoice.pet_name || '').toLowerCase();
+            const invoiceId = invoice.id.toString().toLowerCase();
+
+            return clientName.includes(searchTerm) ||
+                   petName.includes(searchTerm) ||
+                   invoiceId.includes(searchTerm);
+        });
+
+        displayInvoiceHistory();
+        console.log(`🔍 Búsqueda aplicada: "${searchTerm}" - ${filteredInvoices.length} resultados`);
+    }
+
+    function filterInvoices() {
+        const statusFilter = document.getElementById('statusFilter');
+        if (!statusFilter) return;
+
+        const statusValue = statusFilter.value;
+
+        if (statusValue) {
+            filteredInvoices = allInvoices.filter(invoice => invoice.status === statusValue);
+        } else {
+            filteredInvoices = [...allInvoices];
+        }
+
+        // Aplicar búsqueda si hay texto
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput && searchInput.value) {
+            searchInvoices();
+        } else {
+            displayInvoiceHistory();
+        }
+
+        console.log(`🏷️ Filtro aplicado: "${statusValue}" - ${filteredInvoices.length} resultados`);
+    }
+
+    // =============== ACCIONES DE FACTURA ===============
+    async function viewInvoice(invoiceId) {
+        console.log(`👁️ Visualizando factura ${invoiceId}`);
+
+        const invoice = allInvoices.find(inv => inv.id === invoiceId);
+        if (!invoice) {
+            showNotification('Factura no encontrada en la base de datos', 'error');
+            return;
+        }
+
+        // Establecer como factura actual para permitir descarga/impresión
+        currentInvoice = invoice;
+
+        // Habilitar botones de descarga e impresión
+        const downloadBtn = document.getElementById('downloadPDFBtn');
+        const printBtn = document.getElementById('printInvoiceBtn');
+
+        if (downloadBtn) downloadBtn.disabled = false;
+        if (printBtn) printBtn.disabled = false;
+
+        showNotification(`Factura #${invoiceId} seleccionada. Puedes descargar o imprimir desde los botones principales.`, 'info');
+    }
+
+    async function downloadInvoicePDF(invoiceId) {
+        console.log(`📥 Descargando PDF de factura ${invoiceId} desde la base de datos...`);
+
+        try {
+            // Intentar descargar desde el servidor
+            const response = await fetch(`/api/admin/billing/invoices/${invoiceId}/pdf`, {
+                method: 'GET',
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `factura_${invoiceId}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                showNotification('PDF descargado exitosamente desde la base de datos', 'success');
+                console.log(`✅ PDF de factura ${invoiceId} descargado desde servidor`);
+            } else {
+                throw new Error('Error descargando PDF desde el servidor');
+            }
+
+        } catch (error) {
+            console.error(`❌ Error descargando PDF desde servidor:`, error);
+
+            // Fallback: generar PDF del lado del cliente usando datos de la base de datos
+            const invoice = allInvoices.find(inv => inv.id === invoiceId);
+            if (invoice) {
+                console.log('⚠️ Usando fallback para generar PDF desde datos locales...');
+                const pdfContent = generatePrintableInvoice(invoice);
+
+                const printWindow = window.open('', '_blank', 'width=800,height=600');
+                if (printWindow) {
+                    printWindow.document.write(pdfContent);
+                    printWindow.document.close();
+
+                    setTimeout(() => {
+                        printWindow.print();
+                        showNotification('💡 Usa "Guardar como PDF" en el diálogo de impresión', 'info');
+                        setTimeout(() => printWindow.close(), 2000);
+                    }, 500);
+                } else {
+                    showNotification('Error: Ventana de PDF bloqueada por el navegador', 'error');
+                }
+            } else {
+                showNotification('Error: Factura no encontrada en los datos locales', 'error');
+            }
+        }
+    }
+
+    async function downloadPDF() {
+        console.log('📥 Iniciando descarga de PDF de factura actual...');
+
+        if (!currentInvoice) {
+            showNotification('No hay factura generada para descargar', 'warning');
+            return;
+        }
+
+        try {
+            // Intentar descarga desde el servidor
+            const response = await fetch(`/api/admin/billing/invoices/${currentInvoice.id}/pdf`, {
+                method: 'GET',
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `factura_${currentInvoice.id}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                showNotification('PDF descargado exitosamente desde la base de datos', 'success');
+                console.log(`✅ PDF de factura ${currentInvoice.id} descargado desde servidor`);
+            } else {
+                // Si el servidor no está disponible, generar PDF del lado del cliente
+                console.log('⚠️ Servidor no disponible, generando PDF del lado del cliente...');
+                generateClientSidePDF();
+            }
+
+        } catch (error) {
+            console.error('❌ Error descargando PDF del servidor:', error);
+            // Fallback a generación del lado del cliente
+            generateClientSidePDF();
+        }
+    }
+
+    function generateClientSidePDF() {
+        console.log('📄 Generando PDF del lado del cliente usando datos de la base de datos...');
+
+        try {
+            // Crear contenido HTML para el PDF usando datos de la base de datos
+            const pdfContent = generatePrintableInvoice(currentInvoice);
+
+            // Crear ventana temporal para generar PDF
+            const printWindow = window.open('', '_blank', 'width=800,height=600');
+
+            if (!printWindow) {
+                showNotification('Error: Ventana de PDF bloqueada por el navegador. Verifica la configuración de popups.', 'error');
+                return;
+            }
+
+            printWindow.document.write(pdfContent);
+            printWindow.document.close();
+
+            // Esperar a que se cargue el contenido
+            setTimeout(() => {
+                try {
+                    printWindow.focus();
+                    printWindow.print();
+
+                    // Mensaje de instrucción al usuario
+                    showNotification('💡 En el diálogo de impresión, selecciona "Guardar como PDF" para descargar el archivo', 'info');
+
+                    // No cerrar automáticamente para que el usuario pueda guardar
+                } catch (printError) {
+                    console.error('Error en impresión:', printError);
+                    showNotification('Error abriendo diálogo de impresión', 'error');
+                    printWindow.close();
+                }
+            }, 1000);
+
+        } catch (error) {
+            console.error('❌ Error generando PDF del lado del cliente:', error);
+            showNotification('Error generando PDF: ' + error.message, 'error');
+        }
+    }
+
+    function printInvoice() {
+        console.log('🖨️ Imprimiendo factura...');
+
+        if (!currentInvoice) {
+            showNotification('No hay factura generada para imprimir', 'warning');
+            return;
+        }
+
+        try {
+            // Generar contenido imprimible usando datos de la base de datos
+            const printContent = generatePrintableInvoice(currentInvoice);
+
+            // Abrir ventana de impresión
+            const printWindow = window.open('', '_blank', 'width=800,height=600');
+
+            if (!printWindow) {
+                showNotification('Error: Ventana de impresión bloqueada por el navegador', 'error');
+                return;
+            }
+
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+
+            // Esperar y ejecutar impresión
+            setTimeout(() => {
+                try {
+                    printWindow.focus();
+                    printWindow.print();
+                    showNotification('Enviando a impresora...', 'success');
+
+                    // Cerrar ventana después de imprimir
+                    setTimeout(() => {
+                        printWindow.close();
+                    }, 2000);
+                } catch (printError) {
+                    console.error('Error en impresión:', printError);
+                    showNotification('Error imprimiendo', 'error');
+                    printWindow.close();
+                }
+            }, 1000);
+
+        } catch (error) {
+            console.error('❌ Error imprimiendo factura:', error);
+            showNotification('Error imprimiendo factura: ' + error.message, 'error');
+        }
+    }
+
+    // =============== GENERAR CONTENIDO IMPRIMIBLE CON DATOS DE BASE DE DATOS ===============
+    function generatePrintableInvoice(invoice) {
+        console.log(`📄 Generando contenido imprimible para factura ${invoice.id} con datos de la base de datos...`);
+
+        // Buscar datos del cliente y mascota en los datos cargados de la base de datos
+        const client = clients.find(c => c.id === invoice.client_id);
+        const pet = pets.find(p => p.id === invoice.pet_id);
+
+        // Calcular totales
+        const subtotal = invoice.medications ?
+            invoice.medications.reduce((sum, med) => sum + (med.unit_price * med.quantity), 0) :
+            invoice.total_amount;
+        const taxes = subtotal * 0.19; // 19% IVA
+        const total = invoice.total_amount; // Usar el total de la base de datos
+
+        return `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Factura #${invoice.id}</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        margin: 0;
+                        padding: 20px;
+                        color: #2D6A4F;
+                        line-height: 1.6;
+                        background: white;
+                    }
+                    .invoice-container {
+                        max-width: 800px;
+                        margin: 0 auto;
+                        padding: 40px;
+                        box-shadow: 0 0 20px rgba(0,0,0,0.1);
+                    }
+                    .header {
+                        text-align: center;
+                        border-bottom: 3px solid #52B788;
+                        padding-bottom: 30px;
+                        margin-bottom: 40px;
+                    }
+                    .logo {
+                        font-size: 48px;
+                        margin-bottom: 10px;
+                    }
+                    .clinic-name {
+                        color: #2D6A4F;
+                        font-size: 28px;
+                        font-weight: bold;
+                        margin-bottom: 10px;
+                    }
+                    .clinic-info {
+                        color: #52B788;
+                        font-size: 14px;
+                        margin-bottom: 20px;
+                    }
+                    .invoice-title {
+                        font-size: 24px;
+                        font-weight: bold;
+                        color: #38A3A5;
+                        margin-bottom: 10px;
+                    }
+                    .invoice-number {
+                        font-size: 18px;
+                        color: #2D6A4F;
+                    }
+
+                    .invoice-details {
+                        display: flex;
+                        justify-content: space-between;
+                        margin-bottom: 40px;
+                        gap: 40px;
+                    }
+                    .client-info, .invoice-info {
+                        flex: 1;
+                    }
+                    .section-title {
+                        font-size: 16px;
+                        font-weight: bold;
+                        color: #52B788;
+                        margin-bottom: 15px;
+                        border-bottom: 1px solid #B7E4C7;
+                        padding-bottom: 5px;
+                    }
+                    .info-row {
+                        margin-bottom: 8px;
+                        display: flex;
+                    }
+                    .info-label {
+                        font-weight: bold;
+                        color: #2D6A4F;
+                        min-width: 100px;
+                    }
+                    .info-value {
+                        color: #2D6A4F;
+                    }
+
+                    .medications-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin: 30px 0;
+                        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                    }
+                    .medications-table th {
+                        background: #52B788;
+                        color: white;
+                        padding: 15px 10px;
+                        text-align: left;
+                        font-weight: bold;
+                        border-bottom: 2px solid #2D6A4F;
+                    }
+                    .medications-table td {
+                        padding: 12px 10px;
+                        border-bottom: 1px solid #B7E4C7;
+                        color: #2D6A4F;
+                    }
+                    .medications-table tr:nth-child(even) {
+                        background: #F8FDF9;
+                    }
+                    .medications-table tr:hover {
+                        background: #D8F3DC;
+                    }
+
+                    .totals-section {
+                        margin-top: 40px;
+                        border-top: 2px solid #52B788;
+                        padding-top: 20px;
+                    }
+                    .totals-table {
+                        width: 300px;
+                        margin-left: auto;
+                        border-collapse: collapse;
+                    }
+                    .totals-table td {
+                        padding: 8px 15px;
+                        color: #2D6A4F;
+                    }
+                    .totals-table .label {
+                        font-weight: bold;
+                        text-align: right;
+                        border-right: 1px solid #B7E4C7;
+                    }
+                    .totals-table .amount {
+                        text-align: right;
+                        font-weight: bold;
+                    }
+                    .total-row {
+                        background: #52B788;
+                        color: white !important;
+                        font-size: 18px;
+                    }
+                    .total-row td {
+                        color: white !important;
+                        padding: 12px 15px;
+                    }
+
+                    .observations {
+                        margin-top: 30px;
+                        padding: 20px;
+                        background: #D8F3DC;
+                        border-radius: 10px;
+                        border-left: 5px solid #52B788;
+                    }
+                    .observations-title {
+                        font-weight: bold;
+                        color: #2D6A4F;
+                        margin-bottom: 10px;
+                    }
+
+                    .footer {
+                        margin-top: 50px;
+                        text-align: center;
+                        color: #52B788;
+                        font-size: 12px;
+                        border-top: 1px solid #B7E4C7;
+                        padding-top: 20px;
+                    }
+
+                    .text-right { text-align: right; }
+                    .text-center { text-align: center; }
+                    .font-bold { font-weight: bold; }
+
+                    @media print {
+                        body { margin: 0; padding: 0; }
+                        .invoice-container { box-shadow: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="invoice-container">
+                    <!-- HEADER -->
+                    <div class="header">
+                        <div class="logo">🏥</div>
+                        <div class="clinic-name">CLÍNICA VETERINARIA</div>
+                        <div class="clinic-info">
+                            NIT: 123.456.789-0 | Tel: (601) 234-5678<br>
+                            Dirección: Calle 123 #45-67, Bogotá, Colombia<br>
+                            Email: info@clinicaveterinaria.com
+                        </div>
+                        <div class="invoice-title">FACTURA DE VENTA</div>
+                        <div class="invoice-number">No. ${invoice.id}</div>
+                    </div>
+
+                    <!-- DETALLES DE FACTURA -->
+                    <div class="invoice-details">
+                        <div class="client-info">
+                            <div class="section-title">👤 INFORMACIÓN DEL CLIENTE</div>
+                            <div class="info-row">
+                                <span class="info-label">Nombre:</span>
+                                <span class="info-value">${client ? `${client.first_name} ${client.last_name}` : (invoice.client_name || 'Cliente desconocido')}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Email:</span>
+                                <span class="info-value">${client?.email || 'N/A'}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Teléfono:</span>
+                                <span class="info-value">${client?.phone || 'N/A'}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Mascota:</span>
+                                <span class="info-value">${pet ? `${pet.name} (${getSpeciesLabel(pet.species)})` : (invoice.pet_name || 'Mascota desconocida')}</span>
+                            </div>
+                        </div>
+
+                        <div class="invoice-info">
+                            <div class="section-title">📋 INFORMACIÓN DE FACTURA</div>
+                            <div class="info-row">
+                                <span class="info-label">Fecha:</span>
+                                <span class="info-value">${formatDate(invoice.invoice_date)}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Hora:</span>
+                                <span class="info-value">${new Date(invoice.invoice_date).toLocaleTimeString('es-CO')}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Método Pago:</span>
+                                <span class="info-value">${getPaymentMethodLabel(invoice.payment_method)}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Estado:</span>
+                                <span class="info-value">${getStatusText(invoice.status)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TABLA DE MEDICAMENTOS -->
+                    <table class="medications-table">
+                        <thead>
+                            <tr>
+                                <th>💊 Medicamento/Servicio</th>
+                                <th class="text-center">Cantidad</th>
+                                <th class="text-right">Precio Unitario</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${invoice.medications ? invoice.medications.map(med => `
+                                <tr>
+                                    <td>
+                                        <strong>${med.name}</strong><br>
+                                        <small style="color: #52B788;">${med.presentation || ''} ${med.concentration || ''}</small>
+                                    </td>
+                                    <td class="text-center">${med.quantity}</td>
+                                    <td class="text-right">${formatPrice(med.unit_price)}</td>
+                                    <td class="text-right font-bold">${formatPrice(med.unit_price * med.quantity)}</td>
+                                </tr>
+                            `).join('') : `
+                                <tr>
+                                    <td colspan="4" class="text-center">No hay medicamentos registrados</td>
+                                </tr>
+                            `}
+                        </tbody>
+                    </table>
+
+                    <!-- TOTALES -->
+                    <div class="totals-section">
+                        <table class="totals-table">
+                            <tr>
+                                <td class="label">Subtotal:</td>
+                                <td class="amount">${formatPrice(subtotal)}</td>
+                            </tr>
+                            <tr>
+                                <td class="label">IVA (19%):</td>
+                                <td class="amount">${formatPrice(taxes)}</td>
+                            </tr>
+                            <tr class="total-row">
+                                <td class="label">TOTAL:</td>
+                                <td class="amount">${formatPrice(total)}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- OBSERVACIONES -->
+                    ${invoice.observations ? `
+                        <div class="observations">
+                            <div class="observations-title">📝 Observaciones:</div>
+                            <div>${invoice.observations}</div>
+                        </div>
+                    ` : ''}
+
+                    <!-- PIE DE PÁGINA -->
+                    <div class="footer">
+                        <p><strong>¡Gracias por confiar en nosotros para el cuidado de tu mascota!</strong></p>
+                        <p>Esta factura fue generada desde la base de datos el ${new Date().toLocaleString('es-CO')}</p>
+                        <p>Para consultas sobre esta factura, contáctanos al (601) 234-5678</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+    }
+
+    // =============== EXPORTAR HISTORIAL ===============
+    async function exportHistory() {
+        console.log('📊 Exportando historial desde la base de datos...');
+
+        try {
+            // Intentar exportar desde el servidor
+            const response = await fetch('/api/admin/billing/export/excel', {
+                method: 'GET',
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `historial_facturacion_${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                showNotification('Historial exportado exitosamente desde la base de datos', 'success');
+                console.log('✅ Historial exportado como Excel desde servidor');
+            } else {
+                throw new Error('Error exportando desde el servidor');
+            }
+
+        } catch (error) {
+            console.error('❌ Error exportando desde servidor:', error);
+
+            // Fallback: exportar como CSV del lado del cliente usando datos de la base de datos
+            console.log('⚠️ Usando fallback para exportar como CSV...');
+            exportHistoryAsCSV();
+        }
+    }
+
+    function exportHistoryAsCSV() {
+        try {
+            if (filteredInvoices.length === 0) {
+                showNotification('No hay datos para exportar', 'warning');
+                return;
+            }
+
+            console.log(`📊 Exportando ${filteredInvoices.length} facturas como CSV...`);
+
+            // Preparar datos para CSV usando información de la base de datos
+            const csvData = filteredInvoices.map(invoice => {
+                const client = clients.find(c => c.id === invoice.client_id);
+                const pet = pets.find(p => p.id === invoice.pet_id);
+
+                return {
+                    'ID': invoice.id,
+                    'Fecha': formatDate(invoice.invoice_date),
+                    'Cliente': client ? `${client.first_name} ${client.last_name}` : (invoice.client_name || 'Cliente desconocido'),
+                    'Mascota': pet ? pet.name : (invoice.pet_name || 'Mascota desconocida'),
+                    'Total': invoice.total_amount,
+                    'Método de Pago': getPaymentMethodLabel(invoice.payment_method),
+                    'Estado': getStatusText(invoice.status),
+                    'Observaciones': invoice.observations || ''
+                };
+            });
+
+            // Generar CSV
+            const csvContent = convertToCSV(csvData);
+
+            // Descargar
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `historial_facturacion_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+
+            showNotification('Historial exportado como CSV exitosamente', 'success');
+            console.log('✅ Historial exportado como CSV');
+
+        } catch (error) {
+            console.error('❌ Error exportando CSV:', error);
+            showNotification('Error exportando historial: ' + error.message, 'error');
+        }
+    }
+
+    function convertToCSV(data) {
+        if (data.length === 0) return '';
+
+        const headers = Object.keys(data[0]);
+        const csvHeaders = headers.join(',');
+
+        const csvRows = data.map(row =>
+            headers.map(header => {
+                const value = row[header] || '';
+                // Escapar comillas y encerrar en comillas si contiene comas
+                return `"${value.toString().replace(/"/g, '""')}"`;
+            }).join(',')
+        );
+
+        return [csvHeaders, ...csvRows].join('\n');
+    }
+
+    // =============== LIMPIAR FORMULARIO ===============
+    function clearForm() {
+        if (selectedMedications.length > 0) {
+            if (!confirm('¿Estás seguro de que quieres limpiar el formulario? Se perderán todos los medicamentos seleccionados.')) {
+                return;
+            }
+        }
+
+        console.log('🧹 Limpiando formulario...');
+
+        // Limpiar formulario
+        const form = document.getElementById('billingForm');
+        if (form) form.reset();
+
+        // Limpiar arrays
+        selectedMedications = [];
+        currentInvoice = null;
+
+        // Actualizar interfaz
+        updateSelectedMedicationsDisplay();
+        updateTotal();
+
+        // Deshabilitar botones de descarga e impresión
+        const downloadBtn = document.getElementById('downloadPDFBtn');
+        const printBtn = document.getElementById('printInvoiceBtn');
+
+        if (downloadBtn) downloadBtn.disabled = true;
+        if (printBtn) printBtn.disabled = true;
+
+        // Limpiar errores de validación
+        clearAllValidationErrors();
+
+        showNotification('Formulario limpiado exitosamente', 'info');
+        console.log('✅ Formulario limpiado');
+    }
+
+    // =============== NAVEGACIÓN ENTRE TABS ===============
+    function showTab(tabName) {
+        console.log(`🔄 Cambiando a tab: ${tabName}`);
+
+        try {
+            // Ocultar todos los tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Remover clase active de todos los botones
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Mostrar tab seleccionado
+            const targetTab = document.getElementById(tabName);
+            if (targetTab) {
+                targetTab.classList.add('active');
+                console.log(`✅ Tab ${tabName} activado`);
+            } else {
+                console.error(`❌ Tab ${tabName} no encontrado`);
+                showNotification(`Error: Pestaña ${tabName} no encontrada`, 'error');
+                return;
+            }
+
+            // Activar botón correspondiente
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => {
+                const onclick = btn.getAttribute('onclick');
+                if (onclick && onclick.includes(`showTab('${tabName}')`)) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Cargar datos específicos del tab desde la base de datos
+            switch(tabName) {
+                case 'history':
+                    console.log('📋 Cargando historial desde la base de datos...');
+                    setTimeout(() => loadInvoiceHistory(), 100);
+                    break;
+                case 'billing':
+                    console.log('💰 Tab de facturación activo');
+                    break;
+                default:
+                    console.log(`📌 Tab desconocido: ${tabName}`);
+            }
+
+            showNotification(`Cambiado a ${tabName}`, 'info');
+
+        } catch (error) {
+            console.error('❌ Error en showTab:', error);
+            showNotification('Error cambiando de pestaña: ' + error.message, 'error');
+        }
+    }
+
+    // =============== FUNCIONES DE VALIDACIÓN FALTANTES ===============
+function validateOwner() {
+    const ownerId = document.getElementById('ownerId');
+    if (ownerId && ownerId.value) {
+        clearValidationError('ownerId');
+        showValidationSuccess('ownerId');
+        console.log(`✅ Propietario seleccionado: ${ownerId.value}`);
+    } else {
+        showValidationError('ownerId', 'Debe seleccionar un propietario');
+    }
+}
+
+function validatePet() {
+    const petId = document.getElementById('petId');
+    if (petId && petId.value) {
+        clearValidationError('petId');
+        showValidationSuccess('petId');
+        console.log(`✅ Mascota seleccionada: ${petId.value}`);
+    } else {
+        showValidationError('petId', 'Debe seleccionar una mascota');
+    }
+}
+
+function validatePaymentMethod() {
+    const paymentMethod = document.getElementById('paymentMethod');
+    if (paymentMethod && paymentMethod.value) {
+        clearValidationError('paymentMethod');
+        showValidationSuccess('paymentMethod');
+        console.log(`✅ Método de pago seleccionado: ${paymentMethod.value}`);
+    } else {
+        showValidationError('paymentMethod', 'Debe seleccionar un método de pago');
+    }
+}
+
+function showValidationError(fieldId, message) {
+    const field = document.getElementById(fieldId);
+    const errorElement = document.getElementById(fieldId + 'Error');
+
+    if (field) {
+        field.classList.add('error');
+        field.classList.remove('success');
+    }
+
+    if (errorElement) {
+        errorElement.textContent = message;
+    }
+}
+
+function showValidationSuccess(fieldId) {
+    const field = document.getElementById(fieldId);
+    const errorElement = document.getElementById(fieldId + 'Error');
+
+    if (field) {
+        field.classList.remove('error');
+        field.classList.add('success');
+    }
+
+    if (errorElement) {
+        errorElement.textContent = '';
+    }
+}
+
+function clearValidationError(fieldId) {
+    const field = document.getElementById(fieldId);
+    const errorElement = document.getElementById(fieldId + 'Error');
+
+    if (field) {
+        field.classList.remove('error', 'success');
+    }
+
+    if (errorElement) {
+        errorElement.textContent = '';
+    }
+}
+
+function clearAllValidationErrors() {
+    document.querySelectorAll('.form-control').forEach(field => {
+        field.classList.remove('error', 'success');
+    });
+
+    document.querySelectorAll('.error-message').forEach(errorElement => {
+        errorElement.textContent = '';
+    });
+}
+
+// =============== FUNCIONES DE UTILIDAD FALTANTES ===============
+function formatPrice(price) {
+    return new Intl.NumberFormat('es-CO', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(price || 0);
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-CO', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+    } catch {
+        return 'Fecha inválida';
+    }
+}
+
+function getSpeciesLabel(species) {
+    const labels = {
+        'perro': '🐕 Perro',
+        'gato': '🐱 Gato',
+        'ave': '🦜 Ave',
+        'conejo': '🐰 Conejo',
+        'hamster': '🐹 Hámster',
+        'otro': '🐾 Otro'
+    };
+    return labels[species] || '🐾 Desconocido';
+}
+
+function getPaymentMethodLabel(method) {
+    const labels = {
+        'cash': '💵 Efectivo',
+        'card': '💳 Tarjeta',
+        'transfer': '🏦 Transferencia'
+    };
+    return labels[method] || method;
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'paid': '<span class="status-badge status-paid">✅ Pagada</span>',
+        'pending': '<span class="status-badge status-pending">⏳ Pendiente</span>',
+        'cancelled': '<span class="status-badge status-cancelled">❌ Cancelada</span>'
+    };
+    return badges[status] || `<span class="status-badge">${status}</span>`;
+}
+
+function getStatusText(status) {
+    const texts = {
+        'paid': 'Pagada',
+        'pending': 'Pendiente',
+        'cancelled': 'Cancelada'
+    };
+    return texts[status] || status || 'Desconocido';
+}
+
+function showLoadingMessage(message) {
+    console.log(`⏳ ${message}`);
+    // Función para mostrar mensajes de carga en consola
+}
+
+// =============== NOTIFICACIONES MEJORADAS ===============
+function showNotification(message, type = 'info') {
+    console.log(`${type.toUpperCase()}: ${message}`);
+
+    try {
+        // Remover notificaciones existentes
+        document.querySelectorAll('.notification').forEach(n => n.remove());
+
+        // Crear nueva notificación
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+
+        // Agregar icono según el tipo
+        const icons = {
+            'success': '✅',
+            'error': '❌',
+            'warning': '⚠️',
+            'info': 'ℹ️'
+        };
+
+        notification.innerHTML = `
+            <span style="margin-right: 10px;">${icons[type] || 'ℹ️'}</span>
+            <span>${message}</span>
+        `;
+
+        // Agregar al DOM
+        document.body.appendChild(notification);
+
+        // Auto-remover después de 5 segundos
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.style.animation = 'slideOutRight 0.3s ease forwards';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }
+        }, 5000);
+
+    } catch (error) {
+        console.error('Error mostrando notificación:', error);
+    }
+}
+
+// Funciones de utilidad que faltan
+function formatPrice(price) {
+    return new Intl.NumberFormat('es-CO', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(price || 0);
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-CO', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+    } catch {
+        return 'Fecha inválida';
+    }
+}
+
+function getSpeciesLabel(species) {
+    const labels = {
+        'perro': '🐕 Perro',
+        'gato': '🐱 Gato',
+        'ave': '🦜 Ave',
+        'conejo': '🐰 Conejo',
+        'hamster': '🐹 Hámster',
+        'otro': '🐾 Otro'
+    };
+    return labels[species] || '🐾 Desconocido';
+}
+
+function getPaymentMethodLabel(method) {
+    const labels = {
+        'cash': '💵 Efectivo',
+        'card': '💳 Tarjeta',
+        'transfer': '🏦 Transferencia'
+    };
+    return labels[method] || method;
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'paid': '<span class="status-badge status-paid">✅ Pagada</span>',
+        'pending': '<span class="status-badge status-pending">⏳ Pendiente</span>',
+        'cancelled': '<span class="status-badge status-cancelled">❌ Cancelada</span>'
+    };
+    return badges[status] || `<span class="status-badge">${status}</span>`;
+}
+
+function getStatusText(status) {
+    const texts = {
+        'paid': 'Pagada',
+        'pending': 'Pendiente',
+        'cancelled': 'Cancelada'
+    };
+    return texts[status] || status || 'Desconocido';
+}
+
+// Funciones de validación que faltan
+function showValidationError(fieldId, message) {
+    const field = document.getElementById(fieldId);
+    const errorElement = document.getElementById(fieldId + 'Error');
+
+    if (field) {
+        field.classList.add('error');
+        field.classList.remove('success');
+    }
+
+    if (errorElement) {
+        errorElement.textContent = message;
+    }
+}
+
+function showValidationSuccess(fieldId) {
+    const field = document.getElementById(fieldId);
+    const errorElement = document.getElementById(fieldId + 'Error');
+
+    if (field) {
+        field.classList.remove('error');
+        field.classList.add('success');
+    }
+
+    if (errorElement) {
+        errorElement.textContent = '';
+    }
+}
+
+function clearValidationError(fieldId) {
+    const field = document.getElementById(fieldId);
+    const errorElement = document.getElementById(fieldId + 'Error');
+
+    if (field) {
+        field.classList.remove('error', 'success');
+    }
+
+    if (errorElement) {
+        errorElement.textContent = '';
+    }
+}
+
+function clearAllValidationErrors() {
+    document.querySelectorAll('.form-control').forEach(field => {
+        field.classList.remove('error', 'success');
+    });
+
+    document.querySelectorAll('.error-message').forEach(errorElement => {
+        errorElement.textContent = '';
+    });
+}
+
+// Mejorar función showNotification
+function showNotification(message, type = 'info') {
+    console.log(`${type.toUpperCase()}: ${message}`);
+
+    try {
+        // Remover notificaciones existentes
+        document.querySelectorAll('.notification').forEach(n => n.remove());
+
+        // Crear nueva notificación
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+
+        // Agregar icono según el tipo
+        const icons = {
+            'success': '✅',
+            'error': '❌',
+            'warning': '⚠️',
+            'info': 'ℹ️'
+        };
+
+        notification.innerHTML = `
+            <span style="margin-right: 10px;">${icons[type] || 'ℹ️'}</span>
+            <span>${message}</span>
+        `;
+
+        // Agregar al DOM
+        document.body.appendChild(notification);
+
+        // Auto-remover después de 5 segundos
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.style.animation = 'slideOutRight 0.3s ease forwards';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }
+        }, 5000);
+
+    } catch (error) {
+        console.error('Error mostrando notificación:', error);
+    }
+}
+// Función de diagnóstico para mascotas
+function diagnosticPetLoading() {
+    console.log('🔍 === DIAGNÓSTICO DE CARGA DE MASCOTAS ===');
+
+    const ownerId = document.getElementById('ownerId')?.value;
+    console.log(`👤 Propietario seleccionado: ${ownerId}`);
+
+    if (!ownerId) {
+        console.log('❌ No hay propietario seleccionado');
+        return;
+    }
+
+    // Probar ruta específica
+    fetch(`/api/admin/pets/by-owner/${ownerId}`, {
+        credentials: 'include'
+    })
+    .then(response => {
+        console.log(`📡 Ruta específica (/by-owner/${ownerId}): ${response.status}`);
+        return response.json();
+    })
+    .then(data => {
+        console.log('📦 Datos ruta específica:', data);
+    })
+    .catch(error => {
+        console.error('❌ Error ruta específica:', error);
+    });
+
+    // Probar ruta general
+    fetch('/api/admin/pets', {
+        credentials: 'include'
+    })
+    .then(response => {
+        console.log(`📡 Ruta general: ${response.status}`);
+        return response.json();
+    })
+    .then(data => {
+        console.log('📦 Datos ruta general:', data);
+        if (data.pets) {
+            const ownerPets = data.pets.filter(pet => pet.owner_id === ownerId);
+            console.log(`🐕 Mascotas del propietario ${ownerId}: ${ownerPets.length}`);
+            ownerPets.forEach(pet => {
+                console.log(`  - ${pet.name} (${pet.species})`);
+            });
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error ruta general:', error);
+    });
+}
+
+// Hacer función disponible globalmente
+window.diagnosticPetLoading = diagnosticPetLoading;
+
+console.log('✅ Función de diagnóstico agregada correctamente');
+    // =============== FUNCIONES GLOBALES PARA HTML ===============
+    function makeGlobalFunctions() {
+        // Hacer todas las funciones disponibles globalmente para los onclick del HTML
+        window.showTab = showTab;
+        window.loadOwnerPets = loadOwnerPets;
+        window.loadMedicalHistory = loadMedicalHistory;
+        window.addMedication = addMedication;
+        window.removeMedication = removeMedication;
+        window.updateMedicationQuantity = updateMedicationQuantity;
+        window.generateInvoice = generateInvoice;
+        window.downloadPDF = downloadPDF;
+        window.printInvoice = printInvoice;
+        window.clearForm = clearForm;
+        window.searchInvoices = searchInvoices;
+        window.filterInvoices = filterInvoices;
+        window.viewInvoice = viewInvoice;
+        window.downloadInvoicePDF = downloadInvoicePDF;
+        window.exportHistory = exportHistory;
+        window.validateOwner = validateOwner;
+        window.validatePet = validatePet;
+        window.validatePaymentMethod = validatePaymentMethod;
+        window.diagnosticDatabase = diagnosticDatabase;
+        window.checkConnectivity = checkConnectivity;
+        window.diagnosticPetLoading = diagnosticPetLoading;
+        window.loadOwnerPets = loadOwnerPets;
+
+        console.log('✅ Funciones globales asignadas correctamente para interacción con HTML');
+    }
+
+    // =============== FUNCIONES DE DEBUG Y DIAGNÓSTICO ===============
+    function debugDatabaseConnections() {
+        console.log('🔍 Diagnosticando conexiones a la base de datos...');
+        console.log(`📊 Clientes cargados: ${clients.length}`);
+        console.log(`💊 Medicamentos cargados: ${medications.length}`);
+        console.log(`📋 Facturas en historial: ${allInvoices.length}`);
+        console.log(`🐕 Mascotas del cliente actual: ${pets.length}`);
+        console.log(`📅 Citas del cliente actual: ${appointments.length}`);
+    }
+
+    // Hacer función de debug disponible globalmente
+    window.debugDatabaseConnections = debugDatabaseConnections;
+
+    // =============== LOG FINAL DE INICIALIZACIÓN ===============
+    console.log('🎯 Billing Management Script - Versión Completa con Base de Datos Cargada');
+    console.log('📋 Funcionalidades incluidas:');
+    console.log('  ✅ Conexión completa con base de datos');
+    console.log('  ✅ Carga de clientes, mascotas, medicamentos y facturas desde BD');
+    console.log('  ✅ Generación y guardado de facturas en BD');
+    console.log('  ✅ Estadísticas en tiempo real desde BD');
+    console.log('  ✅ Historial completo con búsqueda y filtros');
+    console.log('  ✅ Descarga e impresión de PDF');
+    console.log('  ✅ Exportación de datos (Excel/CSV)');
+    console.log('  ✅ Validación de formularios');
+    console.log('  ✅ Navegación entre tabs');
+    console.log('  ✅ Notificaciones y mensajes de estado');
+    console.log('📞 Para debugging, usa: debugDatabaseConnections()');
+    console.log('🔧 Funciones faltantes agregadas correctamente');
+</script>
+{% endblock %}

@@ -1006,31 +1006,6 @@
                 </div>
             </div>
 
-            <!-- FOTO DE LA MASCOTA -->
-            <div class="form-section">
-                <h2 class="section-title">
-                    <span class="section-icon">📸</span>
-                    Foto de la Mascota <span class="optional-indicator">(opcional pero recomendada)</span>
-                </h2>
-
-                <div class="photo-upload-container" id="photoUploadContainer">
-                    <div class="photo-preview-container" id="photoPreviewContainer">
-                        <div class="photo-placeholder" id="photoPlaceholder">📷</div>
-                        <img id="photoPreview" class="photo-preview" style="display: none;" alt="Vista previa">
-                        <button type="button" class="remove-photo-btn" id="removePhotoBtn" style="display: none;" onclick="removePhoto()">✕</button>
-                    </div>
-                    <div class="photo-upload-text">
-                        <div class="photo-upload-title">✨ Sube una foto de tu mascota ✨</div>
-                        <div class="photo-upload-subtitle">
-                            Haz clic aquí o arrastra una imagen<br>
-                            <small>📱 Formatos: JPG, PNG, GIF • 🔒 Máximo 5MB</small>
-                        </div>
-                    </div>
-                    <input type="file" id="photoInput" name="photo" class="photo-input"
-                           accept="image/jpeg,image/png,image/gif" onchange="handlePhotoSelect(event)">
-                </div>
-            </div>
-
             <!-- SPECTACULAR FORM ACTIONS -->
             <div class="form-actions">
                 <a href="{{ url_for('frontend.client_pets') }}" class="btn btn-secondary">

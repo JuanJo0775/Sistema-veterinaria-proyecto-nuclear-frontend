@@ -1,0 +1,103 @@
+{% extends "client/client_base.html" %}
+
+{% block title %}Historia Clínica de Mascotas{% endblock %}
+
+{% block content %}
+<div class="medical-history-page">
+    <h1 class="page-title">📋 Historia Clínica de tu Mascota</h1>
+
+    <!-- Selector de mascota -->
+    <div class="pet-selector">
+        <label for="petSelect">Selecciona una mascota:</label>
+        <select id="petSelect" class="form-select" onchange="loadMedicalHistory()">
+            <option value="">-- Elegir mascota --</option>
+            {% for pet in pets %}
+                <option value="{{ pet.id }}">{{ pet.name }} ({{ pet.species }})</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Contenedor de historia clínica -->
+    <div id="medicalHistoryContainer" style="margin-top: 30px;">
+        <div id="loadingState" style="display: none;">Cargando historia clínica...</div>
+        <div id="emptyState" style="display: none;">Selecciona una mascota para ver su historia clínica.</div>
+        <div id="historyContent" style="display: none;">
+            <!-- Se llenará dinámicamente con JS -->
+        </div>
+    </div>
+</div>
+
+<script>
+function loadMedicalHistory() {
+    const petId = document.getElementById('petSelect').value;
+    const container = document.getElementById('historyContent');
+    const loading = document.getElementById('loadingState');
+    const empty = document.getElementById('emptyState');
+
+    container.style.display = 'none';
+    empty.style.display = 'none';
+    loading.style.display = 'block';
+
+    if (!petId) {
+        loading.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+    }
+
+    fetch(`/api/client/pets/${petId}/medical-history`)
+        .then(res => res.json())
+        .then(data => {
+            loading.style.display = 'none';
+            if (data.success && data.records.length > 0) {
+                let html = '';
+                data.records.forEach(record => {
+                    html += `
+                        <div class="record-card">
+                            <h3>🩺 ${record.date} - ${record.veterinarian}</h3>
+                            <p><strong>Motivo:</strong> ${record.reason}</p>
+                            <p><strong>Diagnóstico:</strong> ${record.diagnosis}</p>
+                            <p><strong>Tratamiento:</strong> ${record.treatment}</p>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+                container.style.display = 'block';
+            } else {
+                container.innerHTML = '<p>No hay registros médicos disponibles para esta mascota.</p>';
+                container.style.display = 'block';
+            }
+        })
+        .catch(err => {
+            loading.style.display = 'none';
+            container.innerHTML = '<p>Error al cargar la historia clínica.</p>';
+            container.style.display = 'block';
+        });
+}
+</script>
+
+<style>
+.page-title {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    color: #2D6A4F;
+}
+.pet-selector {
+    margin-bottom: 20px;
+}
+.form-select {
+    padding: 10px;
+    border-radius: 8px;
+    border: 2px solid #D8F3DC;
+    width: 100%;
+    max-width: 400px;
+}
+.record-card {
+    background: #fff;
+    border: 1px solid #D8F3DC;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+</style>
+{% endblock %}

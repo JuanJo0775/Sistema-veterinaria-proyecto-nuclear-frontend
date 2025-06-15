@@ -6,8 +6,16 @@ from functools import wraps
 import requests
 from flask import send_from_directory
 import os
-
+import psycopg2
+import psycopg2.extras
+import uuid
+from decimal import Decimal
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
 from frontend.config import role_required
+from flask import Response
 
 frontend_bp = Blueprint('frontend', __name__)
 
@@ -5918,6 +5926,971 @@ def api_client_notifications_count():
                 'pending_appointments': 0
             }
         })
+
+# =============== PANEL DE FACTURACIÓN ===============
+
+@frontend_bp.route('/admin/billing')
+@role_required(['admin', 'receptionist'])
+def admin_billing():
+    """Panel principal de facturación"""
+    try:
+        return render_template('admin/sections/billing-management.html')
+    except Exception as e:
+        print(f"❌ Error en admin_billing: {e}")
+        flash('Error al cargar el panel de facturación', 'error')
+        return redirect(url_for('frontend.admin_dashboard'))
+
+
+# =============== API ENDPOINTS PARA FACTURACIÓN ===============
+
+@frontend_bp.route('/api/admin/billing/owners')
+@role_required(['admin', 'receptionist'])
+def api_get_owners():
+    """API endpoint para obtener todos los propietarios"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        response = requests.get(
+            f"{current_app.config['AUTH_SERVICE_URL']}/auth/users/role/client",
+            headers=headers,
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return jsonify({
+                'success': True,
+                'owners': data.get('users', [])
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Error obteniendo propietarios'}), 400
+
+    except Exception as e:
+        print(f"❌ Error en api_get_owners: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@frontend_bp.route('/api/admin/billing/pets/<int:owner_id>')
+@role_required(['admin', 'receptionist'])
+def api_get_owner_pets(owner_id):
+    """API endpoint para obtener mascotas de un propietario"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        response = requests.get(
+            f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/owner/{owner_id}",
+            headers=headers,
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return jsonify({
+                'success': True,
+                'pets': data.get('pets', [])
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Error obteniendo mascotas'}), 400
+
+    except Exception as e:
+        print(f"❌ Error en api_get_owner_pets: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@frontend_bp.route('/api/admin/billing/medications')
+@role_required(['admin', 'receptionist'])
+def api_get_billing_medications():
+    """API endpoint para obtener todos los medicamentos disponibles"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        response = requests.get(
+            f"{current_app.config['INVENTORY_SERVICE_URL']}/inventory/medications",
+            headers=headers,
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return jsonify({
+                'success': True,
+                'medications': data.get('medications', [])
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Error obteniendo medicamentos'}), 400
+
+    except Exception as e:
+        print(f"❌ Error en api_get_medications: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@frontend_bp.route('/api/admin/billing/medical-history/<int:pet_id>')
+@role_required(['admin', 'receptionist'])
+def api_get_pet_medical_history(pet_id):
+    """API endpoint para obtener historia médica de una mascota"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        response = requests.get(
+            f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/records/pet/{pet_id}",
+            headers=headers,
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return jsonify({
+                'success': True,
+                'medical_records': data.get('medical_records', [])
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Error obteniendo historia médica'}), 400
+
+    except Exception as e:
+        print(f"❌ Error en api_get_pet_medical_history: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@frontend_bp.route('/api/admin/billing/create-invoice', methods=['POST'])
+@role_required(['admin', 'receptionist'])
+def api_create_invoice():
+    """API endpoint para crear una nueva factura"""
+    try:
+        data = request.get_json()
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Aquí enviarías los datos al microservicio correspondiente
+        # Por ejemplo, a un servicio de facturación o al inventario para actualizar stock
+
+        # Datos de la factura
+        invoice_data = {
+            'owner_id': data.get('owner_id'),
+            'pet_id': data.get('pet_id'),
+            'medications': data.get('medications', []),
+            'total': data.get('total'),
+            'created_by': session.get('user_id'),
+            'created_at': datetime.now().isoformat()
+        }
+
+        # Simular creación exitosa
+        return jsonify({
+            'success': True,
+            'message': 'Factura creada exitosamente',
+            'invoice_id': f"INV-{int(time.time())}"
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_create_invoice: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@frontend_bp.route('/api/admin/billing/statistics')
+@role_required(['admin', 'receptionist'])
+def api_get_billing_statistics():
+    """API endpoint para obtener estadísticas de facturación"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Aquí harías las consultas reales a tus microservicios
+        # para obtener estadísticas reales
+
+        stats = {
+            'total_revenue': 15750.50,
+            'total_invoices': 125,
+            'avg_invoice': 126.00,
+            'total_medications': 347,
+            'monthly_revenue': [
+                {'month': 'Enero', 'revenue': 2500},
+                {'month': 'Febrero', 'revenue': 2800},
+                {'month': 'Marzo', 'revenue': 3200},
+                {'month': 'Abril', 'revenue': 2900},
+                {'month': 'Mayo', 'revenue': 3300},
+                {'month': 'Junio', 'revenue': 1000}  # Mes actual parcial
+            ]
+        }
+
+        return jsonify({
+            'success': True,
+            'statistics': stats
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_get_billing_statistics: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@frontend_bp.route('/api/admin/billing/history')
+@role_required(['admin', 'receptionist'])
+def api_get_billing_history():
+    """API endpoint para obtener historial de facturación"""
+    try:
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Parámetros de búsqueda y paginación
+        search = request.args.get('search', '')
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 10))
+
+        # Aquí harías la consulta real a tu microservicio
+        # Por ahora simularemos datos
+
+        history = [
+            {
+                'id': 'INV-001',
+                'date': '2024-06-10',
+                'owner_name': 'Juan Pérez',
+                'pet_name': 'Max',
+                'total': 125.50,
+                'status': 'paid'
+            },
+            {
+                'id': 'INV-002',
+                'date': '2024-06-11',
+                'owner_name': 'María García',
+                'pet_name': 'Luna',
+                'total': 87.25,
+                'status': 'paid'
+            }
+            # ... más datos
+        ]
+
+        return jsonify({
+            'success': True,
+            'invoices': history,
+            'total': len(history),
+            'page': page,
+            'per_page': per_page
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_get_billing_history: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# =============== FUNCIÓN DE CONEXIÓN ===============
+def get_db():
+    """Conexión a PostgreSQL - VERSIÓN MEJORADA"""
+    try:
+        # Obtener configuración de la base de datos
+        host = os.environ.get('POSTGRES_HOST', 'localhost')
+        port = os.environ.get('POSTGRES_PORT', '5432')
+        database = os.environ.get('POSTGRES_DB', 'veterinary-system')
+        user = os.environ.get('POSTGRES_USER', 'postgres')
+        password = os.environ.get('POSTGRES_PASSWORD', 'bocato0731')
+
+        print(f"🔌 Intentando conectar a PostgreSQL: {user}@{host}:{port}/{database}")
+
+        conn = psycopg2.connect(
+            host=host,
+            port=port,
+            database=database,
+            user=user,
+            password=password,
+            connect_timeout=10
+        )
+
+        print("✅ Conexión a PostgreSQL exitosa")
+        return conn
+
+    except psycopg2.OperationalError as e:
+        print(f"❌ Error operacional PostgreSQL: {e}")
+        return None
+    except Exception as e:
+        print(f"❌ Error general conectando BD: {e}")
+        return None
+
+
+# =============== CREAR TABLAS SI NO EXISTEN ===============
+def ensure_billing_tables():
+    """Las tablas ya existen - solo verificar conexión"""
+    try:
+        conn = get_db()
+        if not conn:
+            return False
+
+        cur = conn.cursor()
+
+        # Solo verificar que las tablas existen (no crearlas)
+        cur.execute("""
+            SELECT table_name FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name IN ('invoices', 'invoice_items')
+        """)
+
+        tables = [row[0] for row in cur.fetchall()]
+
+        cur.close()
+        conn.close()
+
+        if 'invoices' in tables and 'invoice_items' in tables:
+            print("✅ Tablas de facturación existen en la base de datos")
+            return True
+        else:
+            print(f"❌ Faltan tablas. Encontradas: {tables}")
+            return False
+
+    except Exception as e:
+        print(f"❌ Error verificando tablas: {e}")
+        return False
+
+
+# =============== OBTENER FACTURAS ===============
+@frontend_bp.route('/api/admin/billing/invoices')
+@role_required(['admin'])
+def api_billing_get_invoices():
+    """Obtener facturas desde la base de datos - VERSIÓN CORREGIDA"""
+    try:
+        print("📊 Obteniendo facturas desde la base de datos...")
+
+        conn = get_db()
+        if not conn:
+            return jsonify({
+                'success': False,
+                'message': 'Error conectando a la base de datos'
+            }), 500
+
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Consulta usando SOLO las columnas que existen
+        query = """
+            SELECT i.id, i.client_id, i.pet_id, i.appointment_id,
+                   i.total_amount, i.subtotal, i.tax_amount, i.medications_cost,
+                   i.payment_method, i.status, i.observations, 
+                   i.invoice_date, i.created_at, i.payment_date,
+                   COALESCE(u.first_name || ' ' || u.last_name, 'Cliente desconocido') as client_name,
+                   COALESCE(u.email, '') as client_email,
+                   COALESCE(p.name, 'Mascota desconocida') as pet_name,
+                   COALESCE(p.species, '') as pet_species
+            FROM invoices i
+            LEFT JOIN users u ON i.client_id = u.id
+            LEFT JOIN pets p ON i.pet_id = p.id
+            ORDER BY i.invoice_date DESC
+            LIMIT 100
+        """
+
+        cur.execute(query)
+        rows = cur.fetchall()
+
+        invoices = []
+        for row in rows:
+            invoice = dict(row)
+            # Convertir Decimal a float para JSON
+            for key, value in invoice.items():
+                if isinstance(value, Decimal):
+                    invoice[key] = float(value)
+                elif isinstance(value, datetime):
+                    invoice[key] = value.isoformat()
+            invoices.append(invoice)
+
+        cur.close()
+        conn.close()
+
+        print(f"✅ {len(invoices)} facturas obtenidas desde la base de datos")
+
+        return jsonify({
+            'success': True,
+            'invoices': invoices,
+            'total': len(invoices)
+        })
+
+    except Exception as e:
+        print(f"❌ Error obteniendo facturas: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
+
+# =============== CREAR FACTURA ===============
+@frontend_bp.route('/api/admin/billing/invoices', methods=['POST'])
+@role_required(['admin'])
+def api_billing_create_invoice():
+    """Crear factura en la base de datos - VERSIÓN CORREGIDA PARA TU ESQUEMA"""
+    try:
+        data = request.get_json()
+        print(f"📝 Creando factura con datos: {data}")
+
+        # Validar datos requeridos
+        if not data.get('client_id'):
+            return jsonify({
+                'success': False,
+                'message': 'client_id es requerido'
+            }), 400
+
+        if not data.get('medications') or len(data.get('medications', [])) == 0:
+            return jsonify({
+                'success': False,
+                'message': 'Debe incluir al menos un medicamento'
+            }), 400
+
+        conn = get_db()
+        if not conn:
+            return jsonify({
+                'success': False,
+                'message': 'Error conectando a la base de datos'
+            }), 500
+
+        cur = conn.cursor()
+
+        # Calcular totales
+        medications = data.get('medications', [])
+        subtotal = sum(float(med.get('unit_price', 0)) * int(med.get('quantity', 1)) for med in medications)
+        tax_rate = 0.19  # 19% IVA
+        tax_amount = subtotal * tax_rate
+        total_amount = subtotal + tax_amount
+
+        print(f"💰 Subtotal: {subtotal}, Impuesto: {tax_amount}, Total: {total_amount}")
+
+        # Crear factura usando SOLO las columnas que existen en tu base de datos
+        invoice_id = str(uuid.uuid4())
+        invoice_date = datetime.now()
+
+        # COLUMNAS CORRECTAS según tu esquema:
+        # id, appointment_id, client_id, total_amount, consultation_fee, medications_cost,
+        # exams_cost, payment_status, payment_date, created_at, pet_id, payment_method,
+        # subtotal, tax_amount, status, observations, invoice_date
+
+        cur.execute("""
+            INSERT INTO invoices (
+                id, client_id, pet_id, appointment_id, total_amount, 
+                subtotal, tax_amount, medications_cost, payment_method, 
+                status, observations, invoice_date, created_at, payment_date
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            invoice_id,
+            data['client_id'],
+            data.get('pet_id'),
+            data.get('appointment_id'),
+            total_amount,
+            subtotal,
+            tax_amount,
+            subtotal,  # medications_cost = subtotal
+            data.get('payment_method', 'cash'),
+            data.get('status', 'paid'),
+            data.get('observations', ''),
+            invoice_date,
+            invoice_date,
+            invoice_date  # payment_date = now for paid invoices
+        ))
+
+        # Crear items de factura usando las columnas correctas
+        for med in medications:
+            item_id = str(uuid.uuid4())
+            quantity = int(med.get('quantity', 1))
+            unit_price = float(med.get('unit_price', 0))
+            total_price = quantity * unit_price
+
+            # COLUMNAS CORRECTAS para invoice_items:
+            # id, invoice_id, medication_id, item_name, item_description,
+            # presentation, concentration, quantity, unit_price, total_price, created_at
+
+            cur.execute("""
+                INSERT INTO invoice_items (
+                    id, invoice_id, medication_id, item_name, item_description,
+                    presentation, concentration, quantity, unit_price, total_price, created_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                item_id,
+                invoice_id,
+                med.get('id'),
+                med.get('name', 'Medicamento'),
+                med.get('description', ''),
+                med.get('presentation', ''),
+                med.get('concentration', ''),
+                quantity,
+                unit_price,
+                total_price,
+                invoice_date
+            ))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        print(f"✅ Factura creada exitosamente: {invoice_id}")
+
+        # Retornar datos de la factura creada
+        invoice_data = {
+            'id': invoice_id,
+            'client_id': data['client_id'],
+            'pet_id': data.get('pet_id'),
+            'total_amount': total_amount,
+            'subtotal': subtotal,
+            'tax_amount': tax_amount,
+            'payment_method': data.get('payment_method', 'cash'),
+            'status': data.get('status', 'paid'),
+            'observations': data.get('observations', ''),
+            'invoice_date': invoice_date.isoformat(),
+            'medications': medications
+        }
+
+        return jsonify({
+            'success': True,
+            'message': 'Factura creada exitosamente',
+            'invoice': invoice_data
+        })
+
+    except Exception as e:
+        print(f"❌ Error creando factura: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
+
+# =============== GENERAR PDF ===============
+@frontend_bp.route('/api/admin/billing/invoices/<invoice_id>/pdf')
+@role_required(['admin'])
+def api_billing_generate_pdf(invoice_id):
+    """Generar PDF de factura"""
+    try:
+        print(f"📄 Generando PDF para factura: {invoice_id}")
+
+        conn = get_db()
+        if not conn:
+            return jsonify({
+                'success': False,
+                'message': 'Error conectando a la base de datos'
+            }), 500
+
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Obtener datos de la factura
+        cur.execute("""
+            SELECT i.*, 
+                   COALESCE(u.first_name || ' ' || u.last_name, 'Cliente desconocido') as client_name,
+                   COALESCE(u.email, '') as client_email,
+                   COALESCE(u.phone, '') as client_phone,
+                   COALESCE(p.name, 'Mascota desconocida') as pet_name,
+                   COALESCE(p.species, '') as pet_species
+            FROM invoices i
+            LEFT JOIN users u ON i.client_id::UUID = u.id
+            LEFT JOIN pets p ON i.pet_id::UUID = p.id
+            WHERE i.id = %s
+        """, (invoice_id,))
+
+        invoice = cur.fetchone()
+        if not invoice:
+            return jsonify({
+                'success': False,
+                'message': 'Factura no encontrada'
+            }), 404
+
+        # Obtener items de la factura
+        cur.execute("""
+            SELECT * FROM invoice_items 
+            WHERE invoice_id = %s 
+            ORDER BY created_at
+        """, (invoice_id,))
+        items = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        # Generar contenido HTML para PDF
+        html_content = generate_invoice_pdf_content(dict(invoice), [dict(item) for item in items])
+
+        # Retornar como HTML para que el navegador lo convierta a PDF
+        return Response(
+            html_content,
+            mimetype='text/html',
+            headers={
+                'Content-Disposition': f'inline; filename=factura_{invoice_id}.html'
+            }
+        )
+
+    except Exception as e:
+        print(f"❌ Error generando PDF: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error generando PDF: {str(e)}'
+        }), 500
+
+
+def generate_invoice_pdf_content(invoice, items):
+    """Generar contenido HTML para PDF de factura"""
+
+    # Calcular totales
+    subtotal = sum(float(item.get('total_price', 0)) for item in items)
+    tax_amount = float(invoice.get('tax_amount', 0))
+    total = float(invoice.get('total_amount', 0))
+
+    items_html = ""
+    for item in items:
+        items_html += f"""
+        <tr>
+            <td>{item.get('item_name', 'Medicamento')}</td>
+            <td style="text-align: center;">{item.get('quantity', 1)}</td>
+            <td style="text-align: right;">${float(item.get('unit_price', 0)):,.2f}</td>
+            <td style="text-align: right;"><strong>${float(item.get('total_price', 0)):,.2f}</strong></td>
+        </tr>
+        """
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Factura #{invoice.get('id', 'N/A')}</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 20px;
+                color: #2D6A4F;
+                line-height: 1.6;
+                background: white;
+            }}
+            .invoice-container {{
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 40px;
+                box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            }}
+            .header {{
+                text-align: center;
+                border-bottom: 3px solid #52B788;
+                padding-bottom: 30px;
+                margin-bottom: 40px;
+            }}
+            .logo {{
+                font-size: 48px;
+                margin-bottom: 10px;
+            }}
+            .clinic-name {{
+                color: #2D6A4F;
+                font-size: 28px;
+                font-weight: bold;
+                margin-bottom: 10px;
+            }}
+            .clinic-info {{
+                color: #52B788;
+                font-size: 14px;
+                margin-bottom: 20px;
+            }}
+            .invoice-title {{
+                font-size: 24px;
+                font-weight: bold;
+                color: #38A3A5;
+                margin-bottom: 10px;
+            }}
+            .invoice-number {{
+                font-size: 18px;
+                color: #2D6A4F;
+            }}
+            .invoice-details {{
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 40px;
+                gap: 40px;
+            }}
+            .client-info, .invoice-info {{
+                flex: 1;
+            }}
+            .section-title {{
+                font-size: 16px;
+                font-weight: bold;
+                color: #52B788;
+                margin-bottom: 15px;
+                border-bottom: 1px solid #B7E4C7;
+                padding-bottom: 5px;
+            }}
+            .info-row {{
+                margin-bottom: 8px;
+                display: flex;
+            }}
+            .info-label {{
+                font-weight: bold;
+                color: #2D6A4F;
+                min-width: 100px;
+            }}
+            .info-value {{
+                color: #2D6A4F;
+            }}
+            .items-table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin: 30px 0;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            }}
+            .items-table th {{
+                background: #52B788;
+                color: white;
+                padding: 15px 10px;
+                text-align: left;
+                font-weight: bold;
+                border-bottom: 2px solid #2D6A4F;
+            }}
+            .items-table td {{
+                padding: 12px 10px;
+                border-bottom: 1px solid #B7E4C7;
+                color: #2D6A4F;
+            }}
+            .items-table tr:nth-child(even) {{
+                background: #F8FDF9;
+            }}
+            .items-table tr:hover {{
+                background: #D8F3DC;
+            }}
+            .totals-section {{
+                margin-top: 40px;
+                border-top: 2px solid #52B788;
+                padding-top: 20px;
+            }}
+            .totals-table {{
+                width: 300px;
+                margin-left: auto;
+                border-collapse: collapse;
+            }}
+            .totals-table td {{
+                padding: 8px 15px;
+                color: #2D6A4F;
+            }}
+            .totals-table .label {{
+                font-weight: bold;
+                text-align: right;
+                border-right: 1px solid #B7E4C7;
+            }}
+            .totals-table .amount {{
+                text-align: right;
+                font-weight: bold;
+            }}
+            .total-row {{
+                background: #52B788;
+                color: white !important;
+                font-size: 18px;
+            }}
+            .total-row td {{
+                color: white !important;
+                padding: 12px 15px;
+            }}
+            .observations {{
+                margin-top: 30px;
+                padding: 20px;
+                background: #D8F3DC;
+                border-radius: 10px;
+                border-left: 5px solid #52B788;
+            }}
+            .observations-title {{
+                font-weight: bold;
+                color: #2D6A4F;
+                margin-bottom: 10px;
+            }}
+            .footer {{
+                margin-top: 50px;
+                text-align: center;
+                color: #52B788;
+                font-size: 12px;
+                border-top: 1px solid #B7E4C7;
+                padding-top: 20px;
+            }}
+            @media print {{
+                body {{ margin: 0; padding: 0; }}
+                .invoice-container {{ box-shadow: none; }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="invoice-container">
+            <!-- HEADER -->
+            <div class="header">
+                <div class="logo">🏥</div>
+                <div class="clinic-name">CLÍNICA VETERINARIA</div>
+                <div class="clinic-info">
+                    NIT: 123.456.789-0 | Tel: (601) 234-5678<br>
+                    Dirección: Calle 123 #45-67, Bogotá, Colombia<br>
+                    Email: info@clinicaveterinaria.com
+                </div>
+                <div class="invoice-title">FACTURA DE VENTA</div>
+                <div class="invoice-number">No. {invoice.get('id', 'N/A')}</div>
+            </div>
+
+            <!-- DETALLES DE FACTURA -->
+            <div class="invoice-details">
+                <div class="client-info">
+                    <div class="section-title">👤 INFORMACIÓN DEL CLIENTE</div>
+                    <div class="info-row">
+                        <span class="info-label">Nombre:</span>
+                        <span class="info-value">{invoice.get('client_name', 'Cliente desconocido')}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Email:</span>
+                        <span class="info-value">{invoice.get('client_email', 'N/A')}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Teléfono:</span>
+                        <span class="info-value">{invoice.get('client_phone', 'N/A')}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Mascota:</span>
+                        <span class="info-value">{invoice.get('pet_name', 'N/A')} ({invoice.get('pet_species', '')})</span>
+                    </div>
+                </div>
+
+                <div class="invoice-info">
+                    <div class="section-title">📋 INFORMACIÓN DE FACTURA</div>
+                    <div class="info-row">
+                        <span class="info-label">Fecha:</span>
+                        <span class="info-value">{invoice.get('invoice_date', '')[:10] if invoice.get('invoice_date') else 'N/A'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Hora:</span>
+                        <span class="info-value">{invoice.get('invoice_date', '')[-8:-3] if invoice.get('invoice_date') else 'N/A'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Método Pago:</span>
+                        <span class="info-value">{invoice.get('payment_method', 'N/A').title()}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Estado:</span>
+                        <span class="info-value">{invoice.get('status', 'N/A').title()}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABLA DE MEDICAMENTOS -->
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>💊 Medicamento/Servicio</th>
+                        <th style="text-align: center;">Cantidad</th>
+                        <th style="text-align: right;">Precio Unitario</th>
+                        <th style="text-align: right;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {items_html if items_html else '<tr><td colspan="4" style="text-align: center;">No hay medicamentos registrados</td></tr>'}
+                </tbody>
+            </table>
+
+            <!-- TOTALES -->
+            <div class="totals-section">
+                <table class="totals-table">
+                    <tr>
+                        <td class="label">Subtotal:</td>
+                        <td class="amount">${subtotal:,.2f}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">IVA (19%):</td>
+                        <td class="amount">${tax_amount:,.2f}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td class="label">TOTAL:</td>
+                        <td class="amount">${total:,.2f}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- OBSERVACIONES -->
+            {f'''
+            <div class="observations">
+                <div class="observations-title">📝 Observaciones:</div>
+                <div>{invoice.get("observations", "")}</div>
+            </div>
+            ''' if invoice.get('observations') else ''}
+
+            <!-- PIE DE PÁGINA -->
+            <div class="footer">
+                <p><strong>¡Gracias por confiar en nosotros para el cuidado de tu mascota!</strong></p>
+                <p>Esta factura fue generada el {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</p>
+                <p>Para consultas sobre esta factura, contáctanos al (601) 234-5678</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+# =============== EXPORTAR CSV ===============
+@frontend_bp.route('/api/admin/billing/export/excel')
+@role_required(['admin'])
+def api_billing_export_csv():
+    """Exportar facturas a CSV"""
+    try:
+        print("📊 Exportando facturas a CSV...")
+
+        conn = get_db()
+        if not conn:
+            return jsonify({
+                'success': False,
+                'message': 'Error conectando a la base de datos'
+            }), 500
+
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        cur.execute("""
+            SELECT i.id, i.invoice_date, 
+                   COALESCE(u.first_name || ' ' || u.last_name, 'Cliente desconocido') as cliente,
+                   COALESCE(p.name, 'Mascota desconocida') as mascota, 
+                   i.total_amount, i.payment_method, i.status
+            FROM invoices i
+            LEFT JOIN users u ON i.client_id::UUID = u.id
+            LEFT JOIN pets p ON i.pet_id::UUID = p.id
+            ORDER BY i.invoice_date DESC
+        """)
+
+        output = io.StringIO()
+        import csv
+        writer = csv.writer(output)
+
+        # Escribir encabezados
+        writer.writerow(['ID', 'Fecha', 'Cliente', 'Mascota', 'Total', 'Método de Pago', 'Estado'])
+
+        # Escribir datos
+        for row in cur.fetchall():
+            writer.writerow([
+                row['id'],
+                row['invoice_date'].strftime('%Y-%m-%d %H:%M:%S') if row['invoice_date'] else '',
+                row['cliente'],
+                row['mascota'],
+                float(row['total_amount']) if row['total_amount'] else 0,
+                row['payment_method'],
+                row['status']
+            ])
+
+        cur.close()
+        conn.close()
+
+        output.seek(0)
+
+        print("✅ CSV generado exitosamente")
+
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename=facturas_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+            }
+        )
+
+    except Exception as e:
+        print(f"❌ Error exportando CSV: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error exportando CSV: {str(e)}'
+        }), 500
+
+
+# =============== FUNCIÓN PARA INICIALIZAR SISTEMA DE FACTURACIÓN ===============
+def initialize_billing_system():
+    """Inicializar sistema de facturación al arrancar la aplicación"""
+    print("🚀 Inicializando sistema de facturación...")
+
+    # Verificar conexión a base de datos
+    conn = get_db()
+    if conn:
+        print("✅ Conexión a base de datos exitosa")
+        conn.close()
+
+        # Crear tablas si no existen
+        if ensure_billing_tables():
+            print("✅ Tablas de facturación verificadas")
+        else:
+            print("❌ Error creando tablas de facturación")
+    else:
+        print("❌ No se pudo conectar a la base de datos")
+
 
 @frontend_bp.route('/health')
 def health():
