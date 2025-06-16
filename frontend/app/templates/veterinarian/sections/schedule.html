@@ -1,0 +1,823 @@
+{% extends "veterinarian/vet_base.html" %}
+
+{% block title %}Mi Horario de Trabajo{% endblock %}
+{% block page_title %}⏰ Mi Horario de Trabajo{% endblock %}
+
+{% block custom_styles %}
+<style>
+    /* =============== SCHEDULE SPECIFIC STYLES =============== */
+    .schedule-container {
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        gap: 30px;
+        margin-bottom: 30px;
+    }
+
+    .schedule-main {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(8, 28, 21, 0.08);
+        overflow: hidden;
+    }
+
+    .schedule-header {
+        background: linear-gradient(135deg, #2D6A4F 0%, #22577A 100%);
+        color: white;
+        padding: 25px;
+        text-align: center;
+    }
+
+    .schedule-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+
+    .schedule-subtitle {
+        opacity: 0.9;
+        font-size: 0.95rem;
+    }
+
+    .schedule-content {
+        padding: 30px;
+    }
+
+    /* WEEKLY SCHEDULE GRID */
+    .weekly-schedule {
+        display: grid;
+        gap: 20px;
+    }
+
+    .day-schedule {
+        background: #D8F3DC;
+        border: 2px solid #B7E4C7;
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .day-schedule.active {
+        border-color: #52B788;
+        background: linear-gradient(135deg, #D8F3DC 0%, #B7E4C7 100%);
+    }
+
+    .day-schedule.inactive {
+        background: #f8f9fa;
+        border-color: #e9ecef;
+        opacity: 0.6;
+    }
+
+    .day-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .day-name {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2D6A4F;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .day-toggle {
+        position: relative;
+        width: 60px;
+        height: 30px;
+        background: #ccc;
+        border-radius: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .day-toggle.active {
+        background: #52B788;
+    }
+
+    .day-toggle::after {
+        content: '';
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 24px;
+        height: 24px;
+        background: white;
+        border-radius: 50%;
+        transition: all 0.3s ease;
+    }
+
+    .day-toggle.active::after {
+        left: 33px;
+    }
+
+    .time-settings {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        opacity: 0.5;
+        transition: all 0.3s ease;
+    }
+
+    .day-schedule.active .time-settings {
+        opacity: 1;
+    }
+
+    .time-group {
+        display: grid;
+        gap: 8px;
+    }
+
+    .time-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #52B788;
+    }
+
+    .time-input {
+        padding: 10px 12px;
+        border: 1px solid #B7E4C7;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        background: white;
+        color: #2D6A4F;
+        transition: all 0.3s ease;
+    }
+
+    .time-input:focus {
+        outline: none;
+        border-color: #52B788;
+        box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.1);
+    }
+
+    .time-input:disabled {
+        background: #f8f9fa;
+        color: #999;
+        cursor: not-allowed;
+    }
+
+    /* SCHEDULE SIDEBAR */
+    .schedule-sidebar {
+        display: grid;
+        gap: 25px;
+    }
+
+    .sidebar-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(8, 28, 21, 0.08);
+        overflow: hidden;
+    }
+
+    .sidebar-header {
+        background: linear-gradient(135deg, #38A3A5 0%, #22577A 100%);
+        color: white;
+        padding: 20px;
+        text-align: center;
+    }
+
+    .sidebar-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+
+    .sidebar-content {
+        padding: 20px;
+    }
+
+    /* SCHEDULE SUMMARY */
+    .schedule-summary {
+        display: grid;
+        gap: 15px;
+    }
+
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        background: #D8F3DC;
+        border-radius: 8px;
+    }
+
+    .summary-label {
+        font-weight: 600;
+        color: #2D6A4F;
+        font-size: 0.9rem;
+    }
+
+    .summary-value {
+        color: #52B788;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    /* QUICK ACTIONS */
+    .quick-actions {
+        display: grid;
+        gap: 10px;
+    }
+
+    .action-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 15px;
+        background: #D8F3DC;
+        border: 1px solid #B7E4C7;
+        border-radius: 8px;
+        color: #2D6A4F;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .action-btn:hover {
+        background: #52B788;
+        color: white;
+        border-color: #52B788;
+        transform: translateY(-2px);
+    }
+
+    .action-icon {
+        font-size: 16px;
+    }
+
+    /* SCHEDULE STATS */
+    .schedule-stats {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+
+    .stat-item {
+        text-align: center;
+        padding: 15px;
+        background: linear-gradient(135deg, #D8F3DC 0%, #B7E4C7 100%);
+        border-radius: 10px;
+    }
+
+    .stat-number {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #2D6A4F;
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        color: #52B788;
+        font-weight: 600;
+    }
+
+    /* SAVE CONTROLS */
+    .save-controls {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        padding: 20px;
+        border-top: 1px solid #B7E4C7;
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        box-shadow: 0 -5px 15px rgba(8, 28, 21, 0.08);
+    }
+
+    .save-btn {
+        padding: 12px 30px;
+        border: none;
+        border-radius: 25px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.95rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #52B788 0%, #2D6A4F 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(82, 183, 136, 0.3);
+    }
+
+    .btn-secondary {
+        background: #D8F3DC;
+        color: #2D6A4F;
+        border: 1px solid #B7E4C7;
+    }
+
+    .btn-secondary:hover {
+        background: #B7E4C7;
+    }
+
+    /* LOADING AND SUCCESS STATES */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .loading-overlay.show {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .loading-content {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        text-align: center;
+        color: #2D6A4F;
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #D8F3DC;
+        border-top: 4px solid #52B788;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 15px;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 968px) {
+        .schedule-container {
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .time-settings {
+            grid-template-columns: 1fr;
+        }
+
+        .schedule-stats {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .day-header {
+            flex-direction: column;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .save-controls {
+            flex-direction: column;
+        }
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="schedule-container">
+    <!-- MAIN SCHEDULE -->
+    <div class="schedule-main">
+        <div class="schedule-header">
+            <div class="schedule-title">⏰ Configuración de Horario</div>
+            <div class="schedule-subtitle">Define tus días y horarios de trabajo para que los clientes puedan agendar citas</div>
+        </div>
+
+        <div class="schedule-content">
+            <div class="weekly-schedule" id="weeklySchedule">
+                <!-- Los días se cargarán dinámicamente -->
+                <div class="loading-calendar" style="text-align: center; padding: 40px; color: #52B788;">
+                    <div class="spinner"></div>
+                    <div>Cargando horario...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="save-controls">
+            <button class="save-btn btn-primary" onclick="saveSchedule()">
+                💾 Guardar Horario
+            </button>
+            <button class="save-btn btn-secondary" onclick="resetSchedule()">
+                🔄 Restablecer
+            </button>
+        </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="schedule-sidebar">
+        <!-- RESUMEN DEL HORARIO -->
+        <div class="sidebar-card">
+            <div class="sidebar-header">
+                <div class="sidebar-title">📊 Resumen Semanal</div>
+            </div>
+            <div class="sidebar-content">
+                <div class="schedule-summary" id="scheduleSummary">
+                    <div class="summary-item">
+                        <span class="summary-label">Días laborales:</span>
+                        <span class="summary-value" id="workingDays">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Horas semanales:</span>
+                        <span class="summary-value" id="weeklyHours">0h</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Promedio diario:</span>
+                        <span class="summary-value" id="dailyAverage">0h</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ESTADÍSTICAS -->
+        <div class="sidebar-card">
+            <div class="sidebar-header">
+                <div class="sidebar-title">📈 Esta Semana</div>
+            </div>
+            <div class="sidebar-content">
+                <div class="schedule-stats">
+                    <div class="stat-item">
+                        <div class="stat-number" id="todayAppointments">0</div>
+                        <div class="stat-label">Citas Hoy</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="weekAppointments">0</div>
+                        <div class="stat-label">Esta Semana</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACCIONES RÁPIDAS -->
+        <div class="sidebar-card">
+            <div class="sidebar-header">
+                <div class="sidebar-title">⚡ Acciones Rápidas</div>
+            </div>
+            <div class="sidebar-content">
+                <div class="quick-actions">
+                    <a href="{{ url_for('frontend.veterinarian_calendar') }}" class="action-btn">
+                        <span class="action-icon">📅</span>
+                        <span>Ver Calendario</span>
+                    </a>
+                    <a href="{{ url_for('frontend.veterinarian_appointments') }}" class="action-btn">
+                        <span class="action-icon">📋</span>
+                        <span>Mis Citas</span>
+                    </a>
+                    <button class="action-btn" onclick="copyPreviousWeek()">
+                        <span class="action-icon">📋</span>
+                        <span>Copiar Semana Anterior</span>
+                    </button>
+                    <button class="action-btn" onclick="setDefaultHours()">
+                        <span class="action-icon">⚙️</span>
+                        <span>Horario Por Defecto</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+        <div class="spinner"></div>
+        <div>Guardando horario...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    let currentSchedule = {};
+    let hasUnsavedChanges = false;
+
+    const daysOfWeek = [
+        { key: 'monday', name: 'Lunes', icon: '🗓️' },
+        { key: 'tuesday', name: 'Martes', icon: '🗓️' },
+        { key: 'wednesday', name: 'Miércoles', icon: '🗓️' },
+        { key: 'thursday', name: 'Jueves', icon: '🗓️' },
+        { key: 'friday', name: 'Viernes', icon: '🗓️' },
+        { key: 'saturday', name: 'Sábado', icon: '🗓️' },
+        { key: 'sunday', name: 'Domingo', icon: '⛪' }
+    ];
+
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('⏰ Inicializando Configuración de Horario...');
+
+        loadVeterinarianSchedule();
+        loadScheduleStats();
+        setupBeforeUnload();
+    });
+
+    async function loadVeterinarianSchedule() {
+        try {
+            showLoading();
+
+            const response = await makeAuthenticatedRequest('/api/veterinarian/schedule');
+
+            if (response.success) {
+                currentSchedule = response.schedule || {};
+                console.log('✅ Horario cargado:', currentSchedule);
+            } else {
+                console.log('📝 Creando horario por defecto');
+                currentSchedule = createDefaultSchedule();
+            }
+
+            renderSchedule();
+            updateSummary();
+
+        } catch (error) {
+            console.error('❌ Error cargando horario:', error);
+            showNotification('Error cargando el horario', 'error');
+            currentSchedule = createDefaultSchedule();
+            renderSchedule();
+        }
+    }
+
+    function renderSchedule() {
+        const container = document.getElementById('weeklySchedule');
+
+        let html = '';
+
+        daysOfWeek.forEach(day => {
+            const dayData = currentSchedule[day.key] || { active: false, start: '08:00', end: '17:00', break_start: '12:00', break_end: '13:00' };
+            const isActive = dayData.active;
+
+            html += `
+                <div class="day-schedule ${isActive ? 'active' : 'inactive'}" data-day="${day.key}">
+                    <div class="day-header">
+                        <div class="day-name">
+                            <span>${day.icon}</span>
+                            <span>${day.name}</span>
+                        </div>
+                        <div class="day-toggle ${isActive ? 'active' : ''}" onclick="toggleDay('${day.key}')"></div>
+                    </div>
+
+                    <div class="time-settings">
+                        <div class="time-group">
+                            <label class="time-label">Hora de inicio</label>
+                            <input type="time" class="time-input" value="${dayData.start}"
+                                   onchange="updateTime('${day.key}', 'start', this.value)"
+                                   ${!isActive ? 'disabled' : ''}>
+                        </div>
+
+                        <div class="time-group">
+                            <label class="time-label">Hora de fin</label>
+                            <input type="time" class="time-input" value="${dayData.end}"
+                                   onchange="updateTime('${day.key}', 'end', this.value)"
+                                   ${!isActive ? 'disabled' : ''}>
+                        </div>
+
+                        <div class="time-group">
+                            <label class="time-label">Inicio almuerzo</label>
+                            <input type="time" class="time-input" value="${dayData.break_start}"
+                                   onchange="updateTime('${day.key}', 'break_start', this.value)"
+                                   ${!isActive ? 'disabled' : ''}>
+                        </div>
+
+                        <div class="time-group">
+                            <label class="time-label">Fin almuerzo</label>
+                            <input type="time" class="time-input" value="${dayData.break_end}"
+                                   onchange="updateTime('${day.key}', 'break_end', this.value)"
+                                   ${!isActive ? 'disabled' : ''}>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function toggleDay(dayKey) {
+        const dayData = currentSchedule[dayKey] || {};
+        dayData.active = !dayData.active;
+
+        if (!dayData.active) {
+            // Si se desactiva, mantener los horarios pero desactivar
+            dayData.start = dayData.start || '08:00';
+            dayData.end = dayData.end || '17:00';
+            dayData.break_start = dayData.break_start || '12:00';
+            dayData.break_end = dayData.break_end || '13:00';
+        } else {
+            // Si se activa, usar horarios por defecto si no existen
+            dayData.start = dayData.start || '08:00';
+            dayData.end = dayData.end || '17:00';
+            dayData.break_start = dayData.break_start || '12:00';
+            dayData.break_end = dayData.break_end || '13:00';
+        }
+
+        currentSchedule[dayKey] = dayData;
+        hasUnsavedChanges = true;
+
+        renderSchedule();
+        updateSummary();
+
+        console.log(`📅 ${dayKey} ${dayData.active ? 'activado' : 'desactivado'}`);
+    }
+
+    function updateTime(dayKey, timeType, value) {
+        if (!currentSchedule[dayKey]) {
+            currentSchedule[dayKey] = { active: true };
+        }
+
+        currentSchedule[dayKey][timeType] = value;
+        hasUnsavedChanges = true;
+
+        updateSummary();
+
+        console.log(`⏰ ${dayKey} ${timeType}: ${value}`);
+    }
+
+    function updateSummary() {
+        let workingDays = 0;
+        let totalHours = 0;
+
+        daysOfWeek.forEach(day => {
+            const dayData = currentSchedule[day.key];
+            if (dayData && dayData.active) {
+                workingDays++;
+
+                // Calcular horas del día
+                const startTime = parseTime(dayData.start);
+                const endTime = parseTime(dayData.end);
+                const breakStart = parseTime(dayData.break_start);
+                const breakEnd = parseTime(dayData.break_end);
+
+                let dayHours = (endTime - startTime) / 60; // Convertir a horas
+                let breakHours = (breakEnd - breakStart) / 60;
+
+                dayHours -= breakHours; // Restar tiempo de almuerzo
+
+                if (dayHours > 0) {
+                    totalHours += dayHours;
+                }
+            }
+        });
+
+        const dailyAverage = workingDays > 0 ? totalHours / workingDays : 0;
+
+        document.getElementById('workingDays').textContent = workingDays;
+        document.getElementById('weeklyHours').textContent = `${totalHours.toFixed(1)}h`;
+        document.getElementById('dailyAverage').textContent = `${dailyAverage.toFixed(1)}h`;
+    }
+
+    function parseTime(timeString) {
+        const [hours, minutes] = timeString.split(':').map(Number);
+        return hours * 60 + minutes; // Retornar en minutos
+    }
+
+    async function saveSchedule() {
+        try {
+            showLoadingOverlay();
+
+            const response = await makeAuthenticatedRequest('/api/admin/schedules/{{ user.id }}', {
+                method: 'PUT',
+                body: JSON.stringify({
+                    weekly_schedule: currentSchedule
+                })
+            });
+
+            if (response.success) {
+                hasUnsavedChanges = false;
+                showNotification('Horario guardado exitosamente', 'success');
+                console.log('✅ Horario guardado correctamente');
+            } else {
+                throw new Error(response.message || 'Error guardando horario');
+            }
+
+        } catch (error) {
+            console.error('❌ Error guardando horario:', error);
+            showNotification('Error guardando el horario', 'error');
+        } finally {
+            hideLoadingOverlay();
+        }
+    }
+
+    function resetSchedule() {
+        if (hasUnsavedChanges) {
+            if (!confirm('¿Estás seguro de que quieres descartar los cambios no guardados?')) {
+                return;
+            }
+        }
+
+        loadVeterinarianSchedule();
+        hasUnsavedChanges = false;
+        showNotification('Horario restablecido', 'info');
+    }
+
+    function setDefaultHours() {
+        const defaultSchedule = {
+            monday: { active: true, start: '08:00', end: '17:00', break_start: '12:00', break_end: '13:00' },
+            tuesday: { active: true, start: '08:00', end: '17:00', break_start: '12:00', break_end: '13:00' },
+            wednesday: { active: true, start: '08:00', end: '17:00', break_start: '12:00', break_end: '13:00' },
+            thursday: { active: true, start: '08:00', end: '17:00', break_start: '12:00', break_end: '13:00' },
+            friday: { active: true, start: '08:00', end: '16:00', break_start: '12:00', break_end: '13:00' },
+            saturday: { active: true, start: '08:00', end: '12:00', break_start: '10:00', break_end: '10:30' },
+            sunday: { active: false, start: '08:00', end: '17:00', break_start: '12:00', break_end: '13:00' }
+        };
+
+        currentSchedule = defaultSchedule;
+        hasUnsavedChanges = true;
+        renderSchedule();
+        updateSummary();
+        showNotification('Horario por defecto aplicado', 'info');
+    }
+
+    function copyPreviousWeek() {
+        // Funcionalidad para copiar la semana anterior (simulada)
+        showNotification('Funcionalidad en desarrollo', 'info');
+    }
+
+    function createDefaultSchedule() {
+        return {
+            monday: { active: false, start: '08:00', end: '17:00', break_start: '12:00', break_end: '13:00' },
+            tuesday: { active: false, start: '08:00', end: '17:00', break_start: '12:00', break_end: '13:00' },
+            wednesday: { active: false, start: '08:00', end: '17:00', break_start: '12:00', break_end: '13:00' },
+            thursday: { active: false, start: '08:00', end: '17:00', break_start: '12:00', break_end: '13:00' },
+            friday: { active: false, start: '08:00', end: '17:00', break_start: '12:00', break_end: '13:00' },
+            saturday: { active: false, start: '08:00', end: '17:00', break_start: '12:00', break_end: '13:00' },
+            sunday: { active: false, start: '08:00', end: '17:00', break_start: '12:00', break_end: '13:00' }
+        };
+    }
+
+    async function loadScheduleStats() {
+        try {
+            const response = await makeAuthenticatedRequest('/api/veterinarian/schedule/stats');
+
+            if (response.success) {
+                const stats = response.stats;
+                document.getElementById('todayAppointments').textContent = stats.today_appointments || 0;
+                document.getElementById('weekAppointments').textContent = stats.week_appointments || 0;
+            }
+        } catch (error) {
+            console.error('❌ Error cargando estadísticas:', error);
+            // Mantener valores por defecto
+        }
+    }
+
+    function showLoadingOverlay() {
+        document.getElementById('loadingOverlay').classList.add('show');
+    }
+
+    function hideLoadingOverlay() {
+        document.getElementById('loadingOverlay').classList.remove('show');
+    }
+
+    function showLoading() {
+        document.getElementById('weeklySchedule').innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #52B788;">
+                <div class="spinner"></div>
+                <div>Cargando horario...</div>
+            </div>
+        `;
+    }
+
+    function setupBeforeUnload() {
+        window.addEventListener('beforeunload', function(e) {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+                return '';
+            }
+        });
+    }
+
+    // Atajos de teclado
+    document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + S: Guardar
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            saveSchedule();
+        }
+
+        // Ctrl/Cmd + R: Restablecer
+        if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+            e.preventDefault();
+            resetSchedule();
+        }
+    });
+
+    console.log('✅ Configuración de Horario inicializada correctamente');
+</script>
+{% endblock %}

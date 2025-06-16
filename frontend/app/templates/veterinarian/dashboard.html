@@ -584,17 +584,17 @@
 
     async function loadVeterinarianDashboardData() {
         try {
-            // Cargar citas de hoy
-            await loadTodayAppointments();
+            console.log('📊 Cargando datos del dashboard...');
 
-            // Cargar pacientes recientes
-            await loadRecentPatients();
+            // Cargar todo en paralelo
+            await Promise.all([
+                loadTodayAppointments(),
+                loadRecentPatients(),
+                loadVeterinarianStats(),
+                checkEmergencies()
+            ]);
 
-            // Cargar estadísticas
-            await loadVeterinarianStats();
-
-            // Verificar emergencias
-            await checkEmergencies();
+            console.log('✅ Datos del dashboard cargados');
 
         } catch (error) {
             console.error('❌ Error cargando datos del dashboard:', error);
@@ -603,13 +603,28 @@
 
     async function loadTodayAppointments() {
         try {
+            console.log('📅 Cargando citas de hoy...');
             showLoading('todayAppointmentsList', 'Cargando citas de hoy...');
 
-            const response = await makeAuthenticatedRequest('/api/veterinarian/appointments/today');
+            const response = await fetch('/api/veterinarian/appointments/today', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${getAuthToken()}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
             const appointmentsList = document.getElementById('todayAppointmentsList');
 
-            if (response.success && response.appointments.length > 0) {
-                const appointmentsHTML = response.appointments.map(appointment => {
+            if (data.success && data.appointments && data.appointments.length > 0) {
+                console.log(`✅ ${data.appointments.length} citas encontradas`);
+
+                const appointmentsHTML = data.appointments.map(appointment => {
                     const priorityClass = getPriorityClass(appointment.priority || 'normal');
                     const priorityText = getPriorityText(appointment.priority || 'normal');
                     const patientIcon = getPatientIcon(appointment.pet_species);
@@ -634,9 +649,10 @@
 
                 appointmentsList.innerHTML = appointmentsHTML;
 
-                // Actualizar contador
-                document.getElementById('todayAppointments').textContent = response.appointments.length;
+                // Actualizar contador en el card
+                document.getElementById('todayAppointments').textContent = data.appointments.length;
             } else {
+                console.log('ℹ️ No hay citas para hoy');
                 // Estado vacío
                 appointmentsList.innerHTML = `
                     <div class="empty-state">
@@ -645,6 +661,9 @@
                         <div class="empty-description">¡Perfecto día para ponerte al día con historias clínicas!</div>
                     </div>
                 `;
+
+                // Actualizar contador
+                document.getElementById('todayAppointments').textContent = '0';
             }
         } catch (error) {
             console.error('❌ Error cargando citas de hoy:', error);
@@ -652,7 +671,7 @@
                 <div class="empty-state">
                     <div class="empty-icon">⚠️</div>
                     <div class="empty-message">Error cargando citas</div>
-                    <div class="empty-description">Inténtalo de nuevo más tarde</div>
+                    <div class="empty-description">Verifica tu conexión e inténtalo de nuevo</div>
                 </div>
             `;
         }
@@ -660,13 +679,28 @@
 
     async function loadRecentPatients() {
         try {
+            console.log('🐕 Cargando pacientes recientes...');
             showLoading('recentPatientsGrid', 'Cargando pacientes recientes...');
 
-            const response = await makeAuthenticatedRequest('/api/veterinarian/patients/recent');
+            const response = await fetch('/api/veterinarian/patients/recent', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${getAuthToken()}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
             const patientsGrid = document.getElementById('recentPatientsGrid');
 
-            if (response.success && response.patients.length > 0) {
-                const patientsHTML = response.patients.map(patient => {
+            if (data.success && data.patients && data.patients.length > 0) {
+                console.log(`✅ ${data.patients.length} pacientes encontrados`);
+
+                const patientsHTML = data.patients.map(patient => {
                     const patientIcon = getPatientIcon(patient.species);
                     const lastVisit = patient.last_visit ?
                         `Última visita: ${formatDate(patient.last_visit)}` :
@@ -684,10 +718,11 @@
 
                 patientsGrid.innerHTML = patientsHTML;
 
-                // Actualizar contador
-                const totalPatients = response.total_patients || response.patients.length;
+                // Actualizar contador en el card
+                const totalPatients = data.total_patients || data.patients.length;
                 document.getElementById('totalPatients').textContent = totalPatients;
             } else {
+                console.log('ℹ️ No hay pacientes recientes');
                 // Estado vacío
                 patientsGrid.innerHTML = `
                     <div class="empty-state" style="grid-column: 1 / -1;">
@@ -696,6 +731,9 @@
                         <div class="empty-description">Cuando atiendas consultas, aparecerán aquí</div>
                     </div>
                 `;
+
+                // Actualizar contador
+                document.getElementById('totalPatients').textContent = '0';
             }
         } catch (error) {
             console.error('❌ Error cargando pacientes recientes:', error);
@@ -703,7 +741,7 @@
                 <div class="empty-state" style="grid-column: 1 / -1;">
                     <div class="empty-icon">⚠️</div>
                     <div class="empty-message">Error cargando pacientes</div>
-                    <div class="empty-description">Inténtalo de nuevo más tarde</div>
+                    <div class="empty-description">Verifica tu conexión e inténtalo de nuevo</div>
                 </div>
             `;
         }
@@ -711,41 +749,68 @@
 
     async function loadVeterinarianStats() {
         try {
-            const response = await makeAuthenticatedRequest('/api/veterinarian/dashboard/stats');
+            console.log('📊 Cargando estadísticas...');
 
-            if (response.success) {
-                const stats = response.stats;
-
-                // Actualizar contadores
-                if (stats.pending_records !== undefined) {
-                    document.getElementById('pendingRecords').textContent = stats.pending_records;
+            const response = await fetch('/api/veterinarian/dashboard/stats', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${getAuthToken()}`
                 }
+            });
 
-                if (stats.completed_today !== undefined) {
-                    document.getElementById('completedToday').textContent = stats.completed_today;
-                }
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
 
-                if (stats.total_patients !== undefined) {
-                    document.getElementById('totalPatients').textContent = stats.total_patients;
+            const data = await response.json();
+
+            if (data.success && data.stats) {
+                console.log('✅ Estadísticas cargadas:', data.stats);
+                const stats = data.stats;
+
+                // Actualizar contadores con animación
+                animateCounter('pendingRecords', stats.pending_records || 0);
+                animateCounter('completedToday', stats.completed_today || 0);
+
+                // Solo actualizar totalPatients si no se actualizó en loadRecentPatients
+                if (stats.total_patients !== undefined && document.getElementById('totalPatients').textContent === '{{ total_patients or 0 }}') {
+                    animateCounter('totalPatients', stats.total_patients);
                 }
+            } else {
+                console.log('⚠️ No se pudieron cargar las estadísticas');
             }
         } catch (error) {
             console.error('❌ Error cargando estadísticas:', error);
+            // Mantener valores por defecto del template
         }
     }
 
     async function checkEmergencies() {
         try {
-            const response = await makeAuthenticatedRequest('/api/veterinarian/emergencies/check');
+            const response = await fetch('/api/veterinarian/emergencies/check', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${getAuthToken()}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
             const emergencyAlert = document.getElementById('emergencyAlert');
 
-            if (response.success && response.has_emergencies) {
+            if (data.success && data.has_emergencies) {
+                console.log(`🚨 ${data.emergency_count} emergencia(s) detectada(s)`);
                 emergencyAlert.classList.add('show');
 
                 // Actualizar mensaje si hay información específica
-                if (response.emergency_count) {
+                if (data.emergency_count) {
                     const messageEl = emergencyAlert.querySelector('.emergency-message');
-                    messageEl.textContent = `Hay ${response.emergency_count} paciente(s) que requieren atención inmediata`;
+                    messageEl.textContent = `Hay ${data.emergency_count} paciente(s) que requieren atención inmediata`;
                 }
             } else {
                 emergencyAlert.classList.remove('show');
@@ -756,18 +821,153 @@
         }
     }
 
+    // =============== FUNCIONES DE UTILIDAD ===============
+
+    function getAuthToken() {
+        // El token se guarda en el localStorage durante el login
+        // Si no está disponible, intentar obtenerlo de la cookie de sesión
+        return localStorage.getItem('auth_token') ||
+               document.cookie.split('; ').find(row => row.startsWith('session='))?.split('=')[1] ||
+               '';
+    }
+
+    function showLoading(elementId, message = 'Cargando...') {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    ${message}
+                </div>
+            `;
+        }
+    }
+
+    function getPriorityClass(priority) {
+        switch (priority?.toLowerCase()) {
+            case 'urgent':
+            case 'urgente':
+                return 'priority-urgent';
+            case 'emergency':
+            case 'emergencia':
+                return 'priority-emergency';
+            case 'high':
+            case 'alta':
+                return 'priority-urgent';
+            default:
+                return 'priority-normal';
+        }
+    }
+
+    function getPriorityText(priority) {
+        switch (priority?.toLowerCase()) {
+            case 'urgent':
+            case 'urgente':
+                return 'Urgente';
+            case 'emergency':
+            case 'emergencia':
+                return 'Emergencia';
+            case 'high':
+            case 'alta':
+                return 'Alta';
+            default:
+                return 'Normal';
+        }
+    }
+
+    function getPatientIcon(species) {
+        switch (species?.toLowerCase()) {
+            case 'perro':
+            case 'dog':
+                return '🐕';
+            case 'gato':
+            case 'cat':
+                return '🐱';
+            case 'conejo':
+            case 'rabbit':
+                return '🐰';
+            case 'ave':
+            case 'bird':
+                return '🐦';
+            case 'pez':
+            case 'fish':
+                return '🐠';
+            case 'hamster':
+                return '🐹';
+            default:
+                return '🐾';
+        }
+    }
+
+    function formatDate(dateString) {
+        try {
+            const date = new Date(dateString);
+            const today = new Date();
+            const diffTime = Math.abs(today - date);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays === 0) {
+                return 'Hoy';
+            } else if (diffDays === 1) {
+                return 'Ayer';
+            } else if (diffDays < 7) {
+                return `Hace ${diffDays} días`;
+            } else {
+                return date.toLocaleDateString('es-ES', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+            }
+        } catch (error) {
+            console.error('Error formateando fecha:', error);
+            return 'Fecha inválida';
+        }
+    }
+
+    function animateCounter(elementId, targetValue) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+
+        const currentValue = parseInt(element.textContent) || 0;
+        const increment = targetValue > currentValue ? 1 : -1;
+        const duration = Math.abs(targetValue - currentValue) * 50; // 50ms por unidad
+        const steps = Math.abs(targetValue - currentValue);
+
+        if (steps === 0) return;
+
+        let currentStep = 0;
+        const interval = setInterval(() => {
+            currentStep++;
+            const newValue = currentValue + (increment * currentStep);
+
+            element.textContent = newValue;
+
+            if (currentStep >= steps) {
+                clearInterval(interval);
+                element.textContent = targetValue;
+            }
+        }, duration / steps);
+    }
+
     // =============== FUNCIONES DE NAVEGACIÓN ===============
+
     function viewAppointmentDetails(appointmentId) {
         console.log(`📋 Viendo detalles de cita: ${appointmentId}`);
+
+        // Redirigir a la página de citas con el ID específico
         window.location.href = `{{ url_for('frontend.veterinarian_appointments') }}?appointment=${appointmentId}`;
     }
 
     function viewPatientDetails(patientId) {
         console.log(`🐕 Viendo detalles de paciente: ${patientId}`);
+
+        // Redirigir a la página de pacientes con el ID específico
         window.location.href = `{{ url_for('frontend.veterinarian_patients') }}?patient=${patientId}`;
     }
 
     // =============== ATAJOS DE TECLADO ===============
+
     document.addEventListener('keydown', function(e) {
         // Ctrl/Cmd + N: Nueva historia clínica
         if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
@@ -786,8 +986,103 @@
             e.preventDefault();
             window.location.href = '{{ url_for('frontend.veterinarian_patients') }}';
         }
+
+        // Ctrl/Cmd + C: Ver calendario
+        if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+            e.preventDefault();
+            window.location.href = '{{ url_for('frontend.veterinarian_calendar') }}';
+        }
+
+        // F5 o Ctrl+R: Refrescar datos
+        if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key === 'r')) {
+            e.preventDefault();
+            loadVeterinarianDashboardData();
+            showNotification('Datos actualizados', 'info');
+        }
     });
 
+    // =============== NOTIFICACIONES ===============
+
+    function showNotification(message, type = 'info') {
+        // Crear elemento de notificación
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <span class="notification-icon">${getNotificationIcon(type)}</span>
+                <span class="notification-message">${message}</span>
+            </div>
+        `;
+
+        // Estilos inline para la notificación
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${getNotificationBg(type)};
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 10000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        `;
+
+        document.body.appendChild(notification);
+
+        // Mostrar notificación
+        setTimeout(() => {
+            notification.style.transform = 'translateX(0)';
+        }, 100);
+
+        // Ocultar después de 3 segundos
+        setTimeout(() => {
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 300);
+        }, 3000);
+    }
+
+    function getNotificationIcon(type) {
+        switch (type) {
+            case 'success': return '✅';
+            case 'error': return '❌';
+            case 'warning': return '⚠️';
+            default: return 'ℹ️';
+        }
+    }
+
+    function getNotificationBg(type) {
+        switch (type) {
+            case 'success': return '#52B788';
+            case 'error': return '#dc3545';
+            case 'warning': return '#ffc107';
+            default: return '#38A3A5';
+        }
+    }
+
+    // =============== MANEJO DE ERRORES DE CONEXIÓN ===============
+
+    window.addEventListener('online', function() {
+        console.log('🌐 Conexión restaurada');
+        showNotification('Conexión restaurada', 'success');
+        loadVeterinarianDashboardData();
+    });
+
+    window.addEventListener('offline', function() {
+        console.log('📴 Sin conexión');
+        showNotification('Sin conexión a internet', 'warning');
+    });
+
+    // =============== INICIALIZACIÓN FINAL ===============
+
     console.log('✅ Dashboard del Veterinario inicializado correctamente');
+
+    // Mostrar notificación de bienvenida
+    setTimeout(() => {
+        showNotification('¡Bienvenido Dr. {{ user_name }}!', 'success');
+    }, 1000);
 </script>
 {% endblock %}

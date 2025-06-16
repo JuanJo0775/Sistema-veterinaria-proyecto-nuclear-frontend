@@ -1,0 +1,894 @@
+{% extends "veterinarian/vet_base.html" %}
+
+{% block title %}Calendario de Citas{% endblock %}
+{% block page_title %}📅 Calendario de Citas{% endblock %}
+
+{% block custom_styles %}
+<style>
+    /* =============== CALENDAR SPECIFIC STYLES =============== */
+    .calendar-container {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(8, 28, 21, 0.08);
+        overflow: hidden;
+        margin-bottom: 30px;
+    }
+
+    .calendar-header {
+        background: linear-gradient(135deg, #2D6A4F 0%, #22577A 100%);
+        color: white;
+        padding: 25px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .calendar-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+
+    .calendar-nav {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .nav-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 16px;
+    }
+
+    .nav-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateY(-2px);
+    }
+
+    .month-year {
+        font-size: 1.2rem;
+        font-weight: 600;
+        min-width: 200px;
+        text-align: center;
+    }
+
+    .calendar-controls {
+        padding: 20px 25px;
+        border-bottom: 1px solid #B7E4C7;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .view-controls {
+        display: flex;
+        gap: 10px;
+    }
+
+    .view-btn {
+        background: #D8F3DC;
+        border: 1px solid #B7E4C7;
+        color: #2D6A4F;
+        padding: 8px 16px;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .view-btn.active,
+    .view-btn:hover {
+        background: #52B788;
+        color: white;
+        border-color: #52B788;
+    }
+
+    .calendar-legend {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+    }
+
+    .legend-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+    }
+
+    .legend-normal { background: #52B788; }
+    .legend-urgent { background: #38A3A5; }
+    .legend-emergency { background: #22577A; }
+
+    /* CALENDAR GRID */
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        border-top: 1px solid #B7E4C7;
+    }
+
+    .calendar-day-header {
+        background: #D8F3DC;
+        color: #2D6A4F;
+        padding: 15px 10px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.9rem;
+        border-right: 1px solid #B7E4C7;
+    }
+
+    .calendar-day-header:last-child {
+        border-right: none;
+    }
+
+    .calendar-day {
+        min-height: 120px;
+        border-right: 1px solid #B7E4C7;
+        border-bottom: 1px solid #B7E4C7;
+        padding: 8px;
+        position: relative;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .calendar-day:last-child {
+        border-right: none;
+    }
+
+    .calendar-day:hover {
+        background: #D8F3DC;
+    }
+
+    .calendar-day.other-month {
+        background: #f8f9fa;
+        color: #999;
+    }
+
+    .calendar-day.today {
+        background: linear-gradient(135deg, #D8F3DC 0%, #B7E4C7 100%);
+        border: 2px solid #52B788;
+    }
+
+    .calendar-day.selected {
+        background: linear-gradient(135deg, #52B788 0%, #2D6A4F 100%);
+        color: white;
+    }
+
+    .day-number {
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 5px;
+        color: #2D6A4F;
+    }
+
+    .calendar-day.selected .day-number {
+        color: white;
+    }
+
+    .appointments-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .appointment-item {
+        background: #52B788;
+        color: white;
+        padding: 4px 6px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        margin-bottom: 2px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .appointment-item:hover {
+        background: #2D6A4F;
+        transform: scale(1.02);
+    }
+
+    .appointment-item.urgent {
+        background: #38A3A5;
+    }
+
+    .appointment-item.emergency {
+        background: #22577A;
+        animation: pulse 2s infinite;
+    }
+
+    .appointment-time {
+        font-weight: 600;
+        margin-right: 4px;
+    }
+
+    /* APPOINTMENT DETAILS MODAL */
+    .appointment-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .appointment-modal.show {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        max-width: 500px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        position: relative;
+        transform: translateY(-50px);
+        transition: transform 0.3s ease;
+    }
+
+    .appointment-modal.show .modal-content {
+        transform: translateY(0);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #B7E4C7;
+    }
+
+    .modal-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: #2D6A4F;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: #52B788;
+        cursor: pointer;
+        padding: 5px;
+        border-radius: 5px;
+        transition: all 0.3s ease;
+    }
+
+    .close-btn:hover {
+        background: #D8F3DC;
+        color: #2D6A4F;
+    }
+
+    .appointment-details {
+        display: grid;
+        gap: 15px;
+    }
+
+    .detail-group {
+        display: grid;
+        grid-template-columns: 100px 1fr;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .detail-label {
+        font-weight: 600;
+        color: #52B788;
+        font-size: 0.9rem;
+    }
+
+    .detail-value {
+        color: #2D6A4F;
+        font-size: 0.95rem;
+    }
+
+    .priority-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .priority-normal {
+        background: #B7E4C7;
+        color: #2D6A4F;
+    }
+
+    .priority-urgent {
+        background: #FFE4B5;
+        color: #B8860B;
+    }
+
+    .priority-emergency {
+        background: #FFE4E1;
+        color: #DC143C;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 25px;
+        padding-top: 15px;
+        border-top: 1px solid #B7E4C7;
+    }
+
+    .action-btn {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        text-align: center;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: #52B788;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2D6A4F;
+        transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+        background: #D8F3DC;
+        color: #2D6A4F;
+        border: 1px solid #B7E4C7;
+    }
+
+    .btn-secondary:hover {
+        background: #B7E4C7;
+    }
+
+    /* LOADING AND EMPTY STATES */
+    .loading-calendar {
+        text-align: center;
+        padding: 60px 20px;
+        color: #52B788;
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #D8F3DC;
+        border-top: 4px solid #52B788;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+    }
+
+    .empty-calendar {
+        text-align: center;
+        padding: 40px 20px;
+        color: #52B788;
+    }
+
+    .empty-icon {
+        font-size: 48px;
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+        .calendar-controls {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 15px;
+        }
+
+        .calendar-nav {
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .calendar-day {
+            min-height: 80px;
+            padding: 5px;
+        }
+
+        .appointment-item {
+            font-size: 0.7rem;
+            padding: 3px 5px;
+        }
+
+        .detail-group {
+            grid-template-columns: 80px 1fr;
+        }
+
+        .modal-actions {
+            flex-direction: column;
+        }
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- CALENDAR CONTAINER -->
+<div class="calendar-container">
+    <!-- CALENDAR HEADER -->
+    <div class="calendar-header">
+        <div class="calendar-title">📅 Calendario de Citas Médicas</div>
+        <div class="calendar-nav">
+            <button class="nav-btn" id="prevMonth">‹</button>
+            <div class="month-year" id="monthYear">Cargando...</div>
+            <button class="nav-btn" id="nextMonth">›</button>
+        </div>
+    </div>
+
+    <!-- CALENDAR CONTROLS -->
+    <div class="calendar-controls">
+        <div class="view-controls">
+            <button class="view-btn active" data-view="month">Mes</button>
+            <button class="view-btn" data-view="week">Semana</button>
+            <button class="view-btn" data-view="agenda">Agenda</button>
+        </div>
+
+        <div class="calendar-legend">
+            <div class="legend-item">
+                <div class="legend-color legend-normal"></div>
+                <span>Normal</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color legend-urgent"></div>
+                <span>Urgente</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color legend-emergency"></div>
+                <span>Emergencia</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- CALENDAR GRID -->
+    <div id="calendarContent">
+        <div class="loading-calendar">
+            <div class="spinner"></div>
+            <div>Cargando calendario...</div>
+        </div>
+    </div>
+</div>
+
+<!-- APPOINTMENT DETAILS MODAL -->
+<div class="appointment-modal" id="appointmentModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">Detalles de la Cita</div>
+            <button class="close-btn" onclick="closeAppointmentModal()">×</button>
+        </div>
+
+        <div class="appointment-details" id="appointmentDetails">
+            <!-- Los detalles se cargarán dinámicamente -->
+        </div>
+
+        <div class="modal-actions">
+            <a href="#" class="action-btn btn-primary" id="startAppointmentBtn">Iniciar Consulta</a>
+            <button class="action-btn btn-secondary" onclick="closeAppointmentModal()">Cerrar</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    let currentDate = new Date();
+    let selectedAppointment = null;
+    let currentView = 'month';
+    let appointments = [];
+
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('📅 Inicializando Calendario del Veterinario...');
+
+        initializeCalendar();
+        setupEventListeners();
+        loadCalendarData();
+    });
+
+    function initializeCalendar() {
+        updateMonthYear();
+        renderCalendar();
+    }
+
+    function setupEventListeners() {
+        // Navegación del calendario
+        document.getElementById('prevMonth').addEventListener('click', () => {
+            if (currentView === 'month') {
+                currentDate.setMonth(currentDate.getMonth() - 1);
+            } else if (currentView === 'week') {
+                currentDate.setDate(currentDate.getDate() - 7);
+            }
+            updateCalendar();
+        });
+
+        document.getElementById('nextMonth').addEventListener('click', () => {
+            if (currentView === 'month') {
+                currentDate.setMonth(currentDate.getMonth() + 1);
+            } else if (currentView === 'week') {
+                currentDate.setDate(currentDate.getDate() + 7);
+            }
+            updateCalendar();
+        });
+
+        // Cambio de vista
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentView = e.target.dataset.view;
+                renderCalendar();
+            });
+        });
+
+        // Cerrar modal al hacer clic fuera
+        document.getElementById('appointmentModal').addEventListener('click', (e) => {
+            if (e.target.id === 'appointmentModal') {
+                closeAppointmentModal();
+            }
+        });
+    }
+
+    async function loadCalendarData() {
+        try {
+            showLoading();
+
+            // Calcular rango de fechas para el mes actual
+            const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+            const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+            console.log(`📅 Cargando citas del ${startDate.toISOString().split('T')[0]} al ${endDate.toISOString().split('T')[0]}`);
+
+            const response = await makeAuthenticatedRequest(
+                `/api/veterinarian/appointments?start_date=${startDate.toISOString().split('T')[0]}&end_date=${endDate.toISOString().split('T')[0]}`
+            );
+
+            if (response.success) {
+                appointments = response.appointments || [];
+                console.log(`✅ ${appointments.length} citas cargadas`);
+                renderCalendar();
+            } else {
+                console.error('❌ Error cargando citas:', response.message);
+                showError('Error cargando las citas del calendario');
+            }
+        } catch (error) {
+            console.error('❌ Error cargando datos del calendario:', error);
+            showError('Error de conexión al cargar el calendario');
+        }
+    }
+
+    function updateCalendar() {
+        updateMonthYear();
+        loadCalendarData();
+    }
+
+    function updateMonthYear() {
+        const monthNames = [
+            'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+        ];
+
+        const monthYear = document.getElementById('monthYear');
+
+        if (currentView === 'month') {
+            monthYear.textContent = `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+        } else if (currentView === 'week') {
+            const startOfWeek = new Date(currentDate);
+            startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+            monthYear.textContent = `${startOfWeek.getDate()} - ${endOfWeek.getDate()} de ${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+        }
+    }
+
+    function renderCalendar() {
+        const calendarContent = document.getElementById('calendarContent');
+
+        if (currentView === 'month') {
+            renderMonthView(calendarContent);
+        } else if (currentView === 'week') {
+            renderWeekView(calendarContent);
+        } else if (currentView === 'agenda') {
+            renderAgendaView(calendarContent);
+        }
+    }
+
+    function renderMonthView(container) {
+        const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+        const dayHeaders = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+        let html = '<div class="calendar-grid">';
+
+        // Headers de días
+        dayHeaders.forEach(day => {
+            html += `<div class="calendar-day-header">${day}</div>`;
+        });
+
+        // Días del calendario
+        for (let i = 0; i < 42; i++) {
+            const date = new Date(startDate);
+            date.setDate(startDate.getDate() + i);
+
+            const isCurrentMonth = date.getMonth() === currentDate.getMonth();
+            const isToday = isDateToday(date);
+            const dayAppointments = getAppointmentsForDate(date);
+
+            let classes = 'calendar-day';
+            if (!isCurrentMonth) classes += ' other-month';
+            if (isToday) classes += ' today';
+
+            html += `<div class="${classes}" data-date="${date.toISOString().split('T')[0]}">`;
+            html += `<div class="day-number">${date.getDate()}</div>`;
+
+            if (dayAppointments.length > 0) {
+                html += '<ul class="appointments-list">';
+                dayAppointments.forEach(appointment => {
+                    const priorityClass = getPriorityClass(appointment.priority);
+                    html += `
+                        <li class="appointment-item ${priorityClass}" onclick="showAppointmentDetails('${appointment.id}')">
+                            <span class="appointment-time">${appointment.appointment_time}</span>
+                            ${appointment.pet_name || 'Paciente'}
+                        </li>
+                    `;
+                });
+                html += '</ul>';
+            }
+
+            html += '</div>';
+        }
+
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    function renderWeekView(container) {
+        // Implementación de vista semanal
+        container.innerHTML = `
+            <div class="empty-calendar">
+                <div class="empty-icon">🗓️</div>
+                <div>Vista semanal en desarrollo</div>
+                <div style="font-size: 0.9rem; opacity: 0.7; margin-top: 10px;">
+                    Por favor, usa la vista mensual mientras tanto
+                </div>
+            </div>
+        `;
+    }
+
+    function renderAgendaView(container) {
+        const today = new Date();
+        const upcomingAppointments = appointments
+            .filter(apt => new Date(apt.appointment_date) >= today)
+            .sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date))
+            .slice(0, 20);
+
+        if (upcomingAppointments.length === 0) {
+            container.innerHTML = `
+                <div class="empty-calendar">
+                    <div class="empty-icon">📅</div>
+                    <div>No hay citas próximas programadas</div>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '<div style="padding: 25px;">';
+        html += '<h3 style="color: #2D6A4F; margin-bottom: 20px;">Próximas Citas</h3>';
+
+        upcomingAppointments.forEach(appointment => {
+            const date = new Date(appointment.appointment_date);
+            const priorityClass = getPriorityClass(appointment.priority);
+
+            html += `
+                <div class="appointment-item-agenda" style="
+                    background: white;
+                    border: 1px solid #B7E4C7;
+                    border-left: 4px solid ${getPriorityColor(appointment.priority)};
+                    border-radius: 8px;
+                    padding: 15px;
+                    margin-bottom: 10px;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                " onclick="showAppointmentDetails('${appointment.id}')">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600; color: #2D6A4F; margin-bottom: 5px;">
+                                ${appointment.pet_name || 'Paciente'} - ${appointment.client_name || 'Cliente'}
+                            </div>
+                            <div style="color: #52B788; font-size: 0.9rem;">
+                                ${formatDate(appointment.appointment_date)} a las ${appointment.appointment_time}
+                            </div>
+                            <div style="color: #38A3A5; font-size: 0.85rem;">
+                                ${appointment.reason || 'Consulta general'}
+                            </div>
+                        </div>
+                        <div class="priority-badge ${priorityClass}">
+                            ${getPriorityText(appointment.priority)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    function getAppointmentsForDate(date) {
+        const dateString = date.toISOString().split('T')[0];
+        return appointments.filter(apt => apt.appointment_date === dateString);
+    }
+
+    function isDateToday(date) {
+        const today = new Date();
+        return date.toDateString() === today.toDateString();
+    }
+
+    function showAppointmentDetails(appointmentId) {
+        selectedAppointment = appointments.find(apt => apt.id === appointmentId);
+
+        if (!selectedAppointment) {
+            console.error('❌ Cita no encontrada:', appointmentId);
+            return;
+        }
+
+        const modal = document.getElementById('appointmentModal');
+        const detailsContainer = document.getElementById('appointmentDetails');
+        const startBtn = document.getElementById('startAppointmentBtn');
+
+        // Actualizar contenido del modal
+        detailsContainer.innerHTML = `
+            <div class="detail-group">
+                <div class="detail-label">Fecha:</div>
+                <div class="detail-value">${formatDate(selectedAppointment.appointment_date)}</div>
+            </div>
+            <div class="detail-group">
+                <div class="detail-label">Hora:</div>
+                <div class="detail-value">${selectedAppointment.appointment_time}</div>
+            </div>
+            <div class="detail-group">
+                <div class="detail-label">Paciente:</div>
+                <div class="detail-value">${selectedAppointment.pet_name || 'Paciente'}</div>
+            </div>
+            <div class="detail-group">
+                <div class="detail-label">Cliente:</div>
+                <div class="detail-value">${selectedAppointment.client_name || 'Cliente'}</div>
+            </div>
+            <div class="detail-group">
+                <div class="detail-label">Motivo:</div>
+                <div class="detail-value">${selectedAppointment.reason || 'Consulta general'}</div>
+            </div>
+            <div class="detail-group">
+                <div class="detail-label">Prioridad:</div>
+                <div class="detail-value">
+                    <span class="priority-badge ${getPriorityClass(selectedAppointment.priority)}">
+                        ${getPriorityText(selectedAppointment.priority)}
+                    </span>
+                </div>
+            </div>
+            ${selectedAppointment.notes ? `
+                <div class="detail-group">
+                    <div class="detail-label">Notas:</div>
+                    <div class="detail-value">${selectedAppointment.notes}</div>
+                </div>
+            ` : ''}
+        `;
+
+        // Actualizar botón de acción
+        startBtn.href = `{{ url_for('frontend.veterinarian_medical_records') }}?appointment=${appointmentId}`;
+
+        // Mostrar modal
+        modal.classList.add('show');
+    }
+
+    function closeAppointmentModal() {
+        const modal = document.getElementById('appointmentModal');
+        modal.classList.remove('show');
+        selectedAppointment = null;
+    }
+
+    function showLoading() {
+        document.getElementById('calendarContent').innerHTML = `
+            <div class="loading-calendar">
+                <div class="spinner"></div>
+                <div>Cargando calendario...</div>
+            </div>
+        `;
+    }
+
+    function showError(message) {
+        document.getElementById('calendarContent').innerHTML = `
+            <div class="empty-calendar">
+                <div class="empty-icon">⚠️</div>
+                <div>${message}</div>
+                <button onclick="loadCalendarData()" style="
+                    margin-top: 15px;
+                    background: #52B788;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                ">Reintentar</button>
+            </div>
+        `;
+    }
+
+    function getPriorityClass(priority) {
+        switch (priority) {
+            case 'urgent': return 'urgent';
+            case 'emergency': return 'emergency';
+            default: return 'normal';
+        }
+    }
+
+    function getPriorityColor(priority) {
+        switch (priority) {
+            case 'urgent': return '#38A3A5';
+            case 'emergency': return '#22577A';
+            default: return '#52B788';
+        }
+    }
+
+    function getPriorityText(priority) {
+        switch (priority) {
+            case 'urgent': return 'Urgente';
+            case 'emergency': return 'Emergencia';
+            default: return 'Normal';
+        }
+    }
+
+    // Actualizar calendario cada 5 minutos
+    setInterval(loadCalendarData, 5 * 60 * 1000);
+
+    console.log('✅ Calendario del Veterinario inicializado correctamente');
+</script>
+{% endblock %}
