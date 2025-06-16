@@ -175,6 +175,7 @@ def get_profile():
         user = auth_service.verify_token(token)
 
         if user:
+            print(f"✅ Perfil obtenido para usuario: {user.email}")
             return jsonify({
                 'success': True,
                 'user': user.to_dict()  # ← El método to_dict() ya maneja la conversión UUID
@@ -186,6 +187,7 @@ def get_profile():
             }), 401
 
     except Exception as e:
+        print(f"❌ Error en get_profile: {e}")
         return jsonify({
             'success': False,
             'message': str(e)
@@ -205,9 +207,12 @@ def update_profile():
             }), 401
 
         data = request.get_json()
+        print(f"📝 Actualizando perfil de usuario: {user.email}")
+        print(f"📝 Datos recibidos: {data}")
         updated_user = auth_service.update_user(str(user.id), data)  # ← FIX: Convertir UUID a string
 
         if updated_user:
+            print(f"✅ Perfil actualizado exitosamente para: {user.email}")
             return jsonify({
                 'success': True,
                 'message': 'Perfil actualizado exitosamente',
@@ -220,6 +225,7 @@ def update_profile():
             }), 400
 
     except Exception as e:
+        print(f"❌ Error en update_profile: {e}")
         return jsonify({
             'success': False,
             'message': str(e)
@@ -422,32 +428,39 @@ def toggle_user_status(user_id):
 
 @auth_bp.route('/users/<user_id>', methods=['GET'])
 def get_user_by_id(user_id):
-    """Obtener usuario específico (solo para admin)"""
+    """Obtener usuario específico por ID (solo para admin O el propio usuario)"""
     try:
-        # Verificar token de administrador
         token = request.headers.get('Authorization', '').replace('Bearer ', '')
-        user = auth_service.verify_token(token)
+        current_user = auth_service.verify_token(token)
 
-        if not user or user.role != 'admin':
+        if not current_user:
             return jsonify({
                 'success': False,
-                'message': 'Acceso denegado'
+                'message': 'Token inválido'
+            }), 401
+
+        # Permitir si es admin O si está solicitando su propio perfil
+        if current_user.role == 'admin' or str(current_user.id) == user_id:
+            target_user = auth_service.get_user_by_id(user_id)
+
+            if target_user:
+                return jsonify({
+                    'success': True,
+                    'user': target_user.to_dict()
+                }), 200
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Usuario no encontrado'
+                }), 404
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Sin permisos para acceder a este usuario'
             }), 403
 
-        # Buscar usuario
-        target_user = User.query.get(user_id)
-        if not target_user:
-            return jsonify({
-                'success': False,
-                'message': 'Usuario no encontrado'
-            }), 404
-
-        return jsonify({
-            'success': True,
-            'user': target_user.to_dict()
-        }), 200
-
     except Exception as e:
+        print(f"❌ Error en get_user_by_id: {e}")
         return jsonify({
             'success': False,
             'message': str(e)
@@ -655,6 +668,8 @@ def update_user_schedule(user_id):
                 'weekly_schedule': weekly_schedule
             }
         }), 200
+
+
 
     except Exception as e:
         print(f"❌ Error actualizando horario: {e}")

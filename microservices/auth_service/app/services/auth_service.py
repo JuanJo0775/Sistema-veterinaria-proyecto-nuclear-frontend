@@ -76,13 +76,56 @@ class AuthService:
         return False
 
     def get_user_by_id(self, user_id):
-        # Convertir string a UUID si es necesario
-        if isinstance(user_id, str):
-            try:
-                user_id = uuid.UUID(user_id)
-            except ValueError:
+        """Obtener usuario por ID"""
+        try:
+            conn = self.get_connection()
+            if not conn:
                 return None
-        return User.query.get(user_id)
+
+            cur = conn.cursor()
+
+            # Convertir a UUID si es string
+            if isinstance(user_id, str):
+                try:
+                    import uuid
+                    user_uuid = uuid.UUID(user_id)
+                except ValueError:
+                    print(f"❌ ID de usuario inválido: {user_id}")
+                    return None
+            else:
+                user_uuid = user_id
+
+            cur.execute("""
+                SELECT id, email, first_name, last_name, phone, address, 
+                       role, is_active, created_at, updated_at
+                FROM users 
+                WHERE id = %s
+            """, (user_uuid,))
+
+            row = cur.fetchone()
+            cur.close()
+            conn.close()
+
+            if row:
+                from ..models.user import User
+                return User(
+                    id=row[0],
+                    email=row[1],
+                    first_name=row[2],
+                    last_name=row[3],
+                    phone=row[4],
+                    address=row[5],
+                    role=row[6],
+                    is_active=row[7],
+                    created_at=row[8],
+                    updated_at=row[9]
+                )
+
+            return None
+
+        except Exception as e:
+            print(f"❌ Error obteniendo usuario por ID: {e}")
+            return None
 
     def update_user(self, user_id, user_data):
         # Convertir string a UUID si es necesario

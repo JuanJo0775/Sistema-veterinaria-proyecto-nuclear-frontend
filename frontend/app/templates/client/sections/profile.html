@@ -1,0 +1,1144 @@
+{% extends "client/client_base.html" %}
+
+{% block title %}Mi Perfil{% endblock %}
+{% block page_title %}Mi Perfil{% endblock %}
+
+{% block custom_styles %}
+<style>
+    /* =============== PROFILE SPECIFIC STYLES =============== */
+    .profile-content {
+        padding: 30px;
+    }
+
+    /* BREADCRUMB */
+    .breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        color: #52B788;
+        font-size: 0.9rem;
+    }
+
+    .breadcrumb a {
+        color: #52B788;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2D6A4F;
+    }
+
+    .breadcrumb-separator {
+        color: #95D5B2;
+    }
+
+    /* PAGE HEADER */
+    .page-header {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 25px rgba(8, 28, 21, 0.1);
+        border: 1px solid #D8F3DC;
+    }
+
+    .page-title {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        color: #2D6A4F;
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    .page-subtitle {
+        color: #52B788;
+        font-size: 1.1rem;
+        font-weight: 500;
+    }
+
+    /* PROFILE LAYOUT */
+    .profile-layout {
+        display: grid;
+        grid-template-columns: 350px 1fr;
+        gap: 30px;
+    }
+
+    /* PROFILE SIDEBAR */
+    .profile-sidebar {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 8px 25px rgba(8, 28, 21, 0.1);
+        border: 1px solid #D8F3DC;
+        height: fit-content;
+        text-align: center;
+    }
+
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        background: linear-gradient(135deg, #52B788, #38A3A5);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 3rem;
+        margin: 0 auto 20px;
+        border: 5px solid white;
+        box-shadow: 0 10px 25px rgba(82, 183, 136, 0.3);
+    }
+
+    .profile-name {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #2D6A4F;
+        margin-bottom: 10px;
+    }
+
+    .profile-role {
+        background: linear-gradient(135deg, #52B788, #74C69D);
+        color: white;
+        padding: 8px 20px;
+        border-radius: 25px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 25px;
+        display: inline-block;
+    }
+
+    .profile-stats {
+        display: grid;
+        gap: 15px;
+    }
+
+    .profile-stat {
+        background: #F8FBF9;
+        padding: 20px;
+        border-radius: 12px;
+        border-left: 4px solid #52B788;
+        text-align: left;
+    }
+
+    .profile-stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2D6A4F;
+        margin-bottom: 5px;
+    }
+
+    .profile-stat-label {
+        color: #52B788;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .profile-actions {
+        margin-top: 25px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .btn-action {
+        background: linear-gradient(135deg, #2D6A4F, #52B788);
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .btn-action:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(45, 106, 79, 0.3);
+    }
+
+    .btn-action.secondary {
+        background: linear-gradient(135deg, #38A3A5, #57CC99);
+    }
+
+    /* PROFILE MAIN CONTENT */
+    .profile-main {
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+    }
+
+    .info-section {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 8px 25px rgba(8, 28, 21, 0.1);
+        border: 1px solid #D8F3DC;
+    }
+
+    .info-section-title {
+        color: #2D6A4F;
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin-bottom: 25px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #D8F3DC;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .info-label {
+        font-weight: 600;
+        color: #2D6A4F;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .info-value {
+        color: #52B788;
+        font-size: 1.1rem;
+        font-weight: 500;
+        padding: 12px 15px;
+        background: #F8FBF9;
+        border-radius: 10px;
+        border-left: 4px solid #B7E4C7;
+        position: relative;
+    }
+
+    .info-value i {
+        margin-right: 8px;
+        color: #38A3A5;
+    }
+
+    /* EDIT FORM */
+    .edit-form {
+        display: none;
+    }
+
+    .edit-form.active {
+        display: block;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #2D6A4F;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid #D8F3DC;
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #52B788;
+        box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.1);
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: flex-end;
+        margin-top: 25px;
+        padding-top: 20px;
+        border-top: 1px solid #D8F3DC;
+    }
+
+    .btn {
+        padding: 12px 25px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        font-size: 0.95rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #2D6A4F, #52B788);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(45, 106, 79, 0.3);
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #5a6268;
+    }
+
+    /* LOADING STATES */
+    .loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #52B788;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* SUCCESS/ERROR MESSAGES */
+    .alert {
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        display: none;
+    }
+
+    .alert.success {
+        background: rgba(82, 183, 136, 0.1);
+        color: #2D6A4F;
+        border: 1px solid #52B788;
+    }
+
+    .alert.error {
+        background: rgba(220, 53, 69, 0.1);
+        color: #dc3545;
+        border: 1px solid #dc3545;
+    }
+
+    .alert.show {
+        display: block;
+        animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* STATUS INDICATORS */
+    .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 12px;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .status-indicator.active {
+        background: rgba(82, 183, 136, 0.2);
+        color: #2D6A4F;
+    }
+
+    .status-indicator.inactive {
+        background: rgba(108, 117, 125, 0.2);
+        color: #6c757d;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+        .profile-layout {
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .page-header {
+            padding: 20px;
+        }
+
+        .profile-sidebar {
+            padding: 20px;
+        }
+
+        .info-section {
+            padding: 20px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-content">
+    <!-- BREADCRUMB -->
+    <div class="breadcrumb">
+        <a href="{{ url_for('frontend.client_dashboard') }}"><i class="fas fa-home"></i> Inicio</a>
+        <span class="breadcrumb-separator">></span>
+        <span>Mi Perfil</span>
+    </div>
+
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+        <div class="page-title">
+            <i class="fas fa-user-circle"></i>
+            Mi Perfil
+        </div>
+        <div class="page-subtitle">
+            Gestiona tu información personal y configuración de cuenta
+        </div>
+    </div>
+
+    <!-- PROFILE LAYOUT -->
+    <div class="profile-layout">
+        <!-- SIDEBAR -->
+        <div class="profile-sidebar">
+            <div class="profile-avatar" id="profileAvatar">
+                {{ user_initial }}
+            </div>
+            <div class="profile-name" id="profileName">
+                {{ user_name }}
+            </div>
+            <div class="profile-role">
+                Cliente VIP
+            </div>
+            
+            <div class="profile-actions">
+                <button class="btn-action" onclick="toggleEditMode()" id="editButton">
+                    <i class="fas fa-edit"></i>
+                    Editar Perfil
+                </button>
+                <a href="{{ url_for('frontend.client_settings') }}" class="btn-action secondary">
+                    <i class="fas fa-cog"></i>
+                    Configuración
+                </a>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="profile-main">
+            <!-- ALERTS -->
+            <div id="successAlert" class="alert success">
+                <i class="fas fa-check-circle"></i>
+                <span id="successMessage"></span>
+            </div>
+            <div id="errorAlert" class="alert error">
+                <i class="fas fa-exclamation-circle"></i>
+                <span id="errorMessage"></span>
+            </div>
+
+            <!-- INFORMACIÓN PERSONAL -->
+            <div class="info-section">
+                <div class="info-section-title">
+                    <i class="fas fa-user"></i>
+                    Información Personal
+                </div>
+
+                <!-- VIEW MODE -->
+                <div id="viewMode">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Nombre</div>
+                            <div class="info-value" id="displayFirstName">
+                                <i class="fas fa-user"></i>
+                                <span id="firstNameText">{{ user.first_name or 'No especificado' }}</span>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Apellido</div>
+                            <div class="info-value" id="displayLastName">
+                                <i class="fas fa-user"></i>
+                                <span id="lastNameText">{{ user.last_name or 'No especificado' }}</span>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Correo Electrónico</div>
+                            <div class="info-value" id="displayEmail">
+                                <i class="fas fa-envelope"></i>
+                                <span id="emailText">{{ user.email or 'No especificado' }}</span>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Teléfono</div>
+                            <div class="info-value" id="displayPhone">
+                                <i class="fas fa-phone"></i>
+                                <span id="phoneText">{{ user.phone or 'No especificado' }}</span>
+                            </div>
+                        </div>
+                        <div class="info-item" style="grid-column: 1 / -1;">
+                            <div class="info-label">Dirección</div>
+                            <div class="info-value" id="displayAddress">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span id="addressText">{{ user.address or 'No especificada' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EDIT MODE -->
+                <div id="editMode" class="edit-form">
+                    <form id="profileForm">
+                        <div class="info-grid">
+                            <div class="form-group">
+                                <label class="form-label" for="firstName">Nombre *</label>
+                                <input type="text" id="firstName" name="first_name" class="form-input"
+                                       value="{{ user.first_name or '' }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="lastName">Apellido *</label>
+                                <input type="text" id="lastName" name="last_name" class="form-input"
+                                       value="{{ user.last_name or '' }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="email">Correo Electrónico *</label>
+                                <input type="email" id="email" name="email" class="form-input"
+                                       value="{{ user.email or '' }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="phone">Teléfono</label>
+                                <input type="tel" id="phone" name="phone" class="form-input"
+                                       value="{{ user.phone or '' }}">
+                            </div>
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <label class="form-label" for="address">Dirección</label>
+                                <input type="text" id="address" name="address" class="form-input"
+                                       value="{{ user.address or '' }}">
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="cancelEdit()">
+                                <i class="fas fa-times"></i>
+                                Cancelar
+                            </button>
+                            <button type="submit" class="btn btn-primary" id="saveBtn">
+                                <i class="fas fa-save"></i>
+                                Guardar Cambios
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- INFORMACIÓN DE CUENTA (SOLO LECTURA) -->
+            <div class="info-section">
+                <div class="info-section-title">
+                    <i class="fas fa-shield-alt"></i>
+                    Información de Cuenta
+                </div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">ID de Usuario</div>
+                        <div class="info-value">
+                            <i class="fas fa-fingerprint"></i>
+                            <span>{{ user.id[:8] if user.id else 'N/A' }}...</span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Fecha de Registro</div>
+                        <div class="info-value" id="displayCreatedAt">
+                            <i class="fas fa-calendar-plus"></i>
+                            <span id="createdAtText">
+                                {% if user.created_at %}
+                                    {{ user.created_at[:10] }}
+                                {% else %}
+                                    No disponible
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Estado de Cuenta</div>
+                        <div class="info-value">
+                            <i class="fas fa-check-circle" style="color: #52B788;"></i>
+                            <span class="status-indicator active">
+                                <i class="fas fa-circle"></i>
+                                {% if user.is_active %}Activa{% else %}Inactiva{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Tipo de Cliente</div>
+                        <div class="info-value">
+                            <i class="fas fa-star" style="color: #FFD700;"></i>
+                            <span>Cliente VIP</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block custom_scripts %}
+<script>
+    // Variables globales
+    let isEditMode = false;
+    let currentUserData = {};
+
+    console.log('Usuario inicial desde template:', {{ user | tojson }});
+
+    // Inicializar página
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Inicializando perfil del cliente');
+        initializeProfile();
+        console.log('✅ Perfil inicializado');
+    });
+
+    // FUNCIÓN PRINCIPAL DE INICIALIZACIÓN
+    async function initializeProfile() {
+        try {
+            // PASO 1: Usar datos del template como base
+            currentUserData = {{ user | tojson }};
+            console.log('📋 Datos base del template:', currentUserData);
+
+            // PASO 2: Actualizar display con datos base
+            updateProfileDisplay();
+
+            // PASO 3: Intentar cargar datos frescos de la BD
+            await loadFreshProfileData();
+
+            // PASO 4: Cargar estadísticas con múltiples métodos
+            await loadStatisticsWithFallbacks();
+
+        } catch (error) {
+            console.error('❌ Error en inicialización:', error);
+            showAlert('error', 'Error cargando algunos datos del perfil');
+        }
+    }
+
+    // FUNCIÓN PARA CARGAR DATOS FRESCOS DEL PERFIL
+    async function loadFreshProfileData() {
+        console.log('📡 Intentando cargar datos frescos del perfil...');
+
+        try {
+            const response = await fetch('/api/client/profile', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            console.log('📡 Respuesta perfil:', response.status);
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('📡 Datos del perfil:', data);
+
+                if (data.success && data.user) {
+                    // Actualizar datos con información fresca
+                    currentUserData = { ...currentUserData, ...data.user };
+                    console.log('✅ Datos del perfil actualizados');
+
+                    // Actualizar display
+                    updateProfileDisplay();
+
+                    // Si vienen estadísticas, usarlas
+                    if (data.stats) {
+                        updateUserStats(data.stats);
+                        return; // Salir temprano si tenemos stats
+                    }
+                }
+            } else {
+                console.log('⚠️ Error HTTP perfil:', response.status);
+            }
+        } catch (error) {
+            console.log('⚠️ Error cargando perfil fresco:', error);
+        }
+    }
+
+    // FUNCIÓN PRINCIPAL PARA CARGAR ESTADÍSTICAS CON FALLBACKS
+    async function loadStatisticsWithFallbacks() {
+        console.log('📊 Iniciando carga de estadísticas con múltiples métodos...');
+
+        // MÉTODO 1: Endpoint centralizado de estadísticas
+        if (await tryLoadCentralizedStats()) {
+            console.log('✅ Estadísticas cargadas desde endpoint centralizado');
+            return;
+        }
+
+        console.log('🔄 Método 1 falló, intentando método 2...');
+
+        // MÉTODO 2: Cargar estadísticas individuales
+        if (await tryLoadIndividualStats()) {
+            console.log('✅ Estadísticas cargadas individualmente');
+            return;
+        }
+
+        console.log('🔄 Método 2 falló, intentando método 3...');
+
+        // MÉTODO 3: Debug completo de endpoints
+        await debugAndLoadStats();
+    }
+
+    // MÉTODO 1: Estadísticas centralizadas
+    async function tryLoadCentralizedStats() {
+        try {
+            console.log('📡 Intentando cargar estadísticas centralizadas...');
+
+            const response = await fetch('/api/client/profile/stats', {
+                method: 'GET',
+                credentials: 'include'
+            });
+
+            console.log('📡 Respuesta stats centralizadas:', response.status);
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('📊 Datos stats centralizadas:', data);
+
+                if (data.success && data.stats) {
+                    updateUserStats(data.stats);
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.log('⚠️ Error stats centralizadas:', error);
+        }
+        return false;
+    }
+
+    // MÉTODO 2: Estadísticas individuales
+    async function tryLoadIndividualStats() {
+        console.log('📊 Cargando estadísticas individualmente...');
+
+        const stats = {
+            pets_count: 0,
+            appointments_count: 0,
+            days_as_client: 0
+        };
+
+        let hasAnySuccess = false;
+
+        // Cargar mascotas
+        try {
+            console.log('🐾 Cargando mascotas...');
+            const petsResponse = await fetch('/api/client/pets');
+            console.log('📡 Respuesta mascotas:', petsResponse.status);
+
+            if (petsResponse.ok) {
+                const petsData = await petsResponse.json();
+                console.log('🐾 Datos mascotas:', petsData);
+
+                if (petsData.success) {
+                    stats.pets_count = petsData.total || petsData.pets?.length || 0;
+                    console.log('✅ Mascotas cargadas:', stats.pets_count);
+                    hasAnySuccess = true;
+                }
+            }
+        } catch (error) {
+            console.log('⚠️ Error cargando mascotas:', error);
+        }
+
+        // Cargar citas
+        try {
+            console.log('📅 Cargando citas...');
+            const appointmentsResponse = await fetch('/api/client/appointments');
+            console.log('📡 Respuesta citas:', appointmentsResponse.status);
+
+            if (appointmentsResponse.ok) {
+                const appointmentsData = await appointmentsResponse.json();
+                console.log('📅 Datos citas:', appointmentsData);
+
+                if (appointmentsData.success) {
+                    stats.appointments_count = appointmentsData.total || appointmentsData.appointments?.length || 0;
+                    console.log('✅ Citas cargadas:', stats.appointments_count);
+                    hasAnySuccess = true;
+                }
+            }
+        } catch (error) {
+            console.log('⚠️ Error cargando citas:', error);
+        }
+
+        // Calcular días como cliente
+        if (currentUserData.created_at) {
+            try {
+                const createdDate = new Date(currentUserData.created_at);
+                const today = new Date();
+                const daysDiff = Math.floor((today - createdDate) / (1000 * 60 * 60 * 24));
+                stats.days_as_client = Math.max(0, daysDiff);
+                console.log('✅ Días como cliente calculados:', stats.days_as_client);
+                hasAnySuccess = true;
+            } catch (error) {
+                console.log('⚠️ Error calculando días:', error);
+            }
+        }
+
+        if (hasAnySuccess) {
+            updateUserStats(stats);
+            return true;
+        }
+
+        return false;
+    }
+
+    // MÉTODO 3: Debug completo y carga manual
+    async function debugAndLoadStats() {
+        console.log('🔍 INICIANDO DEBUG COMPLETO DE ESTADÍSTICAS');
+
+        // Debug de endpoints disponibles
+        await debugEndpoints();
+
+        // Cargar estadísticas manualmente
+        const stats = {
+            pets_count: 0,
+            appointments_count: 0,
+            days_as_client: 0
+        };
+
+        // Método manual para mascotas
+        try {
+            console.log('🐾 Debug manual de mascotas...');
+
+            // Probar diferentes endpoints de mascotas
+            const petEndpoints = [
+                '/api/client/pets',
+                '/api/client/pets/stats',
+                '/api/client/dashboard/stats'
+            ];
+
+            for (const endpoint of petEndpoints) {
+                try {
+                    console.log(`📡 Probando endpoint: ${endpoint}`);
+                    const response = await fetch(endpoint);
+                    console.log(`📡 ${endpoint} respuesta:`, response.status);
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log(`📊 ${endpoint} datos:`, data);
+
+                        // Extraer conteo de mascotas según la estructura
+                        if (data.success) {
+                            if (data.pets && Array.isArray(data.pets)) {
+                                stats.pets_count = data.pets.length;
+                                console.log(`✅ Mascotas encontradas en ${endpoint}:`, stats.pets_count);
+                                break;
+                            } else if (data.stats && data.stats.total_pets !== undefined) {
+                                stats.pets_count = data.stats.total_pets;
+                                console.log(`✅ Mascotas encontradas en ${endpoint}:`, stats.pets_count);
+                                break;
+                            } else if (data.total !== undefined) {
+                                stats.pets_count = data.total;
+                                console.log(`✅ Mascotas encontradas en ${endpoint}:`, stats.pets_count);
+                                break;
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.log(`⚠️ Error en ${endpoint}:`, error);
+                }
+            }
+        } catch (error) {
+            console.log('⚠️ Error en debug manual de mascotas:', error);
+        }
+
+        // Método manual para citas
+        try {
+            console.log('📅 Debug manual de citas...');
+
+            const appointmentEndpoints = [
+                '/api/client/appointments',
+                '/api/client/appointments/upcoming',
+                '/api/client/dashboard/stats'
+            ];
+
+            for (const endpoint of appointmentEndpoints) {
+                try {
+                    console.log(`📡 Probando endpoint: ${endpoint}`);
+                    const response = await fetch(endpoint);
+                    console.log(`📡 ${endpoint} respuesta:`, response.status);
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log(`📊 ${endpoint} datos:`, data);
+
+                        // Extraer conteo de citas según la estructura
+                        if (data.success) {
+                            if (data.appointments && Array.isArray(data.appointments)) {
+                                stats.appointments_count = data.appointments.length;
+                                console.log(`✅ Citas encontradas en ${endpoint}:`, stats.appointments_count);
+                                break;
+                            } else if (data.stats && data.stats.appointments_count !== undefined) {
+                                stats.appointments_count = data.stats.appointments_count;
+                                console.log(`✅ Citas encontradas en ${endpoint}:`, stats.appointments_count);
+                                break;
+                            } else if (data.total !== undefined) {
+                                stats.appointments_count = data.total;
+                                console.log(`✅ Citas encontradas en ${endpoint}:`, stats.appointments_count);
+                                break;
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.log(`⚠️ Error en ${endpoint}:`, error);
+                }
+            }
+        } catch (error) {
+            console.log('⚠️ Error en debug manual de citas:', error);
+        }
+
+        // Calcular días como cliente (siempre funciona)
+        if (currentUserData.created_at) {
+            try {
+                const createdDate = new Date(currentUserData.created_at);
+                const today = new Date();
+                const daysDiff = Math.floor((today - createdDate) / (1000 * 60 * 60 * 24));
+                stats.days_as_client = Math.max(0, daysDiff);
+                console.log('✅ Días como cliente (manual):', stats.days_as_client);
+            } catch (error) {
+                console.log('⚠️ Error calculando días (manual):', error);
+                stats.days_as_client = 0;
+            }
+        }
+
+        console.log('📊 ESTADÍSTICAS FINALES DESPUÉS DE DEBUG:', stats);
+        updateUserStats(stats);
+    }
+
+    // Función para debug de endpoints
+    async function debugEndpoints() {
+        console.log('🔍 DEBUG: Verificando endpoints disponibles...');
+
+        const endpointsToTest = [
+            '/api/client/profile',
+            '/api/client/profile/stats',
+            '/api/client/pets',
+            '/api/client/appointments',
+            '/api/client/dashboard/stats'
+        ];
+
+        for (const endpoint of endpointsToTest) {
+            try {
+                const response = await fetch(endpoint);
+                console.log(`📡 ${endpoint}: ${response.status} ${response.statusText}`);
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    console.log(`❌ ${endpoint} error:`, text.substring(0, 200));
+                }
+            } catch (error) {
+                console.log(`❌ ${endpoint} fetch error:`, error.message);
+            }
+        }
+    }
+
+    // FUNCIÓN PARA ACTUALIZAR ESTADÍSTICAS EN LA UI
+    function updateUserStats(stats) {
+        console.log('📊 Actualizando estadísticas en UI:', stats);
+
+        // Actualizar contadores con animación
+        animateCounter('totalPets', stats.pets_count || 0);
+        animateCounter('totalAppointments', stats.appointments_count || 0);
+        animateCounter('memberSince', stats.days_as_client || 0);
+
+        console.log('✅ Estadísticas actualizadas en el DOM');
+    }
+
+    // Función para animar contadores
+    function animateCounter(elementId, targetValue) {
+        const element = document.getElementById(elementId);
+        if (!element) {
+            console.log(`⚠️ Elemento ${elementId} no encontrado`);
+            return;
+        }
+
+        const startValue = 0;
+        const duration = 1000; // 1 segundo
+        const startTime = performance.now();
+
+        function updateCounter(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            const currentValue = Math.floor(startValue + (targetValue - startValue) * progress);
+            element.textContent = currentValue;
+
+            if (progress < 1) {
+                requestAnimationFrame(updateCounter);
+            } else {
+                element.textContent = targetValue; // Asegurar valor final exacto
+            }
+        }
+
+        requestAnimationFrame(updateCounter);
+    }
+
+    // RESTO DE FUNCIONES ORIGINALES
+    function updateProfileDisplay() {
+        console.log('🔄 Actualizando visualización del perfil');
+        const user = currentUserData;
+
+        const firstName = user.first_name || '';
+        const lastName = user.last_name || '';
+        const fullName = `${firstName} ${lastName}`.trim() || 'Cliente';
+        const initial = firstName ? firstName[0].toUpperCase() : 'C';
+
+        document.getElementById('profileAvatar').textContent = initial;
+        document.getElementById('profileName').textContent = fullName;
+
+        document.getElementById('firstNameText').textContent = firstName || 'No especificado';
+        document.getElementById('lastNameText').textContent = lastName || 'No especificado';
+        document.getElementById('emailText').textContent = user.email || 'No especificado';
+        document.getElementById('phoneText').textContent = user.phone || 'No especificado';
+        document.getElementById('addressText').textContent = user.address || 'No especificada';
+
+        if (user.created_at) {
+            try {
+                const createdDate = new Date(user.created_at);
+                const formattedDate = createdDate.toLocaleDateString('es-ES', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                document.getElementById('createdAtText').textContent = formattedDate;
+            } catch (error) {
+                document.getElementById('createdAtText').textContent = user.created_at.substring(0, 10);
+            }
+        }
+
+        populateEditForm();
+        console.log('✅ Visualización actualizada');
+    }
+
+    function toggleEditMode() {
+        isEditMode = !isEditMode;
+        const viewMode = document.getElementById('viewMode');
+        const editMode = document.getElementById('editMode');
+        const editButton = document.getElementById('editButton');
+
+        if (isEditMode) {
+            viewMode.style.display = 'none';
+            editMode.classList.add('active');
+            editButton.innerHTML = '<i class="fas fa-eye"></i> Ver Perfil';
+        } else {
+            viewMode.style.display = 'block';
+            editMode.classList.remove('active');
+            editButton.innerHTML = '<i class="fas fa-edit"></i> Editar Perfil';
+        }
+    }
+
+    function cancelEdit() {
+        toggleEditMode();
+        populateEditForm();
+    }
+
+    function populateEditForm() {
+        const user = currentUserData;
+        document.getElementById('firstName').value = user.first_name || '';
+        document.getElementById('lastName').value = user.last_name || '';
+        document.getElementById('email').value = user.email || '';
+        document.getElementById('phone').value = user.phone || '';
+        document.getElementById('address').value = user.address || '';
+    }
+
+    // MANEJAR ENVÍO DEL FORMULARIO
+    document.getElementById('profileForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        console.log('💾 Iniciando actualización de perfil');
+
+        const saveBtn = document.getElementById('saveBtn');
+        const originalText = saveBtn.innerHTML;
+
+        saveBtn.innerHTML = '<div class="spinner"></div> Guardando...';
+        saveBtn.disabled = true;
+
+        try {
+            const formData = new FormData(this);
+            const data = {};
+            for (let [key, value] of formData.entries()) {
+                data[key] = value.trim();
+            }
+
+            const response = await fetch('/api/client/profile/update', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                currentUserData = { ...currentUserData, ...result.user };
+                updateProfileDisplay();
+                toggleEditMode();
+                showAlert('success', '✅ Perfil actualizado exitosamente');
+
+                // Recargar estadísticas
+                setTimeout(() => loadStatisticsWithFallbacks(), 1000);
+            } else {
+                showAlert('error', result.message || 'Error al actualizar el perfil');
+            }
+
+        } catch (error) {
+            console.error('❌ Error:', error);
+            showAlert('error', 'Error de conexión. Inténtalo de nuevo.');
+        } finally {
+            saveBtn.innerHTML = originalText;
+            saveBtn.disabled = false;
+        }
+    });
+
+    function showAlert(type, message) {
+        const alertElement = document.getElementById(type + 'Alert');
+        const messageElement = document.getElementById(type + 'Message');
+
+        if (alertElement && messageElement) {
+            messageElement.textContent = message;
+            alertElement.classList.add('show');
+            setTimeout(() => alertElement.classList.remove('show'), 5000);
+        } else {
+            alert(message);
+        }
+    }
+</script>
+{% endblock %}

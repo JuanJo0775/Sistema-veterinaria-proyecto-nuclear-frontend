@@ -4041,20 +4041,6 @@ def client_book_appointment():
     }
     return render_template('client/sections/book-appointment.html', **template_data)
 
-
-@frontend_bp.route('/client/medical-history')
-@role_required(['client'])
-def client_medical_history():
-    """Página de historial médico"""
-    user = session.get('user', {})
-    template_data = {
-        'user': user,
-        'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Cliente',
-        'user_initial': user.get('first_name', 'C')[0].upper() if user.get('first_name') else 'C'
-    }
-    return render_template('client/sections/medical-history.html', **template_data)
-
-
 @frontend_bp.route('/client/notifications')
 @role_required(['client'])
 def client_notifications():
@@ -4066,19 +4052,6 @@ def client_notifications():
         'user_initial': user.get('first_name', 'C')[0].upper() if user.get('first_name') else 'C'
     }
     return render_template('client/sections/notifications.html', **template_data)
-
-
-@frontend_bp.route('/client/profile')
-@role_required(['client'])
-def client_profile():
-    """Página de perfil del cliente"""
-    user = session.get('user', {})
-    template_data = {
-        'user': user,
-        'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Cliente',
-        'user_initial': user.get('first_name', 'C')[0].upper() if user.get('first_name') else 'C'
-    }
-    return render_template('client/sections/profile.html', **template_data)
 
 
 @frontend_bp.route('/client/settings')
@@ -6891,6 +6864,1809 @@ def initialize_billing_system():
     else:
         print("❌ No se pudo conectar a la base de datos")
 
+# =============== HISTORIA CLINICA CLIENTE ===============
+@frontend_bp.route('/client/medical-history')
+@role_required(['client'])
+def client_medical_history():
+    """Página de historial médico"""
+    user = session.get('user', {})
+    template_data = {
+        'user': user,
+        'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Cliente',
+        'user_initial': user.get('first_name', 'C')[0].upper() if user.get('first_name') else 'C'
+    }
+    return render_template('client/sections/medical-history.html', **template_data)
+
+@frontend_bp.route('/api/client/pets/<pet_id>/medical-history')
+@role_required(['client'])
+def api_client_pet_medical_history(pet_id):
+    """API para obtener historia clínica de una mascota del cliente - VERSIÓN COMPLETA"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        print(f"📋 Cliente {user['id']} solicitando historia de mascota: {pet_id}")
+
+        # PASO 1: Verificar que la mascota pertenece al cliente
+        verify_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}"
+        verify_response = requests.get(verify_url, headers=headers, timeout=10)
+
+        if verify_response.status_code != 200:
+            return jsonify({
+                'success': False,
+                'message': 'Mascota no encontrada'
+            }), 404
+
+        verify_data = verify_response.json()
+        if not verify_data.get('success'):
+            return jsonify({
+                'success': False,
+                'message': 'Error verificando mascota'
+            }), 400
+
+        pet_data = verify_data.get('pet', {})
+        if pet_data.get('owner_id') != user['id']:
+            return jsonify({
+                'success': False,
+                'message': 'No tienes acceso a la historia clínica de esta mascota'
+            }), 403
+
+        print(f"✅ Mascota verificada: {pet_data.get('name')} pertenece al cliente")
+
+        # PASO 2: Obtener historia clínica desde Medical Service
+        medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/records/pet/{pet_id}"
+        response = requests.get(medical_url, headers=headers, timeout=10)
+
+        print(f"📡 Respuesta Medical Service: {response.status_code}")
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                medical_records = data.get('medical_records', [])
+
+                # PASO 3: Enriquecer registros con información adicional
+                enriched_records = []
+                for record in medical_records:
+                    try:
+                        # Enriquecer con información del veterinario
+                        vet_id = record.get('veterinarian_id')
+                        if vet_id:
+                            try:
+                                # Obtener información del veterinario
+                                users_response = requests.get(
+                                    f"{current_app.config['AUTH_SERVICE_URL']}/auth/users",
+                                    headers=headers,
+                                    timeout=5
+                                )
+
+                                if users_response.status_code == 200:
+                                    users_data = users_response.json()
+                                    if users_data.get('success'):
+                                        vet = next(
+                                            (u for u in users_data['users'] if u['id'] == vet_id),
+                                            None
+                                        )
+                                        if vet:
+                                            record['veterinarian_name'] = f"Dr. {vet['first_name']} {vet['last_name']}"
+                                        else:
+                                            record['veterinarian_name'] = 'Dr. Veterinario'
+                                    else:
+                                        record['veterinarian_name'] = 'Dr. Veterinario'
+                                else:
+                                    record['veterinarian_name'] = 'Dr. Veterinario'
+                            except Exception as e:
+                                print(f"⚠️ Error obteniendo veterinario: {e}")
+                                record['veterinarian_name'] = 'Dr. Veterinario'
+                        else:
+                            record['veterinarian_name'] = 'Dr. Veterinario'
+
+                        # Obtener prescripciones/medicamentos del registro si existen
+                        record_id = record.get('id')
+                        if record_id:
+                            try:
+                                prescriptions_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/prescriptions/record/{record_id}"
+                                prescriptions_response = requests.get(prescriptions_url, headers=headers, timeout=5)
+
+                                if prescriptions_response.status_code == 200:
+                                    prescriptions_data = prescriptions_response.json()
+                                    if prescriptions_data.get('success'):
+                                        record['medications'] = prescriptions_data.get('prescriptions', [])
+                                    else:
+                                        record['medications'] = []
+                                else:
+                                    record['medications'] = []
+                            except Exception as e:
+                                print(f"⚠️ Error obteniendo prescripciones: {e}")
+                                record['medications'] = []
+                        else:
+                            record['medications'] = []
+
+                        # Asegurar formato de fecha
+                        if record.get('created_at'):
+                            try:
+                                # Verificar si la fecha está en formato correcto
+                                datetime.strptime(record['created_at'][:19], '%Y-%m-%dT%H:%M:%S')
+                            except:
+                                # Si no es válida, usar fecha actual
+                                record['created_at'] = datetime.now().isoformat()
+
+                        enriched_records.append(record)
+
+                    except Exception as e:
+                        print(f"⚠️ Error enriqueciendo registro {record.get('id')}: {e}")
+                        # Agregar registro básico sin enriquecimiento
+                        if not record.get('veterinarian_name'):
+                            record['veterinarian_name'] = 'Dr. Veterinario'
+                        if not record.get('medications'):
+                            record['medications'] = []
+                        enriched_records.append(record)
+
+                print(f"✅ {len(enriched_records)} registros médicos obtenidos y enriquecidos")
+
+                return jsonify({
+                    'success': True,
+                    'medical_records': enriched_records,
+                    'pet_info': {
+                        'id': pet_data['id'],
+                        'name': pet_data['name'],
+                        'species': pet_data['species'],
+                        'breed': pet_data.get('breed', ''),
+                        'birth_date': pet_data.get('birth_date'),
+                        'weight': pet_data.get('weight')
+                    },
+                    'total_records': len(enriched_records)
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'medical_records': [],
+                    'pet_info': {
+                        'id': pet_data['id'],
+                        'name': pet_data['name'],
+                        'species': pet_data['species']
+                    },
+                    'total_records': 0
+                })
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Error del Medical Service: {response.status_code}'
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Medical Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio médico'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_client_pet_medical_history: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
+
+@frontend_bp.route('/api/client/medical-history/summary')
+@role_required(['client'])
+def api_client_medical_history_summary():
+    """API para obtener resumen de historia clínica de todas las mascotas del cliente"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        print(f"📊 Generando resumen médico para cliente: {user['id']}")
+
+        # Obtener todas las mascotas del cliente
+        pets_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/owner/{user['id']}"
+        pets_response = requests.get(pets_url, headers=headers, timeout=10)
+
+        if pets_response.status_code != 200:
+            return jsonify({
+                'success': False,
+                'message': 'Error obteniendo mascotas'
+            }), pets_response.status_code
+
+        pets_data = pets_response.json()
+        if not pets_data.get('success'):
+            return jsonify({
+                'success': True,
+                'summary': {
+                    'total_pets': 0,
+                    'total_records': 0,
+                    'recent_visits': 0,
+                    'pets_with_records': []
+                }
+            })
+
+        pets = pets_data.get('pets', [])
+        total_records = 0
+        recent_visits = 0
+        pets_with_records = []
+
+        # Obtener registros para cada mascota
+        for pet in pets:
+            try:
+                records_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/records/pet/{pet['id']}"
+                records_response = requests.get(records_url, headers=headers, timeout=5)
+
+                pet_records_count = 0
+                last_visit = None
+
+                if records_response.status_code == 200:
+                    records_data = records_response.json()
+                    if records_data.get('success'):
+                        records = records_data.get('medical_records', [])
+                        pet_records_count = len(records)
+                        total_records += pet_records_count
+
+                        # Contar visitas recientes (últimos 30 días)
+                        from datetime import datetime, timedelta
+                        thirty_days_ago = datetime.now() - timedelta(days=30)
+
+                        recent_count = 0
+                        for record in records:
+                            try:
+                                record_date = datetime.fromisoformat(record['created_at'].replace('Z', '+00:00'))
+                                if record_date >= thirty_days_ago:
+                                    recent_count += 1
+
+                                # Encontrar última visita
+                                if not last_visit or record_date > datetime.fromisoformat(
+                                        last_visit.replace('Z', '+00:00')):
+                                    last_visit = record['created_at']
+                            except:
+                                continue
+
+                        recent_visits += recent_count
+
+                if pet_records_count > 0:
+                    pets_with_records.append({
+                        'id': pet['id'],
+                        'name': pet['name'],
+                        'species': pet['species'],
+                        'records_count': pet_records_count,
+                        'last_visit': last_visit
+                    })
+
+            except Exception as e:
+                print(f"⚠️ Error obteniendo registros para mascota {pet['id']}: {e}")
+                continue
+
+        summary = {
+            'total_pets': len(pets),
+            'total_records': total_records,
+            'recent_visits': recent_visits,
+            'pets_with_records': pets_with_records,
+            'pets_without_records': len(pets) - len(pets_with_records)
+        }
+
+        print(f"✅ Resumen generado: {total_records} registros para {len(pets)} mascotas")
+
+        return jsonify({
+            'success': True,
+            'summary': summary
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_client_medical_history_summary: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/client/pets/<pet_id>/medical-history/export')
+@role_required(['client'])
+def api_client_export_medical_history(pet_id):
+    """API para exportar historia clínica de una mascota en formato PDF"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        print(f"📄 Exportando historia clínica de mascota: {pet_id}")
+
+        # Verificar que la mascota pertenece al cliente
+        verify_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}"
+        verify_response = requests.get(verify_url, headers=headers, timeout=10)
+
+        if verify_response.status_code != 200:
+            return jsonify({
+                'success': False,
+                'message': 'Mascota no encontrada'
+            }), 404
+
+        verify_data = verify_response.json()
+        pet_data = verify_data.get('pet', {})
+
+        if pet_data.get('owner_id') != user['id']:
+            return jsonify({
+                'success': False,
+                'message': 'No tienes acceso a esta mascota'
+            }), 403
+
+        # Obtener historia clínica completa
+        medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/records/pet/{pet_id}"
+        response = requests.get(medical_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                medical_records = data.get('medical_records', [])
+
+                # Generar contenido HTML para PDF
+                html_content = generate_medical_history_pdf_content(pet_data, medical_records, user)
+
+                return Response(
+                    html_content,
+                    mimetype='text/html',
+                    headers={
+                        'Content-Disposition': f'inline; filename=historia_clinica_{pet_data["name"]}_{datetime.now().strftime("%Y%m%d")}.html'
+                    }
+                )
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'No se pudieron obtener los registros médicos'
+                }), 404
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Error del Medical Service: {response.status_code}'
+            }), response.status_code
+
+    except Exception as e:
+        print(f"❌ Error exportando historia clínica: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error generando PDF: {str(e)}'
+        }), 500
+
+
+def generate_medical_history_pdf_content(pet, medical_records, owner):
+    """Generar contenido HTML para PDF de historia clínica"""
+    from datetime import datetime
+
+    # Calcular edad de la mascota
+    age = 'N/A'
+    if pet.get('birth_date'):
+        try:
+            birth_date = datetime.strptime(pet['birth_date'], '%Y-%m-%d')
+            today = datetime.now()
+            age_years = (today - birth_date).days / 365.25
+
+            if age_years < 1:
+                age = f"{int(age_years * 12)} meses"
+            else:
+                age = f"{int(age_years)} años"
+        except:
+            age = 'N/A'
+
+    # Ordenar registros por fecha
+    sorted_records = sorted(medical_records, key=lambda x: x.get('created_at', ''), reverse=True)
+
+    # Generar HTML de registros
+    records_html = ""
+    for record in sorted_records:
+        record_date = 'Fecha no disponible'
+        try:
+            date_obj = datetime.fromisoformat(record['created_at'].replace('Z', '+00:00'))
+            record_date = date_obj.strftime('%d/%m/%Y')
+        except:
+            pass
+
+        records_html += f"""
+        <div class="record-item">
+            <div class="record-header">
+                <h3>{record.get('reason', 'Consulta médica')}</h3>
+                <span class="record-date">{record_date}</span>
+            </div>
+            <div class="record-content">
+                <p><strong>Veterinario:</strong> {record.get('veterinarian_name', 'Dr. Veterinario')}</p>
+                {f'<p><strong>Diagnóstico:</strong> {record["diagnosis"]}</p>' if record.get('diagnosis') else ''}
+                {f'<p><strong>Tratamiento:</strong> {record["treatment"]}</p>' if record.get('treatment') else ''}
+                {f'<p><strong>Síntomas:</strong> {record["symptoms"]}</p>' if record.get('symptoms') else ''}
+                {f'<p><strong>Observaciones:</strong> {record["observations"]}</p>' if record.get('observations') else ''}
+            </div>
+        </div>
+        """
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Historia Clínica - {pet.get('name', 'Mascota')}</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 20px;
+                color: #2D6A4F;
+                line-height: 1.6;
+                background: white;
+            }}
+            .header {{
+                text-align: center;
+                border-bottom: 3px solid #52B788;
+                padding-bottom: 30px;
+                margin-bottom: 40px;
+            }}
+            .clinic-name {{
+                color: #2D6A4F;
+                font-size: 28px;
+                font-weight: bold;
+                margin-bottom: 10px;
+            }}
+            .document-title {{
+                font-size: 24px;
+                font-weight: bold;
+                color: #38A3A5;
+                margin-bottom: 20px;
+            }}
+            .pet-info {{
+                background: #D8F3DC;
+                padding: 20px;
+                border-radius: 10px;
+                margin-bottom: 30px;
+            }}
+            .pet-info h2 {{
+                color: #2D6A4F;
+                margin-bottom: 15px;
+            }}
+            .pet-details {{
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+            }}
+            .detail-item {{
+                display: flex;
+                justify-content: space-between;
+            }}
+            .detail-label {{
+                font-weight: bold;
+                color: #52B788;
+            }}
+            .records-section {{
+                margin-top: 30px;
+            }}
+            .section-title {{
+                font-size: 20px;
+                font-weight: bold;
+                color: #2D6A4F;
+                margin-bottom: 20px;
+                border-bottom: 2px solid #B7E4C7;
+                padding-bottom: 10px;
+            }}
+            .record-item {{
+                background: #f8fff9;
+                border: 1px solid #B7E4C7;
+                border-radius: 8px;
+                padding: 20px;
+                margin-bottom: 20px;
+            }}
+            .record-header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 15px;
+            }}
+            .record-header h3 {{
+                color: #2D6A4F;
+                margin: 0;
+            }}
+            .record-date {{
+                background: #52B788;
+                color: white;
+                padding: 5px 10px;
+                border-radius: 15px;
+                font-size: 0.9rem;
+            }}
+            .record-content p {{
+                margin-bottom: 10px;
+            }}
+            .footer {{
+                margin-top: 50px;
+                text-align: center;
+                color: #52B788;
+                font-size: 12px;
+                border-top: 1px solid #B7E4C7;
+                padding-top: 20px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="clinic-name">🏥 CLÍNICA VETERINARIA</div>
+            <div class="document-title">HISTORIA CLÍNICA</div>
+        </div>
+
+        <div class="pet-info">
+            <h2>📋 Información de la Mascota</h2>
+            <div class="pet-details">
+                <div class="detail-item">
+                    <span class="detail-label">Peso:</span>
+                    <span>{pet.get('weight', 'N/A')} kg</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Propietario:</span>
+                    <span>{owner.get('first_name', '')} {owner.get('last_name', '')}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="records-section">
+            <div class="section-title">📋 Registros Médicos ({len(medical_records)} consultas)</div>
+            {records_html if records_html else '<p style="text-align: center; color: #666; font-style: italic;">No hay registros médicos disponibles.</p>'}
+        </div>
+
+        <div class="footer">
+            <p><strong>Historia clínica generada el {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</strong></p>
+            <p>Este documento contiene información médica confidencial</p>
+        </div>
+    </body>
+    </html>
+    """
+
+
+# =============== ENDPOINT PARA DESCARGAR REGISTRO MÉDICO INDIVIDUAL ===============
+
+@frontend_bp.route('/api/client/pets/<pet_id>/medical-records/<record_id>/pdf')
+@role_required(['client'])
+def api_client_download_medical_record_pdf(pet_id, record_id):
+    """API para descargar un registro médico específico en formato PDF"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        print(f"📄 Cliente {user['id']} descargando PDF de registro {record_id} de mascota {pet_id}")
+
+        # PASO 1: Verificar que la mascota pertenece al cliente
+        verify_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}"
+        verify_response = requests.get(verify_url, headers=headers, timeout=10)
+
+        if verify_response.status_code != 200:
+            return jsonify({
+                'success': False,
+                'message': 'Mascota no encontrada'
+            }), 404
+
+        verify_data = verify_response.json()
+        if not verify_data.get('success'):
+            return jsonify({
+                'success': False,
+                'message': 'Error verificando mascota'
+            }), 400
+
+        pet_data = verify_data.get('pet', {})
+        if pet_data.get('owner_id') != user['id']:
+            return jsonify({
+                'success': False,
+                'message': 'No tienes acceso a esta mascota'
+            }), 403
+
+        # PASO 2: Obtener el registro médico específico
+        record_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/records/{record_id}"
+        record_response = requests.get(record_url, headers=headers, timeout=10)
+
+        if record_response.status_code != 200:
+            return jsonify({
+                'success': False,
+                'message': 'Registro médico no encontrado'
+            }), 404
+
+        record_data = record_response.json()
+        if not record_data.get('success'):
+            return jsonify({
+                'success': False,
+                'message': 'Error obteniendo registro médico'
+            }), 400
+
+        medical_record = record_data.get('medical_record', {})
+
+        # Verificar que el registro pertenece a la mascota correcta
+        if medical_record.get('pet_id') != pet_id:
+            return jsonify({
+                'success': False,
+                'message': 'El registro no pertenece a esta mascota'
+            }), 403
+
+        # PASO 3: Enriquecer el registro con información adicional
+        try:
+            # Obtener información del veterinario
+            vet_id = medical_record.get('veterinarian_id')
+            if vet_id:
+                users_response = requests.get(
+                    f"{current_app.config['AUTH_SERVICE_URL']}/auth/users",
+                    headers=headers,
+                    timeout=5
+                )
+                if users_response.status_code == 200:
+                    users_data = users_response.json()
+                    if users_data.get('success'):
+                        vet = next(
+                            (u for u in users_data['users'] if u['id'] == vet_id),
+                            None
+                        )
+                        if vet:
+                            medical_record['veterinarian_name'] = f"Dr. {vet['first_name']} {vet['last_name']}"
+
+            # Obtener medicamentos prescritos
+            try:
+                prescriptions_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/prescriptions/record/{record_id}"
+                prescriptions_response = requests.get(prescriptions_url, headers=headers, timeout=5)
+                if prescriptions_response.status_code == 200:
+                    prescriptions_data = prescriptions_response.json()
+                    if prescriptions_data.get('success'):
+                        medical_record['medications'] = prescriptions_data.get('prescriptions', [])
+            except:
+                medical_record['medications'] = []
+
+        except Exception as e:
+            print(f"⚠️ Error enriqueciendo datos: {e}")
+
+        # PASO 4: Generar contenido HTML para PDF
+        html_content = generate_individual_record_pdf_content(medical_record, pet_data, user)
+
+        # PASO 5: Retornar como HTML para conversión a PDF
+        return Response(
+            html_content,
+            mimetype='text/html',
+            headers={
+                'Content-Disposition': f'inline; filename=registro_medico_{pet_data["name"]}_{record_id}_{datetime.now().strftime("%Y%m%d")}.html'
+            }
+        )
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con servicios: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con los servicios médicos'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_client_download_medical_record_pdf: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
+
+def generate_individual_record_pdf_content(medical_record, pet_data, owner_data):
+    """Generar contenido HTML para PDF de un registro médico individual"""
+    from datetime import datetime
+
+    # Calcular edad de la mascota
+    age = 'N/A'
+    if pet_data.get('birth_date'):
+        try:
+            birth_date = datetime.strptime(pet_data['birth_date'], '%Y-%m-%d')
+            today = datetime.now()
+            age_years = (today - birth_date).days / 365.25
+
+            if age_years < 1:
+                age = f"{int(age_years * 12)} meses"
+            else:
+                age = f"{int(age_years)} años"
+        except:
+            age = 'N/A'
+
+    # Formatear fecha del registro
+    record_date = 'Fecha no disponible'
+    try:
+        if medical_record.get('created_at'):
+            date_obj = datetime.fromisoformat(medical_record['created_at'].replace('Z', '+00:00'))
+            record_date = date_obj.strftime('%d de %B de %Y')
+    except:
+        pass
+
+    # Determinar tipo de consulta
+    reason = medical_record.get('reason', 'Consulta médica')
+    record_type = 'Consulta General'
+
+    reason_lower = reason.lower()
+    if 'vacun' in reason_lower:
+        record_type = 'Vacunación'
+    elif 'emergencia' in reason_lower or medical_record.get('is_emergency'):
+        record_type = 'Emergencia'
+    elif 'cirugía' in reason_lower or 'operación' in reason_lower:
+        record_type = 'Cirugía'
+
+    # Generar tabla de medicamentos si existen
+    medications_html = ""
+    if medical_record.get('medications') and len(medical_record['medications']) > 0:
+        medications_html = """
+        <div class="field-group">
+            <div class="field-label">
+                💉 Medicamentos Prescritos
+            </div>
+            <table class="medications-table">
+                <thead>
+                    <tr>
+                        <th>Medicamento</th>
+                        <th>Dosis</th>
+                        <th>Instrucciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+
+        for med in medical_record['medications']:
+            med_name = med.get('name') or med.get('medication_name', 'Medicamento')
+            med_dose = med.get('dosage') or med.get('dose', 'Según indicación médica')
+            med_instructions = med.get('instructions', 'Seguir indicaciones del veterinario')
+
+            medications_html += f"""
+                    <tr>
+                        <td><strong>{med_name}</strong></td>
+                        <td>{med_dose}</td>
+                        <td>{med_instructions}</td>
+                    </tr>
+            """
+
+        medications_html += """
+                </tbody>
+            </table>
+        </div>
+        """
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Registro Médico - {pet_data.get('name', 'Mascota')}</title>
+        <style>
+            * {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }}
+
+            body {{
+                font-family: 'Arial', sans-serif;
+                line-height: 1.6;
+                color: #2D6A4F;
+                background: white;
+                padding: 20px;
+            }}
+
+            .container {{
+                max-width: 800px;
+                margin: 0 auto;
+                background: white;
+                box-shadow: 0 0 20px rgba(0,0,0,0.1);
+                border-radius: 10px;
+                overflow: hidden;
+            }}
+
+            .header {{
+                background: linear-gradient(135deg, #2D6A4F 0%, #52B788 100%);
+                color: white;
+                padding: 30px;
+                text-align: center;
+                position: relative;
+            }}
+
+            .header::before {{
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
+                opacity: 0.3;
+            }}
+
+            .logo {{
+                font-size: 3rem;
+                margin-bottom: 10px;
+                position: relative;
+                z-index: 1;
+            }}
+
+            .clinic-name {{
+                font-size: 2rem;
+                font-weight: bold;
+                margin-bottom: 5px;
+                position: relative;
+                z-index: 1;
+            }}
+
+            .clinic-info {{
+                font-size: 0.9rem;
+                opacity: 0.9;
+                margin-bottom: 20px;
+                position: relative;
+                z-index: 1;
+            }}
+
+            .document-title {{
+                font-size: 1.5rem;
+                font-weight: bold;
+                background: rgba(255,255,255,0.2);
+                padding: 10px 20px;
+                border-radius: 25px;
+                display: inline-block;
+                position: relative;
+                z-index: 1;
+            }}
+
+            .content {{
+                padding: 30px;
+            }}
+
+            .info-section {{
+                background: linear-gradient(135deg, #D8F3DC 0%, #B7E4C7 100%);
+                padding: 25px;
+                border-radius: 15px;
+                margin-bottom: 25px;
+                border: 1px solid #95D5B2;
+                box-shadow: 0 5px 15px rgba(45, 106, 79, 0.1);
+            }}
+
+            .section-title {{
+                font-size: 1.3rem;
+                font-weight: bold;
+                color: #2D6A4F;
+                margin-bottom: 20px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                border-bottom: 2px solid rgba(45, 106, 79, 0.2);
+                padding-bottom: 10px;
+            }}
+
+            .info-grid {{
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+                margin-bottom: 15px;
+            }}
+
+            .info-item {{
+                background: white;
+                padding: 12px;
+                border-radius: 8px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                border-left: 4px solid #52B788;
+            }}
+
+            .info-label {{
+                font-weight: bold;
+                color: #52B788;
+            }}
+
+            .info-value {{
+                color: #2D6A4F;
+                font-weight: 600;
+            }}
+
+            .record-section {{
+                background: linear-gradient(to bottom, #f8fff9 0%, #ffffff 100%);
+                padding: 30px;
+                border-radius: 15px;
+                margin-bottom: 20px;
+                border: 1px solid #B7E4C7;
+                box-shadow: 0 8px 25px rgba(45, 106, 79, 0.1);
+            }}
+
+            .record-header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 25px;
+                padding-bottom: 20px;
+                border-bottom: 3px solid #B7E4C7;
+            }}
+
+            .record-title {{
+                font-size: 1.8rem;
+                color: #2D6A4F;
+                font-weight: bold;
+                margin: 0;
+            }}
+
+            .record-meta {{
+                text-align: right;
+            }}
+
+            .record-date {{
+                background: linear-gradient(135deg, #2D6A4F 0%, #40916C 100%);
+                color: white;
+                padding: 8px 16px;
+                border-radius: 25px;
+                font-size: 0.9rem;
+                margin-bottom: 8px;
+                display: inline-block;
+                font-weight: 600;
+                box-shadow: 0 3px 10px rgba(45, 106, 79, 0.3);
+            }}
+
+            .record-type {{
+                background: linear-gradient(135deg, #52B788 0%, #74C69D 100%);
+                color: white;
+                padding: 5px 12px;
+                border-radius: 20px;
+                font-size: 0.8rem;
+                display: inline-block;
+                font-weight: 600;
+                box-shadow: 0 2px 8px rgba(82, 183, 136, 0.3);
+            }}
+
+            .field-group {{
+                margin-bottom: 25px;
+                background: white;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+            }}
+
+            .field-label {{
+                font-weight: bold;
+                color: white;
+                background: linear-gradient(135deg, #2D6A4F 0%, #52B788 100%);
+                padding: 12px 20px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 1.1rem;
+            }}
+
+            .field-value {{
+                padding: 20px;
+                color: #333;
+                line-height: 1.6;
+                font-size: 1rem;
+                border-left: 4px solid #52B788;
+            }}
+
+            .medications-table {{
+                width: 100%;
+                border-collapse: collapse;
+                background: white;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                margin-top: 15px;
+            }}
+
+            .medications-table th {{
+                background: linear-gradient(135deg, #52B788 0%, #2D6A4F 100%);
+                color: white;
+                padding: 15px;
+                text-align: left;
+                font-weight: bold;
+                font-size: 1rem;
+            }}
+
+            .medications-table td {{
+                padding: 15px;
+                border-bottom: 1px solid #B7E4C7;
+                color: #2D6A4F;
+                vertical-align: top;
+            }}
+
+            .medications-table tr:nth-child(even) {{
+                background: #f8fff9;
+            }}
+
+            .medications-table tr:hover {{
+                background: #D8F3DC;
+            }}
+
+            .footer {{
+                background: linear-gradient(135deg, #f8fff9 0%, #D8F3DC 100%);
+                padding: 25px;
+                text-align: center;
+                color: #52B788;
+                font-size: 0.9rem;
+                border-top: 3px solid #B7E4C7;
+            }}
+
+            .footer-title {{
+                font-weight: bold;
+                color: #2D6A4F;
+                font-size: 1.1rem;
+                margin-bottom: 10px;
+            }}
+
+            .footer-info {{
+                margin: 5px 0;
+                opacity: 0.8;
+            }}
+
+            .watermark {{
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%) rotate(-45deg);
+                font-size: 8rem;
+                color: rgba(82, 183, 136, 0.03);
+                z-index: -1;
+                pointer-events: none;
+                font-weight: bold;
+            }}
+
+            .no-data {{
+                text-align: center;
+                color: #666;
+                font-style: italic;
+                padding: 20px;
+                background: #f9f9f9;
+                border-radius: 8px;
+                border: 2px dashed #ccc;
+            }}
+
+            @media print {{
+                body {{
+                    padding: 0;
+                    -webkit-print-color-adjust: exact;
+                    color-adjust: exact;
+                }}
+                .container {{
+                    box-shadow: none;
+                    border-radius: 0;
+                }}
+                .watermark {{
+                    display: none;
+                }}
+                .field-group {{
+                    break-inside: avoid;
+                }}
+                .record-section {{
+                    break-inside: avoid;
+                }}
+            }}
+
+            @page {{
+                margin: 20mm;
+                size: A4;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="watermark">🏥 VETERINARIA</div>
+
+        <div class="container">
+            <!-- HEADER -->
+            <div class="header">
+                <div class="logo">🏥</div>
+                <div class="clinic-name">CLÍNICA VETERINARIA</div>
+                <div class="clinic-info">
+                    📍 Calle 123 #45-67, Bogotá, Colombia<br>
+                    📞 (601) 234-5678 | 📧 info@clinicaveterinaria.com<br>
+                    🌐 www.clinicaveterinaria.com
+                </div>
+                <div class="document-title">REGISTRO MÉDICO INDIVIDUAL</div>
+            </div>
+
+            <div class="content">
+                <!-- INFORMACIÓN DE LA MASCOTA -->
+                <div class="info-section">
+                    <div class="section-title">
+                        🐾 Información de la Mascota
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Nombre:</span>
+                            <span class="info-value">{pet_data.get('name', 'N/A')}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Especie:</span>
+                            <span class="info-value">{pet_data.get('species', 'N/A')}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Raza:</span>
+                            <span class="info-value">{pet_data.get('breed') or 'No especificada'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Edad:</span>
+                            <span class="info-value">{age}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Peso:</span>
+                            <span class="info-value">{pet_data.get('weight') or 'N/A'} kg</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Propietario:</span>
+                            <span class="info-value">{owner_data.get('first_name', '')} {owner_data.get('last_name', '')}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- INFORMACIÓN DEL REGISTRO MÉDICO -->
+                <div class="record-section">
+                    <div class="record-header">
+                        <div class="record-title">
+                            {reason}
+                        </div>
+                        <div class="record-meta">
+                            <div class="record-date">{record_date}</div>
+                            <div class="record-type">{record_type}</div>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">
+                            👨‍⚕️ Veterinario Responsable
+                        </div>
+                        <div class="field-value">
+                            {medical_record.get('veterinarian_name') or 'Dr. Veterinario'}
+                        </div>
+                    </div>
+
+                    {f'''
+                    <div class="field-group">
+                        <div class="field-label">
+                            🔍 Diagnóstico Médico
+                        </div>
+                        <div class="field-value">
+                            {medical_record['diagnosis']}
+                        </div>
+                    </div>
+                    ''' if medical_record.get('diagnosis') else ''}
+
+                    {f'''
+                    <div class="field-group">
+                        <div class="field-label">
+                            📋 Síntomas Observados
+                        </div>
+                        <div class="field-value">
+                            {medical_record['symptoms']}
+                        </div>
+                    </div>
+                    ''' if medical_record.get('symptoms') else ''}
+
+                    {f'''
+                    <div class="field-group">
+                        <div class="field-label">
+                            🏥 Examen Físico
+                        </div>
+                        <div class="field-value">
+                            {medical_record['physical_exam']}
+                        </div>
+                    </div>
+                    ''' if medical_record.get('physical_exam') else ''}
+
+                    {f'''
+                    <div class="field-group">
+                        <div class="field-label">
+                            💊 Tratamiento Prescrito
+                        </div>
+                        <div class="field-value">
+                            {medical_record['treatment']}
+                        </div>
+                    </div>
+                    ''' if medical_record.get('treatment') else ''}
+
+                    {medications_html}
+
+                    {f'''
+                    <div class="field-group">
+                        <div class="field-label">
+                            📝 Observaciones y Recomendaciones
+                        </div>
+                        <div class="field-value">
+                            {medical_record['observations']}
+                        </div>
+                    </div>
+                    ''' if medical_record.get('observations') else ''}
+
+                    {f'''
+                    <div class="field-group">
+                        <div class="field-label">
+                            📅 Próxima Cita Programada
+                        </div>
+                        <div class="field-value">
+                            {datetime.strptime(medical_record['next_appointment'], '%Y-%m-%d').strftime('%d de %B de %Y') if medical_record.get('next_appointment') else 'No programada'}
+                        </div>
+                    </div>
+                    ''' if medical_record.get('next_appointment') else ''}
+
+                    {'''
+                    <div class="field-group">
+                        <div class="field-label">
+                            ⚠️ Consulta de Emergencia
+                        </div>
+                        <div class="field-value">
+                            ⚠️ Esta fue una consulta de emergencia que requirió atención inmediata.
+                        </div>
+                    </div>
+                    ''' if medical_record.get('is_emergency') else ''}
+                </div>
+            </div>
+
+            <!-- FOOTER -->
+            <div class="footer">
+                <div class="footer-title">🏥 CLÍNICA VETERINARIA - REGISTRO MÉDICO OFICIAL</div>
+                <div class="footer-info">📄 Documento generado el {datetime.now().strftime('%d de %B de %Y a las %H:%M:%S')}</div>
+                <div class="footer-info">⚕️ Este documento contiene información médica confidencial</div>
+                <div class="footer-info">🔒 Para uso exclusivo del propietario y personal médico autorizado</div>
+                <div class="footer-info">📞 Para consultas: (601) 234-5678 | 📧 info@clinicaveterinaria.com</div>
+            </div>
+        </div>
+
+        <script>
+            // Auto-focus para impresión cuando se carga la página
+            window.addEventListener('load', function() {{
+                setTimeout(function() {{
+                    window.focus();
+                    // Si es una petición de descarga automática, abrir diálogo de impresión
+                    if (window.location.search.includes('autoprint=true')) {{
+                        window.print();
+                    }}
+                }}, 800);
+            }});
+
+            // Detectar cuando se cierra el diálogo de impresión
+            window.addEventListener('afterprint', function() {{
+                // Opcionalmente cerrar la ventana después de imprimir
+                setTimeout(function() {{
+                    window.close();
+                }}, 1000);
+            }});
+        </script>
+    </body>
+    </html>
+    """
+
+def validate_profile_data(data, current_user):
+    """Validar datos del perfil antes de enviar al backend"""
+    errors = []
+
+    # Validar campos requeridos
+    if not data.get('first_name', '').strip():
+        errors.append('El nombre es requerido')
+
+    if not data.get('last_name', '').strip():
+        errors.append('El apellido es requerido')
+
+    if not data.get('email', '').strip():
+        errors.append('El correo electrónico es requerido')
+
+    # Validar formato de email
+    if data.get('email'):
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, data['email']):
+            errors.append('El formato del correo electrónico no es válido')
+
+    # Validar teléfono (opcional pero si existe debe ser válido)
+    if data.get('phone', '').strip():
+        phone = data['phone'].strip()
+        # Permitir formatos: +57 300 123 4567, 300 123 4567, 3001234567
+        phone_pattern = r'^(\+\d{1,3}\s?)?\d{3}\s?\d{3}\s?\d{4}$'
+        if not re.match(phone_pattern, phone.replace('-', ' ')):
+            errors.append('El formato del teléfono no es válido (ej: +57 300 123 4567)')
+
+    # Validar longitud de campos
+    if len(data.get('first_name', '')) > 50:
+        errors.append('El nombre no puede tener más de 50 caracteres')
+
+    if len(data.get('last_name', '')) > 50:
+        errors.append('El apellido no puede tener más de 50 caracteres')
+
+    if len(data.get('address', '')) > 255:
+        errors.append('La dirección no puede tener más de 255 caracteres')
+
+    return errors
+
+@frontend_bp.route('/client/profile')
+@role_required(['client'])
+def client_profile():
+    """Página de perfil del cliente - VERSIÓN CORREGIDA PARA USAR ENDPOINT CORRECTO"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        print(f"🔍 Usuario en sesión: {user}")
+
+        # PASO 1: Obtener datos actualizados usando el endpoint /auth/profile (no /auth/users/{id})
+        fresh_user_data = user.copy()  # Usar datos de sesión como fallback
+
+        try:
+            # CAMBIO PRINCIPAL: Usar /auth/profile en lugar de /auth/users/{id}
+            auth_url = f"{current_app.config['AUTH_SERVICE_URL']}/auth/profile"
+            response = requests.get(auth_url, headers=headers, timeout=10)
+
+            print(f"📡 Respuesta Auth Service /profile: {response.status_code}")
+
+            if response.status_code == 200:
+                auth_data = response.json()
+                if auth_data.get('success'):
+                    fresh_user_data = auth_data.get('user', {})
+                    print(f"✅ Datos actualizados obtenidos desde BD usando /auth/profile")
+
+                    # Actualizar la sesión con datos frescos
+                    session['user'] = fresh_user_data
+                    session.permanent = True
+                else:
+                    print(f"⚠️ Auth Service error: {auth_data.get('message')}")
+            else:
+                print(f"⚠️ Auth Service HTTP error: {response.status_code}")
+
+        except requests.RequestException as e:
+            print(f"⚠️ Error conectando con Auth Service: {e}")
+        except Exception as e:
+            print(f"⚠️ Error general obteniendo datos: {e}")
+
+        # PASO 2: Obtener estadísticas del perfil
+        profile_stats = get_client_profile_stats(user['id'], headers)
+
+        # PASO 3: Preparar datos para el template
+        user_data = {
+            'id': fresh_user_data.get('id', ''),
+            'email': fresh_user_data.get('email', ''),
+            'first_name': fresh_user_data.get('first_name', ''),
+            'last_name': fresh_user_data.get('last_name', ''),
+            'phone': fresh_user_data.get('phone', ''),
+            'address': fresh_user_data.get('address', ''),
+            'role': fresh_user_data.get('role', 'client'),
+            'is_active': fresh_user_data.get('is_active', True),
+            'created_at': fresh_user_data.get('created_at', ''),
+            'updated_at': fresh_user_data.get('updated_at', '')
+        }
+
+        print(f"📋 Datos finales para template: {user_data}")
+
+        # PASO 4: Calcular valores derivados
+        first_name = user_data.get('first_name', '').strip()
+        last_name = user_data.get('last_name', '').strip()
+        user_name = f"{first_name} {last_name}".strip() or 'Cliente'
+        user_initial = first_name[0].upper() if first_name else 'C'
+
+        template_data = {
+            'user': user_data,
+            'user_name': user_name,
+            'user_initial': user_initial,
+            'profile_stats': profile_stats
+        }
+
+        print(f"✅ Template data preparado: {template_data}")
+
+        return render_template('client/sections/profile.html', **template_data)
+
+    except Exception as e:
+        print(f"❌ Error en client_profile: {e}")
+        import traceback
+        traceback.print_exc()
+
+        # Fallback con datos mínimos
+        user = session.get('user', {})
+        fallback_data = {
+            'user': {
+                'id': user.get('id', ''),
+                'email': user.get('email', ''),
+                'first_name': '',
+                'last_name': '',
+                'phone': '',
+                'address': '',
+                'role': 'client',
+                'is_active': True,
+                'created_at': '',
+                'updated_at': ''
+            },
+            'user_name': 'Cliente',
+            'user_initial': 'C',
+            'profile_stats': {
+                'pets_count': 0,
+                'appointments_count': 0,
+                'days_as_client': 0
+            }
+        }
+
+        flash('Error cargando datos del perfil. Mostrando datos básicos.', 'warning')
+        return render_template('client/sections/profile.html', **fallback_data)
+
+# AGREGAR TAMBIÉN esta función de soporte si no existe:
+def get_client_profile_stats(user_id, headers):
+    """Obtener estadísticas del cliente desde los microservicios"""
+    stats = {
+        'pets_count': 0,
+        'appointments_count': 0,
+        'days_as_client': 0,
+        'last_appointment': None,
+        'next_appointment': None
+    }
+
+    try:
+        # Obtener mascotas del cliente
+        pets_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/owner/{user_id}"
+        pets_response = requests.get(pets_url, headers=headers, timeout=5)
+
+        if pets_response.status_code == 200:
+            pets_data = pets_response.json()
+            if pets_data.get('success'):
+                stats['pets_count'] = len(pets_data.get('pets', []))
+                print(f"✅ Mascotas encontradas: {stats['pets_count']}")
+
+    except Exception as e:
+        print(f"⚠️ Error obteniendo mascotas: {e}")
+
+    try:
+        # Obtener citas del cliente
+        appointments_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/client/{user_id}"
+        appointments_response = requests.get(appointments_url, headers=headers, timeout=5)
+
+        if appointments_response.status_code == 200:
+            appointments_data = appointments_response.json()
+            if appointments_data.get('success'):
+                appointments = appointments_data.get('appointments', [])
+                stats['appointments_count'] = len(appointments)
+
+                # Buscar última y próxima cita
+                from datetime import datetime
+                today = datetime.now()
+
+                past_appointments = []
+                future_appointments = []
+
+                for apt in appointments:
+                    try:
+                        apt_date = datetime.strptime(apt['appointment_date'], '%Y-%m-%d')
+                        if apt_date < today:
+                            past_appointments.append(apt)
+                        else:
+                            future_appointments.append(apt)
+                    except:
+                        continue
+
+                # Última cita (más reciente del pasado)
+                if past_appointments:
+                    last_apt = max(past_appointments, key=lambda x: x['appointment_date'])
+                    stats['last_appointment'] = last_apt['appointment_date']
+
+                # Próxima cita (más próxima del futuro)
+                if future_appointments:
+                    next_apt = min(future_appointments, key=lambda x: x['appointment_date'])
+                    stats['next_appointment'] = next_apt['appointment_date']
+
+                print(f"✅ Citas encontradas: {stats['appointments_count']}")
+
+    except Exception as e:
+        print(f"⚠️ Error obteniendo citas: {e}")
+
+    try:
+        # Calcular días como cliente
+        user_response = requests.get(
+            f"{current_app.config['AUTH_SERVICE_URL']}/auth/profile",
+            headers=headers,
+            timeout=5
+        )
+
+        if user_response.status_code == 200:
+            user_data = user_response.json()
+            if user_data.get('success'):
+                user_info = user_data.get('user', {})
+                if user_info.get('created_at'):
+                    from datetime import datetime
+                    created_date = datetime.fromisoformat(user_info['created_at'].replace('Z', '+00:00'))
+                    today = datetime.now()
+                    days_diff = (today - created_date).days
+                    stats['days_as_client'] = max(0, days_diff)
+                    print(f"✅ Días como cliente: {stats['days_as_client']}")
+
+    except Exception as e:
+        print(f"⚠️ Error calculando días: {e}")
+
+    return stats
+
+# También agregar este endpoint para obtener el perfil actual
+@frontend_bp.route('/api/client/profile', methods=['GET'])
+@role_required(['client'])
+def api_client_update_profile():
+    """API para actualizar perfil del cliente - VERSIÓN CORREGIDA"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        data = request.get_json()
+
+        print(f"📝 Cliente {user['id']} actualizando perfil")
+        print(f"📝 Datos recibidos: {data}")
+
+        # VALIDACIONES DEL LADO DEL FRONTEND
+        errors = validate_profile_data(data, user)
+        if errors:
+            return jsonify({
+                'success': False,
+                'message': 'Datos inválidos',
+                'errors': errors
+            }), 400
+
+        # Preparar datos para actualización
+        update_data = {
+            'first_name': data['first_name'].strip(),
+            'last_name': data['last_name'].strip(),
+            'email': data['email'].strip().lower(),
+            'phone': data.get('phone', '').strip(),
+            'address': data.get('address', '').strip()
+        }
+
+        print(f"📡 Enviando datos al Auth Service: {update_data}")
+
+        # USAR ENDPOINT CORRECTO: /auth/profile
+        auth_url = f"{current_app.config['AUTH_SERVICE_URL']}/auth/profile"
+        response = requests.put(auth_url, json=update_data, headers=headers, timeout=15)
+
+        print(f"📡 Respuesta Auth Service: {response.status_code}")
+
+        if response.status_code == 200:
+            result = response.json()
+            if result.get('success'):
+                updated_user = result.get('user', {})
+
+                # Actualizar la sesión con los nuevos datos
+                session['user'] = {**session['user'], **updated_user}
+                session.permanent = True
+
+                print(f"✅ Perfil actualizado exitosamente para usuario {user['id']}")
+
+                return jsonify({
+                    'success': True,
+                    'message': 'Perfil actualizado exitosamente',
+                    'user': updated_user
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': result.get('message', 'Error actualizando perfil')
+                }), 400
+        else:
+            # Manejar errores del Auth Service
+            try:
+                error_data = response.json()
+                error_message = error_data.get('message', f'Error del Auth Service: {response.status_code}')
+            except:
+                error_message = f'Error del Auth Service: {response.status_code}'
+
+            print(f"❌ Error Auth Service: {response.status_code} - {error_message}")
+            return jsonify({
+                'success': False,
+                'message': error_message
+            }), response.status_code
+
+    except requests.RequestException as e:
+        print(f"❌ Error conectando con Auth Service: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error de conexión con el servicio de autenticación'
+        }), 500
+    except Exception as e:
+        print(f"❌ Error en api_client_update_profile: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
+def validate_profile_data(data, current_user):
+    """Validar datos del perfil antes de enviar al backend"""
+    errors = []
+
+    # Validar campos requeridos
+    if not data.get('first_name', '').strip():
+        errors.append('El nombre es requerido')
+
+    if not data.get('last_name', '').strip():
+        errors.append('El apellido es requerido')
+
+    if not data.get('email', '').strip():
+        errors.append('El correo electrónico es requerido')
+
+    # Validar formato de email
+    if data.get('email'):
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, data['email']):
+            errors.append('El formato del correo electrónico no es válido')
+
+    # Validar teléfono (opcional pero si existe debe ser válido)
+    if data.get('phone', '').strip():
+        phone = data['phone'].strip()
+        phone_pattern = r'^(\+\d{1,3}\s?)?\d{3}\s?\d{3}\s?\d{4}$'
+        if not re.match(phone_pattern, phone.replace('-', ' ')):
+            errors.append('El formato del teléfono no es válido (ej: +57 300 123 4567)')
+
+    # Validar longitud de campos
+    if len(data.get('first_name', '')) > 50:
+        errors.append('El nombre no puede tener más de 50 caracteres')
+
+    if len(data.get('last_name', '')) > 50:
+        errors.append('El apellido no puede tener más de 50 caracteres')
+
+    if len(data.get('address', '')) > 255:
+        errors.append('La dirección no puede tener más de 255 caracteres')
+
+    return errors
+
+
+@frontend_bp.route('/api/client/profile/stats')
+@role_required(['client'])
+def api_client_profile_stats():
+    """API para obtener estadísticas del perfil del cliente - VERSIÓN MEJORADA"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        print(f"📊 Obteniendo estadísticas para cliente: {user['id']}")
+
+        # Inicializar estadísticas
+        stats = {
+            'pets_count': 0,
+            'appointments_count': 0,
+            'days_as_client': 0,
+            'last_appointment': None,
+            'next_appointment': None
+        }
+
+        # PASO 1: Obtener mascotas del cliente
+        try:
+            print("🐾 Obteniendo mascotas...")
+            pets_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/owner/{user['id']}"
+            pets_response = requests.get(pets_url, headers=headers, timeout=10)
+
+            print(f"📡 Respuesta mascotas: {pets_response.status_code}")
+
+            if pets_response.status_code == 200:
+                pets_data = pets_response.json()
+                print(f"🐾 Datos mascotas: {pets_data}")
+
+                if pets_data.get('success'):
+                    pets = pets_data.get('pets', [])
+                    stats['pets_count'] = len(pets)
+                    print(f"✅ Mascotas encontradas: {stats['pets_count']}")
+                else:
+                    print(f"⚠️ Medical Service error: {pets_data.get('message')}")
+            else:
+                print(f"⚠️ Medical Service HTTP error: {pets_response.status_code}")
+
+        except requests.RequestException as e:
+            print(f"❌ Error conectando con Medical Service: {e}")
+        except Exception as e:
+            print(f"❌ Error general obteniendo mascotas: {e}")
+
+        # PASO 2: Obtener citas del cliente
+        try:
+            print("📅 Obteniendo citas...")
+            appointments_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/client/{user['id']}"
+            appointments_response = requests.get(appointments_url, headers=headers, timeout=10)
+
+            print(f"📡 Respuesta citas: {appointments_response.status_code}")
+
+            if appointments_response.status_code == 200:
+                appointments_data = appointments_response.json()
+                print(f"📅 Datos citas: {appointments_data}")
+
+                if appointments_data.get('success'):
+                    appointments = appointments_data.get('appointments', [])
+                    stats['appointments_count'] = len(appointments)
+                    print(f"✅ Citas encontradas: {stats['appointments_count']}")
+
+                    # Buscar última y próxima cita
+                    from datetime import datetime
+                    today = datetime.now()
+                    past_appointments = []
+                    future_appointments = []
+
+                    for apt in appointments:
+                        try:
+                            apt_date = datetime.strptime(apt['appointment_date'], '%Y-%m-%d')
+                            if apt_date < today:
+                                past_appointments.append(apt)
+                            else:
+                                future_appointments.append(apt)
+                        except:
+                            continue
+
+                    # Última cita
+                    if past_appointments:
+                        last_apt = max(past_appointments, key=lambda x: x['appointment_date'])
+                        stats['last_appointment'] = last_apt['appointment_date']
+
+                    # Próxima cita
+                    if future_appointments:
+                        next_apt = min(future_appointments, key=lambda x: x['appointment_date'])
+                        stats['next_appointment'] = next_apt['appointment_date']
+
+                else:
+                    print(f"⚠️ Appointment Service error: {appointments_data.get('message')}")
+            else:
+                print(f"⚠️ Appointment Service HTTP error: {appointments_response.status_code}")
+
+        except requests.RequestException as e:
+            print(f"❌ Error conectando con Appointment Service: {e}")
+        except Exception as e:
+            print(f"❌ Error general obteniendo citas: {e}")
+
+        # PASO 3: Calcular días como cliente
+        try:
+            print("📅 Calculando días como cliente...")
+            if user.get('created_at'):
+                from datetime import datetime
+                created_date = datetime.fromisoformat(user['created_at'].replace('Z', '+00:00'))
+                today = datetime.now()
+                days_diff = (today - created_date).days
+                stats['days_as_client'] = max(0, days_diff)
+                print(f"✅ Días como cliente: {stats['days_as_client']}")
+            else:
+                print("⚠️ No hay fecha de creación en la sesión")
+        except Exception as e:
+            print(f"❌ Error calculando días: {e}")
+
+        print(f"📊 Estadísticas finales: {stats}")
+
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_client_profile_stats: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/client/profile', methods=['GET'])
+@role_required(['client'])
+def api_client_validate_profile():
+    """API para validar datos del perfil antes de actualizar"""
+    try:
+        data = request.get_json()
+        current_user = session.get('user', {})
+
+        errors = validate_profile_data(data, current_user)
+
+        # Verificar si el email ya existe (si es diferente al actual)
+        if data.get('email') and data['email'].lower() != current_user.get('email', '').lower():
+            try:
+                headers = {'Authorization': f"Bearer {session.get('token')}"}
+                check_url = f"{current_app.config['AUTH_SERVICE_URL']}/auth/users/check-email"
+                check_response = requests.post(check_url,
+                                               json={'email': data['email']},
+                                               headers=headers,
+                                               timeout=5)
+
+                if check_response.status_code == 200:
+                    check_data = check_response.json()
+                    if check_data.get('exists'):
+                        errors.append('Este correo electrónico ya está registrado')
+            except:
+                # Si no se puede verificar, continuar (la validación se hará en el servidor)
+                pass
+
+        if errors:
+            return jsonify({
+                'success': False,
+                'message': 'Datos inválidos',
+                'errors': errors
+            }), 400
+        else:
+            return jsonify({
+                'success': True,
+                'message': 'Datos válidos'
+            })
+
+    except Exception as e:
+        print(f"❌ Error en api_client_validate_profile: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error validando datos'
+        }), 500
 
 @frontend_bp.route('/health')
 def health():
