@@ -459,7 +459,7 @@
 
 <!-- QUICK STATS -->
 <div class="quick-stats">
-    <div class="stat-card appointments" onclick="window.location.href='{{ url_for('frontend.veterinarian_calendar') }}'">
+    <div class="stat-card appointments" onclick="window.location.href='{{ url_for('frontend.veterinarian_schedule') }}'">
         <div class="stat-header">
             <div>
                 <div class="stat-number" id="todayAppointments">{{ today_appointments_count or 0 }}</div>
@@ -543,9 +543,9 @@
         <span class="action-icon">📄</span>
         <span class="action-label">Nueva Historia</span>
     </a>
-    <a href="{{ url_for('frontend.veterinarian_calendar') }}" class="action-btn">
+    <a href="{{ url_for('frontend.veterinarian_schedule') }}" class="action-btn">
         <span class="action-icon">📅</span>
-        <span class="action-label">Ver Calendario</span>
+        <span class="action-label">Mi Horario</span>
     </a>
     <a href="{{ url_for('frontend.veterinarian_prescriptions') }}" class="action-btn">
         <span class="action-icon">💊</span>
@@ -685,7 +685,8 @@
                 patientsGrid.innerHTML = patientsHTML;
 
                 // Actualizar contador
-                document.getElementById('totalPatients').textContent = response.total_patients || response.patients.length;
+                const totalPatients = response.total_patients || response.patients.length;
+                document.getElementById('totalPatients').textContent = totalPatients;
             } else {
                 // Estado vacío
                 patientsGrid.innerHTML = `
@@ -766,33 +767,6 @@
         window.location.href = `{{ url_for('frontend.veterinarian_patients') }}?patient=${patientId}`;
     }
 
-    // =============== FUNCIONES DE UTILIDAD ===============
-    function startConsultation(appointmentId) {
-        console.log(`🩺 Iniciando consulta: ${appointmentId}`);
-        window.location.href = `{{ url_for('frontend.veterinarian_medical_records') }}?appointment=${appointmentId}`;
-    }
-
-    function completeAppointment(appointmentId) {
-        if (confirm('¿Estás seguro de que quieres marcar esta cita como completada?')) {
-            // Implementar completar cita
-            console.log(`✅ Completando cita: ${appointmentId}`);
-            // Aquí se haría la llamada a la API para completar la cita
-        }
-    }
-
-    function createEmergencyRecord(patientId) {
-        console.log(`🚨 Creando registro de emergencia para: ${patientId}`);
-        window.location.href = `{{ url_for('frontend.veterinarian_medical_records') }}?patient=${patientId}&emergency=true`;
-    }
-
-    // =============== FUNCIONES DE BÚSQUEDA RÁPIDA ===============
-    function quickSearchPatient() {
-        const searchTerm = prompt('Buscar paciente por nombre:');
-        if (searchTerm && searchTerm.trim()) {
-            window.location.href = `{{ url_for('frontend.veterinarian_search_patients') }}?q=${encodeURIComponent(searchTerm.trim())}`;
-        }
-    }
-
     // =============== ATAJOS DE TECLADO ===============
     document.addEventListener('keydown', function(e) {
         // Ctrl/Cmd + N: Nueva historia clínica
@@ -801,325 +775,18 @@
             window.location.href = '{{ url_for('frontend.veterinarian_medical_records') }}';
         }
 
-        // Ctrl/Cmd + F: Buscar paciente
-        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        // Ctrl/Cmd + H: Ver horario
+        if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
             e.preventDefault();
-            quickSearchPatient();
+            window.location.href = '{{ url_for('frontend.veterinarian_schedule') }}';
         }
 
-        // Ctrl/Cmd + C: Ver calendario
-        if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        // Ctrl/Cmd + P: Ver pacientes
+        if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
             e.preventDefault();
-            window.location.href = '{{ url_for('frontend.veterinarian_calendar') }}';
+            window.location.href = '{{ url_for('frontend.veterinarian_patients') }}';
         }
     });
-
-    // =============== NOTIFICACIONES EN TIEMPO REAL ===============
-    function setupRealTimeNotifications() {
-        // Simular notificaciones en tiempo real
-        // En una implementación real, esto sería WebSocket o Server-Sent Events
-        setInterval(async () => {
-            try {
-                const response = await makeAuthenticatedRequest('/api/veterinarian/notifications/new');
-                if (response.success && response.new_notifications.length > 0) {
-                    response.new_notifications.forEach(notification => {
-                        showNotificationToast(
-                            notification.title,
-                            notification.message,
-                            notification.type || 'info'
-                        );
-                    });
-                }
-            } catch (error) {
-                // Silenciar errores de notificaciones
-            }
-        }, 30000); // Cada 30 segundos
-    }
-
-    // =============== FUNCIONES DE ACCESO RÁPIDO ===============
-
-    // Función para acceso rápido a medicamentos
-    window.quickAccessMedications = function() {
-        window.location.href = '{{ url_for('frontend.veterinarian_inventory') }}';
-    };
-
-    // Función para acceso rápido a exámenes
-    window.quickAccessExams = function() {
-        window.location.href = '{{ url_for('frontend.veterinarian_exams') }}';
-    };
-
-    // Función para crear nueva prescripción
-    window.quickNewPrescription = function() {
-        window.location.href = '{{ url_for('frontend.veterinarian_prescriptions') }}?new=true';
-    };
-
-    // =============== FUNCIONES DE ESTADO ===============
-    function updateAppointmentStatus(appointmentId, newStatus) {
-        return makeAuthenticatedRequest(`/api/veterinarian/appointments/${appointmentId}/status`, {
-            method: 'PUT',
-            body: JSON.stringify({ status: newStatus })
-        });
-    }
-
-    function markPatientAsUrgent(patientId) {
-        return makeAuthenticatedRequest(`/api/veterinarian/patients/${patientId}/urgent`, {
-            method: 'PUT'
-        });
-    }
-
-    // =============== FUNCIONES DE INTERACCIÓN RÁPIDA ===============
-    function quickStartConsultation(appointmentId, patientId) {
-        if (confirm('¿Deseas iniciar la consulta para este paciente?')) {
-            // Marcar cita como "en progreso"
-            updateAppointmentStatus(appointmentId, 'in_progress')
-                .then(() => {
-                    showMessage('Consulta iniciada correctamente', 'success');
-                    // Navegar a la historia clínica
-                    setTimeout(() => {
-                        window.location.href = `{{ url_for('frontend.veterinarian_medical_records') }}?appointment=${appointmentId}&patient=${patientId}`;
-                    }, 1000);
-                })
-                .catch(error => {
-                    console.error('Error iniciando consulta:', error);
-                    showMessage('Error al iniciar la consulta', 'error');
-                });
-        }
-    }
-
-    function quickRescheduleAppointment(appointmentId) {
-        if (confirm('¿Deseas reprogramar esta cita?')) {
-            window.location.href = `{{ url_for('frontend.veterinarian_calendar') }}?reschedule=${appointmentId}`;
-        }
-    }
-
-    function quickCancelAppointment(appointmentId) {
-        if (confirm('¿Estás seguro de que deseas cancelar esta cita?')) {
-            updateAppointmentStatus(appointmentId, 'cancelled')
-                .then(() => {
-                    showMessage('Cita cancelada correctamente', 'success');
-                    loadTodayAppointments(); // Recargar lista
-                })
-                .catch(error => {
-                    console.error('Error cancelando cita:', error);
-                    showMessage('Error al cancelar la cita', 'error');
-                });
-        }
-    }
-
-    // =============== FUNCIONES DE EMERGENCIA ===============
-    function handleEmergencyPatient(patientId, patientName) {
-        if (confirm(`¿Deseas crear un registro de emergencia para ${patientName}?`)) {
-            // Crear registro de emergencia inmediatamente
-            const emergencyData = {
-                patient_id: patientId,
-                priority: 'emergency',
-                reason: 'Atención de emergencia',
-                is_emergency: true
-            };
-
-            makeAuthenticatedRequest('/api/veterinarian/medical-records/emergency', {
-                method: 'POST',
-                body: JSON.stringify(emergencyData)
-            })
-            .then(response => {
-                if (response.success) {
-                    showMessage('Registro de emergencia creado', 'success');
-                    window.location.href = `{{ url_for('frontend.veterinarian_medical_records') }}?record=${response.record_id}&emergency=true`;
-                } else {
-                    throw new Error(response.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error creando registro de emergencia:', error);
-                showMessage('Error al crear registro de emergencia', 'error');
-                // Fallback: navegar directamente
-                window.location.href = `{{ url_for('frontend.veterinarian_medical_records') }}?patient=${patientId}&emergency=true`;
-            });
-        }
-    }
-
-    // =============== FUNCIONES DE BÚSQUEDA Y FILTROS ===============
-    function filterAppointmentsByPriority(priority) {
-        const appointments = document.querySelectorAll('.appointment-item');
-        appointments.forEach(appointment => {
-            const priorityEl = appointment.querySelector('.appointment-priority');
-            if (priority === 'all' || priorityEl.classList.contains(`priority-${priority}`)) {
-                appointment.style.display = 'flex';
-            } else {
-                appointment.style.display = 'none';
-            }
-        });
-    }
-
-    function searchPatients(searchTerm) {
-        const patients = document.querySelectorAll('.patient-card');
-        const term = searchTerm.toLowerCase();
-
-        patients.forEach(patient => {
-            const name = patient.querySelector('.patient-name').textContent.toLowerCase();
-            const info = patient.querySelector('.patient-info').textContent.toLowerCase();
-
-            if (name.includes(term) || info.includes(term)) {
-                patient.style.display = 'block';
-            } else {
-                patient.style.display = 'none';
-            }
-        });
-    }
-
-    // =============== FUNCIONES DE REPORTES RÁPIDOS ===============
-    function generateDailyReport() {
-        const today = new Date().toISOString().split('T')[0];
-        window.open(`{{ url_for('frontend.veterinarian_reports') }}?type=daily&date=${today}`, '_blank');
-    }
-
-    function generatePatientReport(patientId) {
-        window.open(`{{ url_for('frontend.veterinarian_reports') }}?type=patient&patient_id=${patientId}`, '_blank');
-    }
-
-    // =============== FUNCIONES DE CONFIGURACIÓN RÁPIDA ===============
-    function toggleNotifications() {
-        const currentSetting = localStorage.getItem('vet_notifications') === 'enabled';
-        const newSetting = !currentSetting;
-
-        localStorage.setItem('vet_notifications', newSetting ? 'enabled' : 'disabled');
-        showMessage(
-            `Notificaciones ${newSetting ? 'activadas' : 'desactivadas'}`,
-            newSetting ? 'success' : 'info'
-        );
-    }
-
-    function setDashboardRefreshRate(minutes) {
-        // Limpiar intervalo existente
-        if (window.dashboardInterval) {
-            clearInterval(window.dashboardInterval);
-        }
-
-        // Configurar nuevo intervalo
-        window.dashboardInterval = setInterval(loadVeterinarianDashboardData, minutes * 60 * 1000);
-        showMessage(`Dashboard se actualizará cada ${minutes} minutos`, 'info');
-    }
-
-    // =============== INICIALIZACIÓN FINAL ===============
-
-    // Configurar notificaciones en tiempo real
-    setupRealTimeNotifications();
-
-    // Configurar intervalos personalizables
-    const refreshRate = localStorage.getItem('vet_refresh_rate') || 5;
-    setDashboardRefreshRate(parseInt(refreshRate));
-
-    // Verificar notificaciones habilitadas
-    const notificationsEnabled = localStorage.getItem('vet_notifications') !== 'disabled';
-    if (!notificationsEnabled) {
-        console.log('📵 Notificaciones del dashboard deshabilitadas');
-    }
-
-    // =============== GESTIÓN DE ESTADO DE LA APLICACIÓN ===============
-    function saveAppState() {
-        const state = {
-            lastUpdate: new Date().toISOString(),
-            currentView: 'dashboard',
-            pendingActions: []
-        };
-        sessionStorage.setItem('vet_app_state', JSON.stringify(state));
-    }
-
-    function loadAppState() {
-        const stateStr = sessionStorage.getItem('vet_app_state');
-        if (stateStr) {
-            try {
-                const state = JSON.parse(stateStr);
-                console.log('📱 Estado de aplicación restaurado:', state);
-                return state;
-            } catch (e) {
-                console.error('Error cargando estado:', e);
-            }
-        }
-        return null;
-    }
-
-    // =============== MANEJO DE CONEXIÓN OFFLINE ===============
-    function handleOnlineStatus() {
-        if (navigator.onLine) {
-            document.body.classList.remove('offline');
-            showMessage('Conexión restaurada', 'success');
-            loadVeterinarianDashboardData(); // Recargar datos
-        } else {
-            document.body.classList.add('offline');
-            showMessage('Sin conexión a internet', 'warning');
-        }
-    }
-
-    window.addEventListener('online', handleOnlineStatus);
-    window.addEventListener('offline', handleOnlineStatus);
-
-    // =============== FUNCIONES DE ACCESIBILIDAD ===============
-    function announceToScreenReader(message) {
-        const announcement = document.createElement('div');
-        announcement.setAttribute('aria-live', 'polite');
-        announcement.setAttribute('aria-atomic', 'true');
-        announcement.className = 'sr-only';
-        announcement.textContent = message;
-
-        document.body.appendChild(announcement);
-
-        setTimeout(() => {
-            document.body.removeChild(announcement);
-        }, 1000);
-    }
-
-    // Anunciar cambios importantes
-    function announceAppointmentUpdate(type, patientName) {
-        const messages = {
-            'started': `Consulta iniciada para ${patientName}`,
-            'completed': `Consulta completada para ${patientName}`,
-            'cancelled': `Cita cancelada para ${patientName}`,
-            'emergency': `Emergencia registrada para ${patientName}`
-        };
-
-        if (messages[type]) {
-            announceToScreenReader(messages[type]);
-        }
-    }
-
-    // =============== EXPORTAR FUNCIONES GLOBALES ===============
-    window.quickStartConsultation = quickStartConsultation;
-    window.quickRescheduleAppointment = quickRescheduleAppointment;
-    window.quickCancelAppointment = quickCancelAppointment;
-    window.handleEmergencyPatient = handleEmergencyPatient;
-    window.filterAppointmentsByPriority = filterAppointmentsByPriority;
-    window.searchPatients = searchPatients;
-    window.generateDailyReport = generateDailyReport;
-    window.generatePatientReport = generatePatientReport;
-    window.toggleNotifications = toggleNotifications;
-    window.setDashboardRefreshRate = setDashboardRefreshRate;
-    window.announceAppointmentUpdate = announceAppointmentUpdate;
-
-    // Guardar estado inicial
-    saveAppState();
-
-    // Mensaje de bienvenida en consola
-    console.log(`
-    🩺 Dashboard Veterinario Cargado
-    ================================
-    Atajos de teclado disponibles:
-    • Ctrl+N: Nueva historia clínica
-    • Ctrl+F: Buscar paciente
-    • Ctrl+C: Ver calendario
-
-    Funciones rápidas disponibles:
-    • quickStartConsultation(appointmentId, patientId)
-    • handleEmergencyPatient(patientId, patientName)
-    • generateDailyReport()
-    • toggleNotifications()
-
-    Estado de conexión: ${navigator.onLine ? 'Conectado' : 'Desconectado'}
-    Notificaciones: ${notificationsEnabled ? 'Habilitadas' : 'Deshabilitadas'}
-    Actualización automática: Cada ${refreshRate} minutos
-
-    ¡Listo para atender pacientes!
-    `);
 
     console.log('✅ Dashboard del Veterinario inicializado correctamente');
 </script>

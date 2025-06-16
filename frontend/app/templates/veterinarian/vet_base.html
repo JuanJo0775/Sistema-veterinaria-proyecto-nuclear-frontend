@@ -641,15 +641,21 @@
                 <div class="menu-section-title">Atención Médica</div>
                 <ul>
                     <li class="menu-item">
-                        <a href="{{ url_for('frontend.veterinarian_calendar') }}" class="menu-link {% if request.endpoint == 'frontend.veterinarian_calendar' %}active{% endif %}">
+                        <a href="{{ url_for('frontend.veterinarian_schedule') }}" class="menu-link {% if request.endpoint == 'frontend.veterinarian_schedule' %}active{% endif %}">
                             <span class="menu-icon">📅</span>
-                            <span>Mi Calendario</span>
+                            <span>Mi Horario</span>
                             <span class="menu-notification" id="todayAppointments" style="display: none;">0</span>
                         </a>
                     </li>
                     <li class="menu-item">
-                        <a href="{{ url_for('frontend.veterinarian_appointments') }}" class="menu-link {% if request.endpoint == 'frontend.veterinarian_appointments' %}active{% endif %}">
+                        <a href="{{ url_for('frontend.veterinarian_calendar') }}" class="menu-link {% if request.endpoint == 'frontend.veterinarian_calendar' %}active{% endif %}">
                             <span class="menu-icon">📋</span>
+                            <span>Calendario</span>
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="{{ url_for('frontend.veterinarian_appointments') }}" class="menu-link {% if request.endpoint == 'frontend.veterinarian_appointments' %}active{% endif %}">
+                            <span class="menu-icon">📝</span>
                             <span>Lista de Citas</span>
                         </a>
                     </li>
@@ -742,12 +748,6 @@
                         </a>
                     </li>
                     <li class="menu-item">
-                        <a href="{{ url_for('frontend.veterinarian_schedule') }}" class="menu-link {% if request.endpoint == 'frontend.veterinarian_schedule' %}active{% endif %}">
-                            <span class="menu-icon">⏰</span>
-                            <span>Mi Horario</span>
-                        </a>
-                    </li>
-                    <li class="menu-item">
                         <a href="{{ url_for('frontend.logout') }}" class="menu-link">
                             <span class="menu-icon">🚪</span>
                             <span>Cerrar Sesión</span>
@@ -810,30 +810,34 @@
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('mainContent');
 
-            menuToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('active');
-                sidebar.classList.toggle('collapsed');
-                mainContent.classList.toggle('expanded');
-            });
+            if (menuToggle && sidebar && mainContent) {
+                menuToggle.addEventListener('click', () => {
+                    sidebar.classList.toggle('active');
+                    sidebar.classList.toggle('collapsed');
+                    mainContent.classList.toggle('expanded');
+                });
 
-            // Cerrar sidebar al hacer clic fuera en móvil
-            document.addEventListener('click', (e) => {
-                if (window.innerWidth <= 1024) {
-                    if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
-                        sidebar.classList.remove('active');
-                        sidebar.classList.add('collapsed');
-                        mainContent.classList.add('expanded');
+                // Cerrar sidebar al hacer clic fuera en móvil
+                document.addEventListener('click', (e) => {
+                    if (window.innerWidth <= 1024) {
+                        if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+                            sidebar.classList.remove('active');
+                            sidebar.classList.add('collapsed');
+                            mainContent.classList.add('expanded');
+                        }
                     }
-                }
-            });
+                });
+            }
 
             // Notificaciones
             const notificationBell = document.getElementById('notificationBell');
-            notificationBell.addEventListener('click', (e) => {
-                e.stopPropagation();
-                console.log('🔔 Navegando a notificaciones veterinario...');
-                // Implementar navegación a notificaciones específicas del veterinario
-            });
+            if (notificationBell) {
+                notificationBell.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    console.log('🔔 Navegando a notificaciones veterinario...');
+                    // Implementar navegación a notificaciones específicas del veterinario
+                });
+            }
 
             // Manejo de teclado para accesibilidad
             document.addEventListener('keydown', (e) => {
@@ -880,11 +884,13 @@
             const topbarBadge = document.getElementById('notificationBadge');
             const unreadCount = data.unread_notifications || 0;
 
-            if (unreadCount > 0) {
-                topbarBadge.textContent = unreadCount > 99 ? '99+' : unreadCount;
-                topbarBadge.style.display = 'flex';
-            } else {
-                topbarBadge.style.display = 'none';
+            if (topbarBadge) {
+                if (unreadCount > 0) {
+                    topbarBadge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                    topbarBadge.style.display = 'flex';
+                } else {
+                    topbarBadge.style.display = 'none';
+                }
             }
 
             // Badge de citas de hoy en sidebar
@@ -908,13 +914,15 @@
             `;
 
             const messagesContainer = document.querySelector('.flashed-messages');
-            messagesContainer.appendChild(alertDiv);
+            if (messagesContainer) {
+                messagesContainer.appendChild(alertDiv);
 
-            // Auto-remover después de 5 segundos
-            setTimeout(() => {
-                alertDiv.style.animation = 'slideInRight 0.4s ease reverse';
-                setTimeout(() => alertDiv.remove(), 400);
-            }, 5000);
+                // Auto-remover después de 5 segundos
+                setTimeout(() => {
+                    alertDiv.style.animation = 'slideInRight 0.4s ease reverse';
+                    setTimeout(() => alertDiv.remove(), 400);
+                }, 5000);
+            }
         }
 
         function getMessageIcon(type) {
