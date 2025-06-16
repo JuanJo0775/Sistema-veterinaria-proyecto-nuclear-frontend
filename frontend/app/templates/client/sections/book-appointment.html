@@ -996,6 +996,7 @@
 {% block scripts %}
 {{ super() }}
 <script>
+// =============== SISTEMA DE AGENDAMIENTO CORREGIDO ===============
 (function() {
     'use strict';
 
@@ -1004,6 +1005,13 @@
     const USER_TOKEN = '{{ session.get("token") if session.get("token") else "" }}';
     const ADD_PET_URL = '{{ url_for("frontend.client_add_pet") }}';
     const DASHBOARD_URL = '{{ url_for("frontend.client_dashboard") }}';
+
+    // URLs de servicios corregidas
+    const SERVICES = {
+        AUTH: 'http://localhost:5001',
+        APPOINTMENT: 'http://localhost:5002',
+        MEDICAL: 'http://localhost:5004'
+    };
 
     // Validar sesión
     if (!USER_ID || !USER_TOKEN) {
@@ -1038,40 +1046,40 @@
     // =============== EVENT LISTENERS ===============
     function setupEventListeners() {
         // Navegación entre pasos
-        document.getElementById('nextStep1').addEventListener('click', () => goToStep(2));
-        document.getElementById('nextStep2').addEventListener('click', () => goToStep(3));
-        document.getElementById('nextStep3').addEventListener('click', () => goToStep(4));
-        document.getElementById('nextStep4').addEventListener('click', () => goToStep(5));
+        document.getElementById('nextStep1')?.addEventListener('click', () => goToStep(2));
+        document.getElementById('nextStep2')?.addEventListener('click', () => goToStep(3));
+        document.getElementById('nextStep3')?.addEventListener('click', () => goToStep(4));
+        document.getElementById('nextStep4')?.addEventListener('click', () => goToStep(5));
 
-        document.getElementById('prevStep2').addEventListener('click', () => goToStep(1));
-        document.getElementById('prevStep3').addEventListener('click', () => goToStep(2));
-        document.getElementById('prevStep4').addEventListener('click', () => goToStep(3));
-        document.getElementById('prevStep5').addEventListener('click', () => goToStep(4));
+        document.getElementById('prevStep2')?.addEventListener('click', () => goToStep(1));
+        document.getElementById('prevStep3')?.addEventListener('click', () => goToStep(2));
+        document.getElementById('prevStep4')?.addEventListener('click', () => goToStep(3));
+        document.getElementById('prevStep5')?.addEventListener('click', () => goToStep(4));
 
         // Navegación del calendario
-        document.getElementById('prevMonth').addEventListener('click', () => {
+        document.getElementById('prevMonth')?.addEventListener('click', () => {
             currentMonth.setMonth(currentMonth.getMonth() - 1);
             renderCalendar();
         });
 
-        document.getElementById('nextMonth').addEventListener('click', () => {
+        document.getElementById('nextMonth')?.addEventListener('click', () => {
             currentMonth.setMonth(currentMonth.getMonth() + 1);
             renderCalendar();
         });
 
         // Validación del formulario final
-        document.getElementById('consultationType').addEventListener('change', validateFinalForm);
-        document.getElementById('consultationReason').addEventListener('input', validateFinalForm);
+        document.getElementById('consultationType')?.addEventListener('change', validateFinalForm);
+        document.getElementById('consultationReason')?.addEventListener('input', validateFinalForm);
 
         // Confirmación de cita
-        document.getElementById('confirmBooking').addEventListener('click', confirmAppointment);
+        document.getElementById('confirmBooking')?.addEventListener('click', confirmAppointment);
     }
 
     // =============== CARGA DE DATOS ===============
     async function loadUserPets() {
         try {
             console.log('🐾 Cargando mascotas del usuario...');
-            
+
             const response = await fetch('/api/client/pets', {
                 headers: {
                     'Authorization': `Bearer ${USER_TOKEN}`,
@@ -1098,8 +1106,8 @@
 
         } catch (error) {
             console.error('❌ Error cargando mascotas:', error);
-            showEmptyState('petsGrid', '🐾', 'No tienes mascotas registradas', 
-                'Primero debes registrar una mascota para poder agendar citas', 
+            showEmptyState('petsGrid', '🐾', 'No tienes mascotas registradas',
+                'Primero debes registrar una mascota para poder agendar citas',
                 'Registrar Mi Primera Mascota', ADD_PET_URL);
         }
     }
@@ -1107,15 +1115,29 @@
     async function loadVeterinarians() {
         try {
             console.log('👨‍⚕️ Cargando veterinarios...');
-            
-            const response = await fetch('/api/client/veterinarians', {
+            showLoading('vetsGrid', 'Cargando veterinarios disponibles...');
+
+            // MÉTODO 1: Intentar desde frontend (ruta proxy)
+            let response = await fetch('/api/public/veterinarians', {
                 headers: {
                     'Authorization': `Bearer ${USER_TOKEN}`,
                     'Content-Type': 'application/json'
                 }
             });
 
-            console.log(`📡 Respuesta veterinarios: ${response.status}`);
+            console.log(`📡 Respuesta veterinarios (frontend): ${response.status}`);
+
+            // Si falla, usar MÉTODO 2: Directo al Auth Service
+            if (!response.ok) {
+                console.log('🔄 Intentando desde Auth Service directo...');
+                response = await fetch(`${SERVICES.AUTH}/auth/users`, {
+                    headers: {
+                        'Authorization': `Bearer ${USER_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                console.log(`📡 Respuesta Auth Service: ${response.status}`);
+            }
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1124,26 +1146,119 @@
             const data = await response.json();
             console.log('📦 Datos de veterinarios:', data);
 
+            // Procesar respuesta según formato
+            let vetsToProcess = [];
+
             if (data.success) {
-                veterinarians = data.veterinarians || [];
-                console.log(`✅ ${veterinarians.length} veterinarios cargados`);
-
-                if (veterinarians.length === 0) {
-                    showEmptyState('vetsGrid', '👨‍⚕️', 'No hay veterinarios disponibles', 
-                        'No se encontraron veterinarios disponibles en este momento.', null, null);
-                    return;
+                if (data.veterinarians) {
+                    // Respuesta del frontend con veterinarios procesados
+                    vetsToProcess = data.veterinarians;
+                } else if (data.users) {
+                    // Respuesta directa del Auth Service
+                    vetsToProcess = data.users.filter(user => user.role === 'veterinarian' && user.is_active);
                 }
-
-                renderVeterinarians();
-            } else {
-                throw new Error(data.message || 'Error al cargar veterinarios');
             }
+
+            if (vetsToProcess.length === 0) {
+                throw new Error('No hay veterinarios disponibles');
+            }
+
+            // Enriquecer con horarios
+            veterinarians = await enrichVeterinariansWithSchedules(vetsToProcess);
+            console.log(`✅ ${veterinarians.length} veterinarios procesados`);
+
+            renderVeterinarians();
 
         } catch (error) {
             console.error('❌ Error cargando veterinarios:', error);
-            showEmptyState('vetsGrid', '👨‍⚕️', 'Error al cargar veterinarios', 
-                'No se pudieron cargar los veterinarios disponibles. Verifica tu conexión.', null, null);
+            showEmptyState('vetsGrid', '👨‍⚕️', 'Error al cargar veterinarios',
+                'No se pudieron cargar los veterinarios. Por favor, intenta de nuevo.', null, null);
         }
+    }
+
+    async function enrichVeterinariansWithSchedules(vets) {
+        console.log('🔄 Enriqueciendo veterinarios con horarios...');
+
+        try {
+            // Obtener horarios desde Appointment Service
+            const response = await fetch(`${SERVICES.APPOINTMENT}/appointments/schedules/veterinarians-v2`, {
+                headers: {
+                    'Authorization': `Bearer ${USER_TOKEN}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            let schedules = {};
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    schedules = data.veterinarian_schedules || {};
+                }
+            }
+
+            // Enriquecer cada veterinario
+            return vets.map(vet => {
+                const vetId = vet.id;
+                const vetSchedules = schedules[vetId] || [];
+
+                return {
+                    ...vet,
+                    schedule: convertScheduleFormat(vetSchedules),
+                    has_schedule: vetSchedules.length > 0,
+                    schedule_text: generateScheduleText(vetSchedules)
+                };
+            });
+
+        } catch (error) {
+            console.error('⚠️ Error obteniendo horarios:', error);
+            // Retornar veterinarios sin horarios detallados
+            return vets.map(vet => ({
+                ...vet,
+                schedule: {},
+                has_schedule: false,
+                schedule_text: 'Horario por confirmar'
+            }));
+        }
+    }
+
+    function convertScheduleFormat(scheduleList) {
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const result = {};
+
+        scheduleList.forEach(schedule => {
+            if (schedule.is_available) {
+                const dayName = dayNames[schedule.day_of_week];
+                result[dayName] = {
+                    active: true,
+                    start: schedule.start_time,
+                    end: schedule.end_time
+                };
+            }
+        });
+
+        return result;
+    }
+
+    function generateScheduleText(scheduleList) {
+        if (!scheduleList || scheduleList.length === 0) {
+            return 'Horario por confirmar';
+        }
+
+        const dayNames = {
+            0: 'Dom', 1: 'Lun', 2: 'Mar', 3: 'Mié',
+            4: 'Jue', 5: 'Vie', 6: 'Sáb'
+        };
+
+        const activeDays = scheduleList
+            .filter(s => s.is_available)
+            .map(s => dayNames[s.day_of_week])
+            .filter(Boolean);
+
+        if (activeDays.length === 0) {
+            return 'Sin disponibilidad';
+        }
+
+        return `Disponible: ${activeDays.join(', ')}`;
     }
 
     async function loadAvailability() {
@@ -1151,23 +1266,31 @@
 
         try {
             const container = document.getElementById('timeSlots');
-            container.innerHTML = `
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <span>Cargando horarios disponibles...</span>
-                </div>
-            `;
+            showLoading('timeSlots', 'Cargando horarios disponibles...');
 
             console.log(`⏰ Cargando disponibilidad para ${selectedVet} en ${selectedDate}`);
 
-            const response = await fetch(`/api/client/availability/${selectedVet}/${selectedDate}`, {
+            // MÉTODO 1: Desde frontend (ruta proxy)
+            let response = await fetch(`/api/public/availability/${selectedVet}/${selectedDate}`, {
                 headers: {
                     'Authorization': `Bearer ${USER_TOKEN}`,
                     'Content-Type': 'application/json'
                 }
             });
 
-            console.log(`📡 Respuesta disponibilidad: ${response.status}`);
+            console.log(`📡 Respuesta disponibilidad (frontend): ${response.status}`);
+
+            // MÉTODO 2: Directo desde Appointment Service
+            if (!response.ok) {
+                console.log('🔄 Intentando desde Appointment Service...');
+                response = await fetch(`${SERVICES.APPOINTMENT}/appointments/available-slots?veterinarian_id=${selectedVet}&date=${selectedDate}`, {
+                    headers: {
+                        'Authorization': `Bearer ${USER_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                console.log(`📡 Respuesta Appointment Service: ${response.status}`);
+            }
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
@@ -1180,14 +1303,14 @@
                 renderTimeSlots(data.available_slots);
             } else {
                 showEmptyState('timeSlots', '⏰', 'Sin horarios disponibles',
-                    data.message || 'No hay horarios disponibles para esta fecha según la agenda del veterinario.',
+                    data.message || 'No hay horarios disponibles para esta fecha.',
                     null, null);
             }
 
         } catch (error) {
             console.error('❌ Error cargando disponibilidad:', error);
             showEmptyState('timeSlots', '❌', 'Error de conexión',
-                'No se pudo cargar la disponibilidad. Por favor, contacta a la clínica.',
+                'No se pudo cargar la disponibilidad. Por favor, intenta de nuevo.',
                 null, null);
         }
     }
@@ -1197,8 +1320,8 @@
         const grid = document.getElementById('petsGrid');
 
         if (userPets.length === 0) {
-            showEmptyState('petsGrid', '🐾', 'No tienes mascotas registradas', 
-                'Primero debes registrar una mascota para poder agendar citas', 
+            showEmptyState('petsGrid', '🐾', 'No tienes mascotas registradas',
+                'Primero debes registrar una mascota para poder agendar citas',
                 'Registrar Mi Primera Mascota', ADD_PET_URL);
             return;
         }
@@ -1208,7 +1331,7 @@
                 <div class="pet-info">
                     <div class="pet-avatar">${getPetIcon(pet.species)}</div>
                     <div class="pet-details">
-                        <h3>${pet.name}</h3>
+                        <h3>${sanitizeHtml(pet.name)}</h3>
                         <p>${capitalizePetSpecies(pet.species)} • ${pet.breed || 'Raza mixta'}</p>
                         <p>${formatPetAge(pet.age_years, pet.age_months)}${pet.weight ? ` • ${pet.weight}kg` : ''}</p>
                         ${pet.vaccination_status ? `<p>Vacunación: ${getVaccinationStatus(pet.vaccination_status)}</p>` : ''}
@@ -1224,7 +1347,7 @@
         const grid = document.getElementById('vetsGrid');
 
         if (veterinarians.length === 0) {
-            showEmptyState('vetsGrid', '👨‍⚕️', 'No hay veterinarios disponibles', 
+            showEmptyState('vetsGrid', '👨‍⚕️', 'No hay veterinarios disponibles',
                 'No se encontraron veterinarios disponibles en este momento.', null, null);
             return;
         }
@@ -1232,10 +1355,10 @@
         grid.innerHTML = veterinarians.map(vet => `
             <div class="vet-card" onclick="selectVet('${vet.id}')" data-vet-id="${vet.id}">
                 <div class="vet-avatar">👨‍⚕️</div>
-                <div class="vet-name">Dr. ${vet.first_name} ${vet.last_name}</div>
+                <div class="vet-name">Dr. ${sanitizeHtml(vet.first_name)} ${sanitizeHtml(vet.last_name)}</div>
                 <div class="vet-specialty">${vet.specialty || 'Medicina General'}</div>
                 <div class="vet-schedule">
-                    ${getScheduleText(vet.schedule)}
+                    ${vet.schedule_text || 'Horario por confirmar'}
                 </div>
             </div>
         `).join('');
@@ -1312,18 +1435,13 @@
         const container = document.getElementById('timeSlots');
 
         if (!selectedVet || !selectedDate) {
-            container.innerHTML = `
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <span>Selecciona veterinario y fecha primero</span>
-                </div>
-            `;
+            showLoading('timeSlots', 'Selecciona veterinario y fecha primero');
             return;
         }
 
         if (availableSlots.length === 0) {
-            showEmptyState('timeSlots', '⏰', 'Sin horarios disponibles', 
-                'No hay horarios disponibles para esta fecha según la agenda del veterinario.', null, null);
+            showEmptyState('timeSlots', '⏰', 'Sin horarios disponibles',
+                'No hay horarios disponibles para esta fecha.', null, null);
             return;
         }
 
@@ -1335,7 +1453,7 @@
 
         const afternoonSlots = availableSlots.filter(slot => {
             const slotMinutes = timeToMinutes(slot);
-            return slotMinutes >= 720; // 12:00 = 720 minutos
+            return slotMinutes >= 720;
         });
 
         let slotsHTML = '';
@@ -1385,11 +1503,11 @@
             <div class="summary-title">📋 Resumen de la Cita</div>
             <div class="summary-item">
                 <span class="summary-label">🐾 Mascota:</span>
-                <span class="summary-value">${pet.name} (${capitalizePetSpecies(pet.species)})</span>
+                <span class="summary-value">${sanitizeHtml(pet.name)} (${capitalizePetSpecies(pet.species)})</span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">👨‍⚕️ Veterinario:</span>
-                <span class="summary-value">Dr. ${vet.first_name} ${vet.last_name}</span>
+                <span class="summary-value">Dr. ${sanitizeHtml(vet.first_name)} ${sanitizeHtml(vet.last_name)}</span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">📅 Fecha:</span>
@@ -1406,11 +1524,9 @@
     function selectPet(petId) {
         console.log('🐾 Seleccionando mascota:', petId);
 
-        // Remover selección anterior
         document.querySelectorAll('.pet-card').forEach(card => card.classList.remove('selected'));
-
-        // Seleccionar nueva mascota
         const petCard = document.querySelector(`[data-pet-id="${petId}"]`);
+
         if (petCard) {
             petCard.classList.add('selected');
             selectedPet = petId;
@@ -1424,12 +1540,10 @@
 
         document.querySelectorAll('.vet-card').forEach(card => card.classList.remove('selected'));
         const vetCard = document.querySelector(`[data-vet-id="${vetId}"]`);
-        
+
         if (vetCard) {
             vetCard.classList.add('selected');
             selectedVet = vetId;
-
-            // Resetear fecha y hora seleccionadas
             selectedDate = null;
             selectedTime = null;
 
@@ -1447,14 +1561,11 @@
             document.querySelectorAll('.calendar-day').forEach(day => day.classList.remove('selected'));
             dateElement.classList.add('selected');
             selectedDate = dateString;
-
-            // Resetear hora seleccionada
             selectedTime = null;
 
             document.getElementById('nextStep3').disabled = false;
             console.log('✅ Fecha seleccionada:', dateString);
 
-            // Cargar horarios disponibles
             loadAvailability();
         }
     }
@@ -1464,7 +1575,7 @@
 
         document.querySelectorAll('.time-slot').forEach(slot => slot.classList.remove('selected'));
         const timeSlot = document.querySelector(`[data-time="${time}"]`);
-        
+
         if (timeSlot) {
             timeSlot.classList.add('selected');
             selectedTime = time;
@@ -1477,26 +1588,21 @@
     function goToStep(step) {
         console.log(`🔄 Navegando al paso ${step}`);
 
-        // Ocultar paso actual
         document.querySelectorAll('.step-content').forEach(content => content.classList.remove('active'));
         document.querySelectorAll('.step-circle').forEach(circle => circle.classList.remove('active'));
 
-        // Mostrar nuevo paso
         document.getElementById(`step${step}`).classList.add('active');
         document.getElementById(`step${step}Circle`).classList.add('active');
 
-        // Actualizar círculos completados
         for (let i = 1; i < step; i++) {
             document.getElementById(`step${i}Circle`).classList.add('completed');
         }
 
-        // Actualizar barra de progreso
         const progressFill = document.getElementById('progressFill');
         progressFill.style.width = `${(step * 20)}%`;
 
         currentStep = step;
 
-        // Cargar datos específicos del paso
         switch(step) {
             case 2:
                 loadVeterinarians();
@@ -1505,7 +1611,6 @@
                 renderCalendar();
                 break;
             case 4:
-                // Los horarios se cargan cuando se selecciona una fecha
                 break;
             case 5:
                 renderBookingSummary();
@@ -1539,6 +1644,7 @@
             const appointmentData = {
                 pet_id: selectedPet,
                 veterinarian_id: selectedVet,
+                client_id: USER_ID,
                 appointment_date: selectedDate,
                 appointment_time: selectedTime,
                 consultation_type: type,
@@ -1547,12 +1653,12 @@
 
             console.log('📝 Enviando datos de la cita:', appointmentData);
 
-            // Deshabilitar botón
             const confirmBtn = document.getElementById('confirmBooking');
             confirmBtn.disabled = true;
-            confirmBtn.innerHTML = '<div class="spinner" style="width: 20px; height: 20px; margin-right: 10px;"></div>Agendando...';
+            confirmBtn.innerHTML = '<div class="loading-spinner" style="width: 20px; height: 20px; margin-right: 10px;"></div>Agendando...';
 
-            const response = await fetch('/api/client/appointments', {
+            // MÉTODO 1: Usar ruta proxy del frontend
+            let response = await fetch('/api/public/appointments', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1561,7 +1667,21 @@
                 body: JSON.stringify(appointmentData)
             });
 
-            console.log(`📡 Respuesta del servidor: ${response.status}`);
+            console.log(`📡 Respuesta del frontend: ${response.status}`);
+
+            // MÉTODO 2: Directo al Appointment Service
+            if (!response.ok) {
+                console.log('🔄 Intentando desde Appointment Service...');
+                response = await fetch(`${SERVICES.APPOINTMENT}/appointments/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${USER_TOKEN}`
+                    },
+                    body: JSON.stringify(appointmentData)
+                });
+                console.log(`📡 Respuesta Appointment Service: ${response.status}`);
+            }
 
             if (!response.ok) {
                 const errorData = await response.json();
@@ -1573,19 +1693,20 @@
 
             if (data.success) {
                 showMessage('✅ ¡Cita agendada exitosamente!', 'success');
-                
-                // Mostrar información adicional
+
                 setTimeout(() => {
+                    const pet = userPets.find(p => p.id === selectedPet);
+                    const vet = veterinarians.find(v => v.id === selectedVet);
+
                     alert(`¡Cita agendada exitosamente!
 
 📅 Fecha: ${formatDate(selectedDate)}
 🕐 Hora: ${selectedTime}
-👨‍⚕️ Veterinario: Dr. ${veterinarians.find(v => v.id === selectedVet)?.first_name} ${veterinarians.find(v => v.id === selectedVet)?.last_name}
-🐾 Mascota: ${userPets.find(p => p.id === selectedPet)?.name}
+👨‍⚕️ Veterinario: Dr. ${vet?.first_name} ${vet?.last_name}
+🐾 Mascota: ${pet?.name}
 
-Recibirás una confirmación por email. Recuerda confirmar tu asistencia 24 horas antes de la cita.`);
+Recibirás una confirmación por email.`);
 
-                    // Redirigir al dashboard
                     window.location.href = DASHBOARD_URL;
                 }, 1000);
             } else {
@@ -1595,8 +1716,7 @@ Recibirás una confirmación por email. Recuerda confirmar tu asistencia 24 hora
         } catch (error) {
             console.error('❌ Error al confirmar cita:', error);
             showMessage(`Error al agendar la cita: ${error.message}`, 'error');
-            
-            // Rehabilitar botón
+
             const confirmBtn = document.getElementById('confirmBooking');
             confirmBtn.disabled = false;
             confirmBtn.innerHTML = '🗓️ Confirmar Cita';
@@ -1652,38 +1772,12 @@ Recibirás una confirmación por email. Recuerda confirmar tu asistencia 24 hora
         return statuses[status] || status;
     }
 
-    function getScheduleText(schedule) {
-        if (!schedule || Object.keys(schedule).length === 0) {
-            return 'Horarios por confirmar';
-        }
-
-        const dayNames = {
-            'monday': 'Lun',
-            'tuesday': 'Mar',
-            'wednesday': 'Mié',
-            'thursday': 'Jue',
-            'friday': 'Vie',
-            'saturday': 'Sáb',
-            'sunday': 'Dom'
-        };
-
-        const activeDays = Object.keys(schedule).filter(day =>
-            schedule[day] && schedule[day].active
-        );
-
-        if (activeDays.length === 0) {
-            return 'Sin disponibilidad';
-        }
-
-        return `Disponible: ${activeDays.map(day => dayNames[day]).join(', ')}`;
-    }
-
     function isDateAvailable(date) {
         if (!selectedVet) return false;
 
         const vet = veterinarians.find(v => v.id === selectedVet);
         if (!vet || !vet.schedule) {
-            return true; // Si no hay horario definido, permitir selección
+            return true;
         }
 
         const dayOfWeek = getDayOfWeek(date.toISOString().split('T')[0]);
@@ -1713,6 +1807,12 @@ Recibirás una confirmación por email. Recuerda confirmar tu asistencia 24 hora
         });
     }
 
+    function sanitizeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     function showEmptyState(containerId, icon, title, message, buttonText = null, buttonAction = null) {
         const container = document.getElementById(containerId);
         let buttonHTML = '';
@@ -1735,8 +1835,19 @@ Recibirás una confirmación por email. Recuerda confirmar tu asistencia 24 hora
         `;
     }
 
+    function showLoading(containerId, message = 'Cargando...') {
+        const container = document.getElementById(containerId);
+        if (container) {
+            container.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>${message}</span>
+                </div>
+            `;
+        }
+    }
+
     function showMessage(message, type = 'info') {
-        // Crear elemento de mensaje
         const alertDiv = document.createElement('div');
         alertDiv.className = `alert alert-${type}`;
         alertDiv.textContent = message;
@@ -1752,7 +1863,6 @@ Recibirás una confirmación por email. Recuerda confirmar tu asistencia 24 hora
             animation: slideInRight 0.3s ease;
         `;
 
-        // Colores según el tipo
         switch(type) {
             case 'success':
                 alertDiv.style.background = '#B7E4C7';
@@ -1777,7 +1887,6 @@ Recibirás una confirmación por email. Recuerda confirmar tu asistencia 24 hora
 
         document.body.appendChild(alertDiv);
 
-        // Auto-remover después de 5 segundos
         setTimeout(() => {
             alertDiv.style.animation = 'slideInRight 0.3s ease reverse';
             setTimeout(() => alertDiv.remove(), 300);

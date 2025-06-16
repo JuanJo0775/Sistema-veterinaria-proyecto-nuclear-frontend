@@ -1,5 +1,8 @@
 # microservices/appointment_service/app/routes/appointment_routes.py
-from flask import Blueprint, request, jsonify, current_app
+import json
+import uuid
+
+from flask import Blueprint, request, jsonify, current_app, Response
 from datetime import datetime, timedelta
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -60,10 +63,11 @@ def create_appointment():
 
 
 @appointment_bp.route('/schedules', methods=['POST'])
-def create_schedule():
-    """Crear horario para veterinario"""
+def create_schedule_fixed():
+    """Crear horario para veterinario - VERSIÓN CORREGIDA PARA UUID"""
     try:
         data = request.get_json()
+        print(f"📝 Creando horario: {data}")
 
         # Validaciones básicas
         required_fields = ['veterinarian_id', 'day_of_week', 'start_time', 'end_time']
@@ -79,12 +83,15 @@ def create_schedule():
         if not isinstance(day_of_week, int) or day_of_week < 0 or day_of_week > 6:
             return jsonify({
                 'success': False,
-                'message': 'day_of_week debe ser un entero entre 0 (Lunes) y 6 (Domingo)'
+                'message': 'day_of_week debe ser un entero entre 0 (Domingo) y 6 (Sábado)'
             }), 400
+
+        # CONVERSIÓN CORRECTA DE UUID
+        veterinarian_id = str(data.get('veterinarian_id'))
 
         # Verificar si ya existe un horario para ese día
         existing_schedule = VeterinarianSchedule.query.filter_by(
-            veterinarian_id=data.get('veterinarian_id'),
+            veterinarian_id=veterinarian_id,
             day_of_week=day_of_week
         ).first()
 
@@ -113,7 +120,7 @@ def create_schedule():
 
         # Crear nuevo horario
         schedule = VeterinarianSchedule(
-            veterinarian_id=data.get('veterinarian_id'),
+            veterinarian_id=veterinarian_id,  # Ya convertido a string
             day_of_week=day_of_week,
             start_time=start_time,
             end_time=end_time,
@@ -123,19 +130,30 @@ def create_schedule():
         db.session.add(schedule)
         db.session.commit()
 
+        # RESPUESTA CON UUID CONVERTIDOS
+        response_data = {
+            'id': str(schedule.id),
+            'veterinarian_id': str(schedule.veterinarian_id),
+            'day_of_week': schedule.day_of_week,
+            'start_time': schedule.start_time.strftime('%H:%M'),
+            'end_time': schedule.end_time.strftime('%H:%M'),
+            'is_available': schedule.is_available,
+            'day_name': get_day_name(schedule.day_of_week)
+        }
+
         return jsonify({
             'success': True,
             'message': 'Horario creado exitosamente',
-            'schedule': schedule.to_dict()
+            'schedule': response_data
         }), 201
 
     except Exception as e:
         db.session.rollback()
+        print(f"❌ Error creando horario: {e}")
         return jsonify({
             'success': False,
             'message': f'Error interno: {str(e)}'
         }), 500
-
 
 @appointment_bp.route('/schedules/<vet_id>', methods=['GET'])
 def get_veterinarian_schedules(vet_id):
@@ -1449,36 +1467,46 @@ def get_veterinarian_schedule_by_date(vet_id, date):
 # =============== RUTA PARA OBTENER CITAS EXISTENTES DE UN VETERINARIO EN UNA FECHA ===============
 
 @appointment_bp.route('/appointments/veterinarian/<vet_id>/date/<date>', methods=['GET'])
-def get_veterinarian_appointments_by_date(vet_id, date):
-    """Obtener citas de un veterinario en una fecha específica - ACCESO PÚBLICO"""
+def get_veterinarian_appointments_by_date_corrected(vet_id, date):
+    """Obtener citas de un veterinario en una fecha específica - VERSIÓN CORREGIDA"""
     try:
-        # Importar el modelo Appointment (ajustar según tu estructura)
-        # Asumiendo que tienes un modelo llamado Appointment
+        print(f"📅 Obteniendo citas para veterinario {vet_id} en {date}")
 
-        # Buscar citas del veterinario en esa fecha que estén activas
+        # Validar formato de fecha
+        try:
+            from datetime import datetime
+            date_obj = datetime.strptime(date, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'message': 'Formato de fecha inválido. Use YYYY-MM-DD'
+            }), 400
+
+        # Buscar citas del veterinario en esa fecha
         appointments = Appointment.query.filter_by(
             veterinarian_id=vet_id,
-            appointment_date=date
+            appointment_date=date_obj
         ).filter(
-            Appointment.status.in_(['scheduled', 'confirmed'])  # Solo citas activas
-        ).all()
+            Appointment.status.in_(['scheduled', 'confirmed'])
+        ).order_by(Appointment.appointment_time).all()
 
-        print(f"📅 {len(appointments)} citas encontradas para vet {vet_id} el {date}")
+        print(f"✅ {len(appointments)} citas encontradas")
 
-        # Convertir a diccionario
+        # Convertir a lista de diccionarios
         appointments_list = []
         for apt in appointments:
-            try:
-                appointments_list.append(apt.to_dict())
-            except:
-                # Fallback si no tienes método to_dict()
-                appointments_list.append({
-                    'id': apt.id,
-                    'appointment_time': apt.appointment_time,
-                    'status': apt.status,
-                    'veterinarian_id': apt.veterinarian_id,
-                    'appointment_date': apt.appointment_date
-                })
+            appointment_dict = {
+                'id': str(apt.id),
+                'veterinarian_id': str(apt.veterinarian_id),
+                'client_id': str(apt.client_id),
+                'pet_id': str(apt.pet_id),
+                'appointment_date': apt.appointment_date.isoformat(),
+                'appointment_time': apt.appointment_time.strftime('%H:%M'),
+                'status': apt.status,
+                'reason': apt.reason or '',
+                'consultation_type': apt.consultation_type or 'general'
+            }
+            appointments_list.append(appointment_dict)
 
         return jsonify({
             'success': True,
@@ -1490,17 +1518,20 @@ def get_veterinarian_appointments_by_date(vet_id, date):
 
     except Exception as e:
         print(f"❌ Error obteniendo citas por fecha: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
-            'message': str(e)
+            'message': f'Error interno: {str(e)}',
+            'appointments': []
         }), 500
 
 # =============== RUTA PARA CREAR CITA (ACCESO CON TOKEN) ===============
 
-@appointment_bp.route('/appointments/create', methods=['POST'])
+""""@appointment_bp.route('/appointments/create', methods=['POST'])
 @jwt_required()  # Esta SÍ requiere autenticación
 def create_appointment_public():
-    """Crear nueva cita desde frontend público - requiere autenticación"""
+ #Crear nueva cita desde frontend público - requiere autenticación
     try:
         current_user = get_jwt_identity()
         data = request.get_json()
@@ -1587,42 +1618,158 @@ def create_appointment_public():
             'success': False,
             'message': str(e)
         }), 500
+"""
 
+@appointment_bp.route('/appointments/create', methods=['POST'])
+def create_appointment_corrected():
+    """Crear nueva cita - VERSIÓN CORREGIDA"""
+    try:
+        data = request.get_json()
+        print(f"📝 Datos recibidos para crear cita: {data}")
+
+        # Validaciones básicas mejoradas
+        required_fields = ['pet_id', 'veterinarian_id', 'client_id', 'appointment_date', 'appointment_time']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({
+                    'success': False,
+                    'message': f'Campo requerido: {field}'
+                }), 400
+
+        # Validar formato de fecha
+        try:
+            from datetime import datetime
+            appointment_date = datetime.strptime(data.get('appointment_date'), '%Y-%m-%d').date()
+            appointment_time = datetime.strptime(data.get('appointment_time'), '%H:%M').time()
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'message': 'Formato de fecha o hora inválido'
+            }), 400
+
+        # Verificar disponibilidad ANTES de crear
+        existing_appointment = Appointment.query.filter_by(
+            veterinarian_id=data.get('veterinarian_id'),
+            appointment_date=appointment_date,
+            appointment_time=appointment_time
+        ).filter(
+            Appointment.status.in_(['scheduled', 'confirmed'])
+        ).first()
+
+        if existing_appointment:
+            return jsonify({
+                'success': False,
+                'message': 'Ya existe una cita en ese horario. Por favor selecciona otro horario.'
+            }), 400
+
+        # Crear nueva cita
+        try:
+            new_appointment = Appointment(
+                pet_id=data.get('pet_id'),
+                veterinarian_id=data.get('veterinarian_id'),
+                client_id=data.get('client_id'),
+                appointment_date=appointment_date,
+                appointment_time=appointment_time,
+                reason=data.get('reason', ''),
+                notes=data.get('notes', ''),
+                status=data.get('status', 'scheduled'),
+                priority=data.get('priority', 'normal'),
+                consultation_type=data.get('consultation_type', 'general'),
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+
+            db.session.add(new_appointment)
+            db.session.commit()
+
+            print(f"✅ Cita creada exitosamente: {new_appointment.id}")
+
+            # Convertir a diccionario para respuesta
+            appointment_dict = {
+                'id': str(new_appointment.id),
+                'pet_id': str(new_appointment.pet_id),
+                'veterinarian_id': str(new_appointment.veterinarian_id),
+                'client_id': str(new_appointment.client_id),
+                'appointment_date': new_appointment.appointment_date.isoformat(),
+                'appointment_time': new_appointment.appointment_time.strftime('%H:%M'),
+                'reason': new_appointment.reason,
+                'notes': new_appointment.notes,
+                'status': new_appointment.status,
+                'priority': new_appointment.priority,
+                'consultation_type': new_appointment.consultation_type,
+                'created_at': new_appointment.created_at.isoformat(),
+                'updated_at': new_appointment.updated_at.isoformat()
+            }
+
+            return jsonify({
+                'success': True,
+                'message': 'Cita creada exitosamente',
+                'appointment': appointment_dict,
+                'appointment_id': str(new_appointment.id)
+            }), 201
+
+        except Exception as db_error:
+            db.session.rollback()
+            print(f"❌ Error de base de datos: {db_error}")
+            return jsonify({
+                'success': False,
+                'message': f'Error al guardar en base de datos: {str(db_error)}'
+            }), 500
+
+    except Exception as e:
+        print(f"❌ Error general creando cita: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
 
 @appointment_bp.route('/appointments/client/<client_id>', methods=['GET'])
-@jwt_required()  # Requiere autenticación
-def get_client_appointments(client_id):
-    """Obtener todas las citas de un cliente"""
+def get_client_appointments_corrected(client_id):
+    """Obtener todas las citas de un cliente - VERSIÓN CORREGIDA"""
     try:
-        current_user = get_jwt_identity()
+        print(f"📋 Obteniendo citas para cliente {client_id}")
 
-        # Verificar que el usuario puede acceder a las citas de este cliente
-        # (admin puede ver todas, cliente solo las suyas)
-        if current_user != client_id:
-            # Aquí podrías verificar si es admin, pero por simplicidad lo omitimos
-            pass
+        # Parámetros opcionales
+        status = request.args.get('status')
+        limit = request.args.get('limit', type=int)
 
-        # Obtener citas del cliente
-        appointments = Appointment.query.filter_by(client_id=client_id).all()
+        # Construir query
+        query = Appointment.query.filter_by(client_id=client_id)
 
-        print(f"📋 {len(appointments)} citas encontradas para cliente {client_id}")
+        if status:
+            query = query.filter_by(status=status)
 
-        # Convertir a lista de diccionarios
+        # Ordenar por fecha más reciente primero
+        query = query.order_by(Appointment.appointment_date.desc(), Appointment.appointment_time.desc())
+
+        if limit:
+            query = query.limit(limit)
+
+        appointments = query.all()
+
+        print(f"✅ {len(appointments)} citas encontradas para cliente")
+
+        # Convertir a diccionarios
         appointments_list = []
         for apt in appointments:
-            try:
-                appointments_list.append(apt.to_dict())
-            except:
-                # Fallback
-                appointments_list.append({
-                    'id': apt.id,
-                    'pet_id': apt.pet_id,
-                    'veterinarian_id': apt.veterinarian_id,
-                    'appointment_date': apt.appointment_date,
-                    'appointment_time': apt.appointment_time,
-                    'status': apt.status,
-                    'reason': apt.reason
-                })
+            appointment_dict = {
+                'id': str(apt.id),
+                'pet_id': str(apt.pet_id),
+                'veterinarian_id': str(apt.veterinarian_id),
+                'client_id': str(apt.client_id),
+                'appointment_date': apt.appointment_date.isoformat(),
+                'appointment_time': apt.appointment_time.strftime('%H:%M'),
+                'status': apt.status,
+                'priority': apt.priority or 'normal',
+                'reason': apt.reason or '',
+                'notes': apt.notes or '',
+                'consultation_type': apt.consultation_type or 'general',
+                'created_at': apt.created_at.isoformat() if apt.created_at else None,
+                'updated_at': apt.updated_at.isoformat() if apt.updated_at else None
+            }
+            appointments_list.append(appointment_dict)
 
         return jsonify({
             'success': True,
@@ -1633,17 +1780,21 @@ def get_client_appointments(client_id):
 
     except Exception as e:
         print(f"❌ Error obteniendo citas del cliente: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
-            'message': str(e)
+            'message': f'Error interno: {str(e)}',
+            'appointments': []
         }), 500
 
 
+
 # =============== 6. RUTA PARA CITAS PRÓXIMAS DE UN CLIENTE (NUEVA) ===============
-@appointment_bp.route('/appointments/client/<client_id>/upcoming', methods=['GET'])
+""""@appointment_bp.route('/appointments/client/<client_id>/upcoming', methods=['GET'])
 @jwt_required()  # Requiere autenticación
 def get_client_upcoming_appointments(client_id):
-    """Obtener citas próximas de un cliente"""
+
     try:
         from datetime import datetime, date
 
@@ -1688,6 +1839,546 @@ def get_client_upcoming_appointments(client_id):
             'success': False,
             'message': str(e)
         }), 500
+        
+"""
+
+@appointment_bp.route('/appointments/client/<client_id>/upcoming', methods=['GET'])
+def get_client_upcoming_appointments_corrected(client_id):
+    """Obtener citas próximas de un cliente - VERSIÓN CORREGIDA"""
+    try:
+        from datetime import datetime, date
+
+        print(f"📅 Obteniendo citas próximas para cliente {client_id}")
+
+        today = date.today()
+        days_ahead = request.args.get('days', 30, type=int)  # Próximos 30 días por defecto
+
+        # Calcular fecha límite
+        from datetime import timedelta
+        end_date = today + timedelta(days=days_ahead)
+
+        # Obtener citas futuras del cliente
+        appointments = Appointment.query.filter_by(client_id=client_id).filter(
+            Appointment.appointment_date >= today,
+            Appointment.appointment_date <= end_date
+        ).filter(
+            Appointment.status.in_(['scheduled', 'confirmed'])
+        ).order_by(Appointment.appointment_date, Appointment.appointment_time).all()
+
+        print(f"✅ {len(appointments)} citas próximas encontradas")
+
+        # Convertir a diccionarios
+        appointments_list = []
+        for apt in appointments:
+            appointment_dict = {
+                'id': str(apt.id),
+                'pet_id': str(apt.pet_id),
+                'veterinarian_id': str(apt.veterinarian_id),
+                'client_id': str(apt.client_id),
+                'appointment_date': apt.appointment_date.isoformat(),
+                'appointment_time': apt.appointment_time.strftime('%H:%M'),
+                'status': apt.status,
+                'priority': apt.priority or 'normal',
+                'reason': apt.reason or '',
+                'consultation_type': apt.consultation_type or 'general',
+                'days_until': (apt.appointment_date - today).days
+            }
+            appointments_list.append(appointment_dict)
+
+        return jsonify({
+            'success': True,
+            'appointments': appointments_list,
+            'total': len(appointments_list),
+            'client_id': client_id,
+            'period': {
+                'start_date': today.isoformat(),
+                'end_date': end_date.isoformat(),
+                'days_ahead': days_ahead
+            }
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error obteniendo citas próximas: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}',
+            'appointments': []
+        }), 500
+
+@appointment_bp.route('/appointments/available-slots', methods=['GET'])
+def get_available_slots_corrected():
+    """Obtener slots disponibles - VERSIÓN CORREGIDA"""
+    try:
+        veterinarian_id = request.args.get('veterinarian_id')
+        date = request.args.get('date')
+
+        print(f"🔍 Buscando slots para veterinario {veterinarian_id} en {date}")
+
+        if not veterinarian_id or not date:
+            return jsonify({
+                'success': False,
+                'message': 'Parámetros requeridos: veterinarian_id, date'
+            }), 400
+
+        # Validar formato de fecha
+        try:
+            from datetime import datetime
+            date_obj = datetime.strptime(date, '%Y-%m-%d').date()
+            day_of_week = (date_obj.weekday() + 1) % 7  # Convertir a formato backend (0=domingo)
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'message': 'Formato de fecha inválido. Use YYYY-MM-DD'
+            }), 400
+
+        # PASO 1: Verificar si el veterinario tiene horario para ese día
+        vet_schedule = VeterinarianSchedule.query.filter_by(
+            veterinarian_id=veterinarian_id,
+            day_of_week=day_of_week,
+            is_available=True
+        ).first()
+
+        if not vet_schedule:
+            print(f"❌ Veterinario {veterinarian_id} no atiende los {get_day_name(day_of_week)}")
+            return jsonify({
+                'success': False,
+                'message': f'El veterinario no atiende los {get_day_name(day_of_week)}',
+                'available_slots': [],
+                'date': date,
+                'veterinarian_id': veterinarian_id
+            })
+
+        # PASO 2: Generar todos los slots posibles según el horario
+        all_slots = generate_time_slots(
+            vet_schedule.start_time.strftime('%H:%M'),
+            vet_schedule.end_time.strftime('%H:%M')
+        )
+
+        # PASO 3: Obtener citas existentes para ese día
+        existing_appointments = Appointment.query.filter_by(
+            veterinarian_id=veterinarian_id,
+            appointment_date=date_obj
+        ).filter(
+            Appointment.status.in_(['scheduled', 'confirmed'])
+        ).all()
+
+        occupied_times = [apt.appointment_time.strftime('%H:%M') for apt in existing_appointments]
+
+        # PASO 4: Filtrar slots disponibles
+        available_slots = [slot for slot in all_slots if slot not in occupied_times]
+
+        print(f"✅ {len(all_slots)} slots totales, {len(occupied_times)} ocupados, {len(available_slots)} disponibles")
+
+        return jsonify({
+            'success': True,
+            'available_slots': available_slots,
+            'date': date,
+            'veterinarian_id': veterinarian_id,
+            'schedule_info': {
+                'start_time': vet_schedule.start_time.strftime('%H:%M'),
+                'end_time': vet_schedule.end_time.strftime('%H:%M'),
+                'day_of_week': day_of_week
+            }
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error obteniendo slots disponibles: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}',
+            'available_slots': []
+        }), 500
+
+
+@appointment_bp.route('/appointments/schedules/<vet_id>', methods=['GET'])
+def get_veterinarian_schedules_fixed(vet_id):
+    """Obtener horarios de un veterinario - VERSIÓN CORREGIDA PARA UUID"""
+    try:
+        print(f"📋 Obteniendo horarios para veterinario: {vet_id}")
+
+        schedules = VeterinarianSchedule.query.filter_by(
+            veterinarian_id=vet_id,
+            is_available=True
+        ).all()
+
+        schedules_list = []
+        for schedule in schedules:
+            schedule_dict = {
+                'id': str(schedule.id),  # CONVERSIÓN UUID
+                'veterinarian_id': str(schedule.veterinarian_id),  # CONVERSIÓN UUID
+                'day_of_week': schedule.day_of_week,
+                'start_time': schedule.start_time.strftime('%H:%M'),
+                'end_time': schedule.end_time.strftime('%H:%M'),
+                'is_available': schedule.is_available,
+                'day_name': get_day_name(schedule.day_of_week)
+            }
+            schedules_list.append(schedule_dict)
+
+        # Ordenar por día de la semana
+        schedules_list.sort(key=lambda x: x['day_of_week'])
+
+        return jsonify({
+            'success': True,
+            'schedules': schedules_list,
+            'veterinarian_id': str(vet_id),  # CONVERSIÓN UUID
+            'total': len(schedules_list)
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error obteniendo horarios del veterinario: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e),
+            'schedules': []
+        }), 500
+
+
+from flask import Response
+import json
+import uuid
+from datetime import time, datetime
+
+# Función segura de serialización
+def safe_serialize(obj):
+    if isinstance(obj, uuid.UUID):
+        return str(obj)
+    elif isinstance(obj, (datetime, time)):
+        return obj.strftime('%H:%M') if isinstance(obj, time) else obj.isoformat()
+    elif isinstance(obj, dict):
+        return {safe_serialize(k): safe_serialize(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [safe_serialize(i) for i in obj]
+    else:
+        return obj
+
+@appointment_bp.route('/appointments/schedules/veterinarians-v2', methods=['GET'])
+def get_veterinarian_schedules_grouped_fixed_v2():
+
+    try:
+        print("📋 Obteniendo horarios agrupados de veterinarios...")
+
+        schedules = VeterinarianSchedule.query.filter_by(is_available=True).all()
+        veterinarian_schedules = {}
+
+        for schedule in schedules:
+            print(f"🧩 Schedule ID: {schedule.id} - VetID: {schedule.veterinarian_id}")
+
+            if not schedule.veterinarian_id:
+                print(f"⚠️ Horario {schedule.id} sin veterinarian_id válido, omitido")
+                continue
+
+            try:
+                vet_id_str = str(schedule.veterinarian_id)
+            except Exception as e:
+                print(f"❌ Error al convertir vet_id a str: {e}")
+                continue
+
+            if vet_id_str not in veterinarian_schedules:
+                veterinarian_schedules[vet_id_str] = []
+
+            schedule_dict = {
+                'id': schedule.id,
+                'veterinarian_id': schedule.veterinarian_id,
+                'day_of_week': schedule.day_of_week,
+                'start_time': schedule.start_time,
+                'end_time': schedule.end_time,
+                'is_available': schedule.is_available,
+                'day_name': get_day_name(schedule.day_of_week)
+            }
+
+            veterinarian_schedules[vet_id_str].append(schedule_dict)
+
+        for vet_id in veterinarian_schedules:
+            veterinarian_schedules[vet_id].sort(key=lambda x: x['day_of_week'])
+
+        payload = {
+            'success': True,
+            'veterinarian_schedules': veterinarian_schedules,
+            'total_veterinarians': len(veterinarian_schedules),
+            'total_schedules': len(schedules)
+        }
+
+        print("🐛 Veterinarian schedules dict justo antes del serializado:")
+        print(veterinarian_schedules)
+
+        serialized_payload = safe_serialize(payload)
+
+        print("✅ Payload serializado correctamente")
+        return Response(
+            json.dumps(serialized_payload),
+            status=200,
+            mimetype='application/json'
+        )
+
+    except Exception as e:
+        print(f"❌ ERROR FATAL en veterinarians-v2: {e}")
+        import traceback
+        traceback.print_exc()
+
+        return Response(
+            json.dumps({
+                'success': False,
+                'message': f'Error interno: {str(e)}',
+                'veterinarian_schedules': {},
+                'total_veterinarians': 0,
+                'total_schedules': 0
+            }),
+            status=500,
+            mimetype='application/json'
+        )
+
+
+
+def generate_time_slots(start_time, end_time):
+    """Generar slots de tiempo cada 30 minutos"""
+    try:
+        from datetime import datetime, timedelta
+
+        start_dt = datetime.strptime(start_time, '%H:%M')
+        end_dt = datetime.strptime(end_time, '%H:%M')
+
+        slots = []
+        current = start_dt
+
+        while current < end_dt:
+            time_str = current.strftime('%H:%M')
+
+            # Excluir hora de almuerzo (12:00-13:00)
+            if not ('12:00' <= time_str < '13:00'):
+                slots.append(time_str)
+
+            current += timedelta(minutes=30)
+
+        return slots
+
+    except Exception as e:
+        print(f"❌ Error generando slots: {e}")
+        # Fallback con horarios básicos
+        return ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+                '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00']
+
+
+def get_day_name(day_of_week):
+    """Obtener nombre del día en español"""
+    day_names = {
+        0: 'Domingo',
+        1: 'Lunes',
+        2: 'Martes',
+        3: 'Miércoles',
+        4: 'Jueves',
+        5: 'Viernes',
+        6: 'Sábado'
+    }
+    return day_names.get(day_of_week, 'Día desconocido')
+
+def sync_veterinarian_schedules_fixed(user_id, weekly_schedule):
+    """Sincronizar horarios con la tabla veterinarian_schedules - VERSIÓN CORREGIDA"""
+    try:
+        print(f"🔄 Iniciando sincronización para usuario: {user_id}")
+
+        # CONVERSIÓN EXPLÍCITA A STRING DEL UUID
+        user_id_str = str(user_id)
+
+        # Obtener rol del usuario
+        try:
+            auth_internal_url = f"{current_app.config.get('AUTH_SERVICE_URL', 'http://localhost:5001')}/auth/users/{user_id_str}/internal"
+            response = requests.get(auth_internal_url, timeout=5)
+
+            user_role = None
+            if response.status_code == 200:
+                user_data = response.json()
+                if user_data.get('success'):
+                    user_role = user_data.get('user', {}).get('role')
+                    print(f"✅ Rol obtenido: {user_role}")
+
+        except Exception as e:
+            print(f"⚠️ Error obteniendo rol: {e}")
+            user_role = None
+
+        # Solo proceder si es veterinario
+        if user_role == 'veterinarian':
+            print(f"👨‍⚕️ Confirmado: Usuario {user_id_str} es veterinario, sincronizando horarios...")
+
+            # Eliminar horarios existentes del veterinario
+            try:
+                deleted_count = VeterinarianSchedule.query.filter_by(veterinarian_id=user_id_str).delete()
+                print(f"🗑️ Eliminados {deleted_count} horarios existentes")
+            except Exception as delete_error:
+                print(f"⚠️ Error eliminando horarios existentes: {delete_error}")
+                db.session.rollback()
+                return
+
+            # Crear nuevos horarios basados en weekly_schedule
+            day_mapping = {
+                'monday': 1, 'tuesday': 2, 'wednesday': 3, 'thursday': 4,
+                'friday': 5, 'saturday': 6, 'sunday': 0
+            }
+
+            created_schedules = 0
+
+            for day_name, day_data in weekly_schedule.items():
+                if day_data.get('active') and day_data.get('start') and day_data.get('end'):
+                    try:
+                        # Validar formato de hora
+                        start_time = datetime.strptime(day_data['start'], '%H:%M').time()
+                        end_time = datetime.strptime(day_data['end'], '%H:%M').time()
+
+                        # Validar que start < end
+                        if start_time >= end_time:
+                            print(f"⚠️ Horario inválido para {day_name}: {day_data['start']} >= {day_data['end']}")
+                            continue
+
+                        schedule = VeterinarianSchedule(
+                            veterinarian_id=user_id_str,  # UUID YA CONVERTIDO A STRING
+                            day_of_week=day_mapping.get(day_name, 0),
+                            start_time=start_time,
+                            end_time=end_time,
+                            is_available=True
+                        )
+
+                        db.session.add(schedule)
+                        created_schedules += 1
+                        print(f"✅ Horario agregado: {day_name} {day_data['start']}-{day_data['end']}")
+
+                    except ValueError as time_error:
+                        print(f"⚠️ Error de formato de hora para {day_name}: {time_error}")
+                        continue
+                    except Exception as day_error:
+                        print(f"⚠️ Error procesando día {day_name}: {day_error}")
+                        continue
+
+            if created_schedules > 0:
+                try:
+                    db.session.commit()
+                    print(f"✅ {created_schedules} horarios de veterinario sincronizados exitosamente para: {user_id_str}")
+
+                    # Verificar que se guardaron correctamente
+                    verification_count = VeterinarianSchedule.query.filter_by(veterinarian_id=user_id_str).count()
+                    print(f"🔍 Verificación: {verification_count} horarios encontrados en la base de datos")
+
+                except Exception as commit_error:
+                    print(f"❌ Error haciendo commit: {commit_error}")
+                    db.session.rollback()
+                    raise commit_error
+            else:
+                print(f"⚠️ No se crearon horarios para el usuario {user_id_str}")
+
+        elif user_role:
+            print(f"ℹ️ Usuario {user_id_str} tiene rol '{user_role}', no es veterinario - no se sincroniza")
+        else:
+            print(f"⚠️ No se pudo determinar el rol del usuario {user_id_str}")
+
+    except Exception as e:
+        print(f"❌ Error general sincronizando horarios de veterinario: {e}")
+        import traceback
+        traceback.print_exc()
+        try:
+            db.session.rollback()
+        except:
+            pass
+
+
+@appointment_bp.route('/schedules/create-sample', methods=['POST'])
+def create_sample_schedules():
+    """Crear horarios de ejemplo para veterinarios existentes"""
+    try:
+        print("🔄 Creando horarios de ejemplo...")
+
+        # Obtener veterinarios desde Auth Service
+        auth_url = f"{current_app.config.get('AUTH_SERVICE_URL', 'http://localhost:5001')}/auth/users/veterinarians"
+        response = requests.get(auth_url, timeout=10)
+
+        if response.status_code != 200:
+            return jsonify({
+                'success': False,
+                'message': 'No se pudieron obtener veterinarios'
+            }), 400
+
+        data = response.json()
+        if not data.get('success'):
+            return jsonify({
+                'success': False,
+                'message': 'Error obteniendo veterinarios'
+            }), 400
+
+        veterinarians = data.get('veterinarians', [])
+
+        if not veterinarians:
+            return jsonify({
+                'success': False,
+                'message': 'No hay veterinarios registrados'
+            }), 400
+
+        created_count = 0
+
+        for vet in veterinarians:
+            vet_id = str(vet['id'])  # CONVERSIÓN UUID
+
+            # Verificar si ya tiene horarios
+            existing_schedules = VeterinarianSchedule.query.filter_by(veterinarian_id=vet_id).count()
+
+            if existing_schedules > 0:
+                print(f"⚠️ Veterinario {vet['first_name']} {vet['last_name']} ya tiene horarios")
+                continue
+
+            # Crear horarios de ejemplo (Lun-Vie 8:00-17:00, Sáb 8:00-12:00)
+            sample_schedules = [
+                (1, '08:00', '17:00'),  # Lunes
+                (2, '08:00', '17:00'),  # Martes
+                (3, '08:00', '17:00'),  # Miércoles
+                (4, '08:00', '17:00'),  # Jueves
+                (5, '08:00', '16:00'),  # Viernes
+                (6, '08:00', '12:00'),  # Sábado
+            ]
+
+            for day_of_week, start_time_str, end_time_str in sample_schedules:
+                try:
+                    start_time = datetime.strptime(start_time_str, '%H:%M').time()
+                    end_time = datetime.strptime(end_time_str, '%H:%M').time()
+
+                    schedule = VeterinarianSchedule(
+                        veterinarian_id=vet_id,  # UUID YA CONVERTIDO
+                        day_of_week=day_of_week,
+                        start_time=start_time,
+                        end_time=end_time,
+                        is_available=True
+                    )
+
+                    db.session.add(schedule)
+                    created_count += 1
+
+                except Exception as schedule_error:
+                    print(f"❌ Error creando horario para {vet['first_name']}: {schedule_error}")
+                    continue
+
+            print(f"✅ Horarios creados para {vet['first_name']} {vet['last_name']}")
+
+        # Hacer commit de todos los horarios
+        if created_count > 0:
+            db.session.commit()
+            print(f"✅ {created_count} horarios creados exitosamente")
+
+        return jsonify({
+            'success': True,
+            'message': f'Se crearon {created_count} horarios de ejemplo',
+            'created_count': created_count,
+            'veterinarians_processed': len(veterinarians)
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error creando horarios de ejemplo: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
 
 @appointment_bp.route('/health', methods=['GET'])
 def health():

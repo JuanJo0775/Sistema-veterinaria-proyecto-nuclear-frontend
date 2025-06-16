@@ -73,5 +73,13 @@ def create_app():
     from .routes.appointment_routes import appointment_bp
     app.register_blueprint(appointment_bp, url_prefix='/appointments')
 
+    # Forzar importación para registrar rutas nuevas
+    try:
+        from .routes.appointment_routes import get_veterinarian_schedules_grouped_fixed_v2
+        print("🟢 Ruta veterinarians-v2 importada correctamente")
+    except Exception as e:
+        print(f"❌ No se pudo importar la ruta veterinarians-v2: {e}")
+
+
     print("✅ Appointment Service configurado correctamente")
     return app

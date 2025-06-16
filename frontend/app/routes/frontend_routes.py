@@ -974,7 +974,7 @@ def api_update_user_schedule(user_id):
         # PASO 4: Verificar que se guardó correctamente
         print("🔍 Verificando sincronización...")
         try:
-            verify_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/schedules/veterinarians"
+            verify_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/schedules/veterinarians-v2"
             verify_response = requests.get(verify_url, headers=headers, timeout=5)
 
             if verify_response.status_code == 200:
@@ -5061,89 +5061,162 @@ def api_client_pets():
 
 
 @frontend_bp.route('/api/public/veterinarians')
-async def api_public_veterinarians():
-    """API PÚBLICA para obtener veterinarios - accesible para clientes"""
+def api_public_veterinarians():
+    """API PÚBLICA para obtener veterinarios - VERSIÓN CORREGIDA"""
     try:
-        # NO usar role_required aquí - debe ser acceso público para clientes
+        print("👨‍⚕️ Obteniendo veterinarios públicos...")
+
         headers = {}
 
-        # Intentar obtener token si existe (opcional)
+        # Intentar obtener token si existe (opcional para esta ruta pública)
         token = session.get('token')
         if token:
             headers['Authorization'] = f"Bearer {token}"
 
-        print(f"👨‍⚕️ Obteniendo veterinarios públicos...")
+        veterinarians = []
 
-        # MÉTODO 1: Obtener veterinarios desde Auth Service con endpoint público
+        # MÉTODO 1: Obtener desde Auth Service
         try:
-            # Usar endpoint público o endpoint específico para veterinarios
-            auth_url = f"{current_app.config['AUTH_SERVICE_URL']}/auth/users/veterinarians"
+            print("📡 Llamando al Auth Service...")
+            auth_url = f"{current_app.config.get('AUTH_SERVICE_URL', 'http://localhost:5001')}/auth/users"
             response = requests.get(auth_url, headers=headers, timeout=10)
 
-            print(f"📡 Respuesta Auth Service (veterinarios): {response.status_code}")
+            print(f"📡 Respuesta Auth Service: {response.status_code}")
 
             if response.status_code == 200:
                 data = response.json()
-                if data.get('success'):
-                    veterinarians = data.get('veterinarians', [])
+                if data.get('success') and data.get('users'):
+                    # Filtrar solo veterinarios activos
+                    all_users = data.get('users', [])
+                    vets = [user for user in all_users if user.get('role') == 'veterinarian' and user.get('is_active')]
 
-                    # Enriquecer con horarios desde Appointment Service
-                    veterinarians_with_schedules = await enrich_veterinarians_with_schedules(veterinarians, headers)
+                    print(f"✅ {len(vets)} veterinarios encontrados en Auth Service")
+                    veterinarians = vets
 
-                    return jsonify({
-                        'success': True,
-                        'veterinarians': veterinarians_with_schedules,
-                        'total': len(veterinarians_with_schedules)
-                    })
-        except Exception as e:
-            print(f"⚠️ Error método 1: {e}")
+        except Exception as auth_error:
+            print(f"⚠️ Error Auth Service: {auth_error}")
 
-        # MÉTODO 2: Obtener desde Appointment Service (horarios de veterinarios)
+        # MÉTODO 2: Si no hay veterinarios, obtener desde endpoint específico
+        if not veterinarians:
+            try:
+                print("📡 Intentando endpoint específico de veterinarios...")
+                auth_url = f"{current_app.config.get('AUTH_SERVICE_URL', 'http://localhost:5001')}/auth/users/veterinarians"
+                response = requests.get(auth_url, headers=headers, timeout=10)
+
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get('success') and data.get('veterinarians'):
+                        veterinarians = data.get('veterinarians', [])
+                        print(f"✅ {len(veterinarians)} veterinarios desde endpoint específico")
+
+            except Exception as vet_error:
+                print(f"⚠️ Error endpoint veterinarios: {vet_error}")
+
+        # MÉTODO 3: Si aún no hay veterinarios, usar datos de ejemplo
+        if not veterinarians:
+            print("🔄 Usando veterinarios de ejemplo...")
+            veterinarians = get_fallback_veterinarians()
+
+        # Enriquecer con horarios desde Appointment Service
         try:
-            print("🔄 Obteniendo desde Appointment Service...")
-            schedules_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/schedules/veterinarians"
-            schedules_response = requests.get(schedules_url, headers=headers, timeout=10)
+            print("📡 Obteniendo horarios desde Appointment Service...")
+            appointment_url = f"{current_app.config.get('APPOINTMENT_SERVICE_URL', 'http://localhost:5002')}/appointments/schedules/veterinarians-v2"
+            schedules_response = requests.get(appointment_url, headers=headers, timeout=10)
 
+            vet_schedules = {}
             if schedules_response.status_code == 200:
                 schedules_data = schedules_response.json()
                 if schedules_data.get('success'):
                     vet_schedules = schedules_data.get('veterinarian_schedules', {})
+                    print(f"✅ Horarios obtenidos para {len(vet_schedules)} veterinarios")
 
-                    # Crear veterinarios desde horarios disponibles
-                    veterinarians = create_veterinarians_from_schedules(vet_schedules)
+            # Enriquecer cada veterinario con sus horarios
+            for vet in veterinarians:
+                vet_id = vet['id']
+                schedule_data = vet_schedules.get(vet_id, [])
 
-                    return jsonify({
-                        'success': True,
-                        'veterinarians': veterinarians,
-                        'total': len(veterinarians),
-                        'source': 'schedules'
-                    })
-        except Exception as e:
-            print(f"⚠️ Error método 2: {e}")
+                # Convertir horarios al formato esperado
+                vet['schedule'] = convert_schedule_to_client_format(schedule_data)
+                vet['has_schedule'] = len(schedule_data) > 0
+                vet['schedule_text'] = generate_schedule_text(schedule_data)
 
-        # MÉTODO 3: Fallback con datos predefinidos
-        print("🔄 Usando veterinarios de fallback...")
-        fallback_veterinarians = get_fallback_veterinarians()
+        except Exception as schedule_error:
+            print(f"⚠️ Error obteniendo horarios: {schedule_error}")
+            # Asignar horarios por defecto
+            for vet in veterinarians:
+                vet['schedule'] = {}
+                vet['has_schedule'] = False
+                vet['schedule_text'] = 'Horario por confirmar'
+
+        print(f"✅ Retornando {len(veterinarians)} veterinarios procesados")
 
         return jsonify({
             'success': True,
-            'veterinarians': fallback_veterinarians,
-            'total': len(fallback_veterinarians),
-            'source': 'fallback'
+            'veterinarians': veterinarians,
+            'total': len(veterinarians)
         })
 
     except Exception as e:
         print(f"❌ Error en api_public_veterinarians: {e}")
+        import traceback
+        traceback.print_exc()
+
+        # Fallback con veterinarios de ejemplo
+        fallback_vets = get_fallback_veterinarians()
         return jsonify({
-            'success': False,
-            'message': str(e)
-        }), 500
+            'success': True,
+            'veterinarians': fallback_vets,
+            'total': len(fallback_vets),
+            'message': 'Usando datos de ejemplo - Servicios no disponibles'
+        })
+
+
+def convert_schedule_to_client_format(schedule_list):
+    """Convertir horarios del backend al formato esperado por el cliente"""
+    day_names = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    result = {}
+
+    for schedule_item in schedule_list:
+        if schedule_item.get('is_available'):
+            day_num = schedule_item.get('day_of_week')
+            if 0 <= day_num <= 6:
+                day_name = day_names[day_num]
+                result[day_name] = {
+                    'active': True,
+                    'start': schedule_item.get('start_time', '08:00'),
+                    'end': schedule_item.get('end_time', '17:00')
+                }
+
+    return result
+
+
+def generate_schedule_text(schedule_list):
+    """Generar texto descriptivo del horario"""
+    if not schedule_list:
+        return 'Horario por confirmar'
+
+    day_names = {
+        0: 'Dom', 1: 'Lun', 2: 'Mar', 3: 'Mié',
+        4: 'Jue', 5: 'Vie', 6: 'Sáb'
+    }
+
+    active_days = []
+    for schedule_item in schedule_list:
+        if schedule_item.get('is_available'):
+            day_num = schedule_item.get('day_of_week')
+            if day_num in day_names:
+                active_days.append(day_names[day_num])
+
+    if not active_days:
+        return 'Sin disponibilidad'
+
+    return f"Disponible: {', '.join(active_days)}"
 
 
 def enrich_veterinarians_with_schedules(veterinarians, headers):
     """Enriquecer veterinarios con sus horarios desde Appointment Service"""
     try:
-        schedules_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/schedules/veterinarians"
+        schedules_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/schedules/veterinarians-v2"
         schedules_response = requests.get(schedules_url, headers=headers, timeout=10)
 
         vet_schedules = {}
@@ -5247,85 +5320,122 @@ def convert_schedule_to_days_format(schedule_list):
 # =============== 5. VETERINARIOS DE FALLBACK ===============
 
 def get_fallback_veterinarians():
-    """Veterinarios de ejemplo para cuando no hay conexión"""
+    """Veterinarios de ejemplo para cuando no hay conexión con servicios"""
     return [
         {
-            'id': 'vet_fallback_1',
-            'first_name': 'Dr. Juan',
+            'id': 'vet_fallback_001',
+            'first_name': 'Juan',
             'last_name': 'Pérez',
-            'specialty': 'Medicina General',
             'email': 'juan.perez@clinica.com',
+            'specialty': 'Medicina General',
             'is_active': True,
             'role': 'veterinarian',
             'schedule': {
-                'monday': {'active': True, 'start': '08:00', 'end': '18:00', 'break_start': '12:00',
-                           'break_end': '13:00'},
-                'tuesday': {'active': True, 'start': '08:00', 'end': '18:00', 'break_start': '12:00',
-                            'break_end': '13:00'},
-                'wednesday': {'active': True, 'start': '08:00', 'end': '18:00', 'break_start': '12:00',
-                              'break_end': '13:00'},
-                'thursday': {'active': True, 'start': '08:00', 'end': '18:00', 'break_start': '12:00',
-                             'break_end': '13:00'},
-                'friday': {'active': True, 'start': '08:00', 'end': '17:00', 'break_start': '12:00',
-                           'break_end': '13:00'},
-                'saturday': {'active': True, 'start': '08:00', 'end': '14:00', 'break_start': '11:00',
-                             'break_end': '12:00'}
+                'monday': {'active': True, 'start': '08:00', 'end': '17:00'},
+                'tuesday': {'active': True, 'start': '08:00', 'end': '17:00'},
+                'wednesday': {'active': True, 'start': '08:00', 'end': '17:00'},
+                'thursday': {'active': True, 'start': '08:00', 'end': '17:00'},
+                'friday': {'active': True, 'start': '08:00', 'end': '16:00'},
+                'saturday': {'active': True, 'start': '08:00', 'end': '12:00'}
             },
-            'has_schedule': True
+            'has_schedule': True,
+            'schedule_text': 'Lun-Vie: 8:00-17:00, Sáb: 8:00-12:00'
         },
         {
-            'id': 'vet_fallback_2',
-            'first_name': 'Dra. María',
+            'id': 'vet_fallback_002',
+            'first_name': 'María',
             'last_name': 'González',
-            'specialty': 'Cirugía Veterinaria',
             'email': 'maria.gonzalez@clinica.com',
+            'specialty': 'Cirugía Veterinaria',
             'is_active': True,
             'role': 'veterinarian',
             'schedule': {
-                'monday': {'active': True, 'start': '09:00', 'end': '17:00', 'break_start': '12:00',
-                           'break_end': '13:00'},
-                'wednesday': {'active': True, 'start': '09:00', 'end': '17:00', 'break_start': '12:00',
-                              'break_end': '13:00'},
-                'friday': {'active': True, 'start': '09:00', 'end': '17:00', 'break_start': '12:00',
-                           'break_end': '13:00'},
-                'saturday': {'active': True, 'start': '08:00', 'end': '14:00', 'break_start': '11:00',
-                             'break_end': '12:00'}
+                'monday': {'active': True, 'start': '09:00', 'end': '17:00'},
+                'wednesday': {'active': True, 'start': '09:00', 'end': '17:00'},
+                'friday': {'active': True, 'start': '09:00', 'end': '17:00'},
+                'saturday': {'active': True, 'start': '08:00', 'end': '14:00'}
             },
-            'has_schedule': True
+            'has_schedule': True,
+            'schedule_text': 'Lun, Mié, Vie: 9:00-17:00, Sáb: 8:00-14:00'
+        },
+        {
+            'id': 'vet_fallback_003',
+            'first_name': 'Carlos',
+            'last_name': 'Rodríguez',
+            'email': 'carlos.rodriguez@clinica.com',
+            'specialty': 'Medicina Interna',
+            'is_active': True,
+            'role': 'veterinarian',
+            'schedule': {
+                'tuesday': {'active': True, 'start': '08:00', 'end': '17:00'},
+                'thursday': {'active': True, 'start': '08:00', 'end': '17:00'},
+                'saturday': {'active': True, 'start': '08:00', 'end': '12:00'}
+            },
+            'has_schedule': True,
+            'schedule_text': 'Mar, Jue: 8:00-17:00, Sáb: 8:00-12:00'
         }
     ]
 
 
 @frontend_bp.route('/api/public/availability/<vet_id>/<date>')
 def api_public_availability(vet_id, date):
-    """API PÚBLICA para disponibilidad de veterinario"""
+    """API PÚBLICA para disponibilidad de veterinario - VERSIÓN CORREGIDA"""
     try:
-        headers = {}
+        print(f"🔍 Buscando disponibilidad para veterinario {vet_id} en {date}")
 
-        # Obtener token si existe (opcional)
+        headers = {}
         token = session.get('token')
         if token:
             headers['Authorization'] = f"Bearer {token}"
 
-        print(f"🔍 Buscando disponibilidad pública para {vet_id} en {date}")
+        # MÉTODO 1: Obtener disponibilidad desde Appointment Service
+        try:
+            appointment_url = f"{current_app.config.get('APPOINTMENT_SERVICE_URL', 'http://localhost:5002')}/appointments/available-slots"
+            params = {
+                'veterinarian_id': vet_id,
+                'date': date
+            }
 
-        # Obtener horarios del veterinario
-        schedules_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/schedules/veterinarians"
-        response = requests.get(schedules_url, headers=headers, timeout=10)
+            response = requests.get(appointment_url, headers=headers, params=params, timeout=10)
+            print(f"📡 Respuesta Appointment Service: {response.status_code}")
 
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                vet_schedules = data.get('veterinarian_schedules', {})
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('success'):
+                    available_slots = data.get('available_slots', [])
 
-                if vet_id in vet_schedules:
-                    schedule_list = vet_schedules[vet_id]
+                    print(f"✅ {len(available_slots)} slots disponibles encontrados")
 
-                    # Convertir fecha a día de la semana
-                    from datetime import datetime
-                    try:
+                    return jsonify({
+                        'success': True,
+                        'available_slots': available_slots,
+                        'date': date,
+                        'veterinarian_id': vet_id
+                    })
+
+        except Exception as appointment_error:
+            print(f"⚠️ Error Appointment Service: {appointment_error}")
+
+        # MÉTODO 2: Generar disponibilidad desde horarios del veterinario
+        try:
+            print("🔄 Generando disponibilidad desde horarios...")
+
+            # Obtener horarios del veterinario
+            schedules_url = f"{current_app.config.get('APPOINTMENT_SERVICE_URL', 'http://localhost:5002')}/appointments/schedules/veterinarians-v2-v2"
+            schedules_response = requests.get(schedules_url, headers=headers, timeout=10)
+
+            if schedules_response.status_code == 200:
+                schedules_data = schedules_response.json()
+                if schedules_data.get('success'):
+                    vet_schedules = schedules_data.get('veterinarian_schedules', {})
+
+                    if vet_id in vet_schedules:
+                        schedule_list = vet_schedules[vet_id]
+
+                        # Convertir fecha a día de la semana
+                        from datetime import datetime
                         date_obj = datetime.strptime(date, '%Y-%m-%d')
-                        day_of_week = (date_obj.weekday() + 1) % 7
+                        day_of_week = (date_obj.weekday() + 1) % 7  # Convertir a formato backend
 
                         # Buscar horario para ese día
                         day_schedule = None
@@ -5335,57 +5445,118 @@ def api_public_availability(vet_id, date):
                                 break
 
                         if day_schedule:
-                            start_time = day_schedule.get('start_time')
-                            end_time = day_schedule.get('end_time')
+                            # Generar slots de tiempo
+                            available_slots = generate_time_slots_for_date(
+                                day_schedule.get('start_time', '08:00'),
+                                day_schedule.get('end_time', '17:00'),
+                                vet_id,
+                                date,
+                                headers
+                            )
 
-                            # Generar slots disponibles
-                            available_slots = generate_time_slots_public(start_time, end_time, vet_id, date, headers)
+                            print(f"✅ {len(available_slots)} slots generados desde horario")
 
                             return jsonify({
                                 'success': True,
                                 'available_slots': available_slots,
                                 'date': date,
                                 'veterinarian_id': vet_id,
-                                'schedule_time': f'{start_time} - {end_time}'
+                                'source': 'generated'
                             })
                         else:
                             return jsonify({
                                 'success': False,
                                 'message': 'El veterinario no atiende este día',
-                                'available_slots': []
+                                'available_slots': [],
+                                'date': date,
+                                'veterinarian_id': vet_id
                             })
 
-                    except ValueError:
-                        return jsonify({
-                            'success': False,
-                            'message': 'Formato de fecha inválido'
-                        })
-                else:
-                    return jsonify({
-                        'success': False,
-                        'message': 'Veterinario no encontrado',
-                        'available_slots': []
-                    })
+        except Exception as schedule_error:
+            print(f"⚠️ Error generando desde horarios: {schedule_error}")
 
-        # Fallback con horarios de ejemplo
-        fallback_slots = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-                          '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00']
+        # MÉTODO 3: Fallback con horarios básicos
+        print("🔄 Usando horarios de fallback...")
+        fallback_slots = generate_fallback_slots()
 
         return jsonify({
             'success': True,
             'available_slots': fallback_slots,
             'date': date,
             'veterinarian_id': vet_id,
-            'source': 'fallback'
+            'source': 'fallback',
+            'message': 'Horarios generados automáticamente'
         })
 
     except Exception as e:
         print(f"❌ Error en api_public_availability: {e}")
+        import traceback
+        traceback.print_exc()
+
         return jsonify({
             'success': False,
-            'message': str(e),
+            'message': f'Error obteniendo disponibilidad: {str(e)}',
             'available_slots': []
-        })
+        }), 500
+
+
+def generate_time_slots_for_date(start_time, end_time, vet_id, date, headers):
+    """Generar slots de tiempo para una fecha específica"""
+    try:
+        from datetime import datetime, timedelta
+
+        # Convertir horarios a datetime
+        start_dt = datetime.strptime(start_time, '%H:%M')
+        end_dt = datetime.strptime(end_time, '%H:%M')
+
+        # Generar slots cada 30 minutos
+        slots = []
+        current = start_dt
+
+        while current < end_dt:
+            time_str = current.strftime('%H:%M')
+
+            # Excluir hora de almuerzo (12:00-13:00)
+            if not ('12:00' <= time_str < '13:00'):
+                slots.append(time_str)
+
+            current += timedelta(minutes=30)
+
+        # Obtener citas existentes para filtrar slots ocupados
+        try:
+            appointments_url = f"{current_app.config.get('APPOINTMENT_SERVICE_URL', 'http://localhost:5002')}/appointments/veterinarian/{vet_id}/date/{date}"
+            apt_response = requests.get(appointments_url, headers=headers, timeout=5)
+
+            occupied_times = []
+            if apt_response.status_code == 200:
+                apt_data = apt_response.json()
+                if apt_data.get('success'):
+                    appointments = apt_data.get('appointments', [])
+                    occupied_times = [apt.get('appointment_time') for apt in appointments if
+                                      apt.get('appointment_time')]
+
+            # Filtrar slots ocupados
+            available_slots = [slot for slot in slots if slot not in occupied_times]
+
+            print(f"⏰ {len(slots)} slots generados, {len(occupied_times)} ocupados, {len(available_slots)} disponibles")
+
+            return available_slots
+
+        except Exception as apt_error:
+            print(f"⚠️ Error obteniendo citas existentes: {apt_error}")
+            return slots  # Retornar todos los slots si no se pueden verificar las citas
+
+    except Exception as e:
+        print(f"❌ Error generando slots: {e}")
+        return generate_fallback_slots()
+
+
+def generate_fallback_slots():
+    """Generar slots de tiempo básicos como fallback"""
+    return [
+        '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+        '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'
+    ]
 
 
 def generate_time_slots_with_exclusions(start_time, end_time, occupied_slots):
@@ -5463,11 +5634,11 @@ def generate_time_slots_public(start_time, end_time, vet_id, date, headers):
 
 @frontend_bp.route('/api/public/appointments', methods=['POST'])
 def api_public_create_appointment():
-    """API PÚBLICA para crear citas (accesible para clientes)"""
+    """API PÚBLICA para crear citas - VERSIÓN CORREGIDA"""
     try:
         data = request.get_json()
 
-        # Obtener token del usuario (debe estar logueado)
+        # Verificar autenticación
         token = session.get('token')
         user = session.get('user')
 
@@ -5479,46 +5650,97 @@ def api_public_create_appointment():
 
         headers = {'Authorization': f"Bearer {token}"}
 
-        # Agregar información del cliente
+        # Preparar datos de la cita
         appointment_data = {
-            **data,
+            'pet_id': data.get('pet_id'),
+            'veterinarian_id': data.get('veterinarian_id'),
             'client_id': user['id'],
+            'appointment_date': data.get('appointment_date'),
+            'appointment_time': data.get('appointment_time'),
+            'consultation_type': data.get('consultation_type', 'general'),
+            'reason': data.get('reason', ''),
             'status': 'scheduled',
             'priority': 'normal'
         }
 
-        print(f"📝 Creando cita pública: {appointment_data}")
+        print(f"📝 Creando cita: {appointment_data}")
 
-        # Enviar al Appointment Service
-        appointment_url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments"
-        response = requests.post(appointment_url, json=appointment_data, headers=headers, timeout=15)
+        # Validar datos requeridos
+        required_fields = ['pet_id', 'veterinarian_id', 'appointment_date', 'appointment_time']
+        for field in required_fields:
+            if not appointment_data.get(field):
+                return jsonify({
+                    'success': False,
+                    'message': f'Campo requerido: {field}'
+                }), 400
 
-        print(f"📡 Respuesta Appointment Service: {response.status_code}")
-
-        if response.status_code in [200, 201]:
-            result = response.json()
-            if result.get('success'):
-                print(f"✅ Cita creada exitosamente: {result.get('appointment', {}).get('id')}")
-                return jsonify(result)
-
-        # Manejar errores
+        # MÉTODO 1: Crear cita en Appointment Service
         try:
-            error_data = response.json()
-            error_message = error_data.get('message', 'Error creando la cita')
-        except:
-            error_message = f'Error del servidor: {response.status_code}'
+            appointment_url = f"{current_app.config.get('APPOINTMENT_SERVICE_URL', 'http://localhost:5002')}/appointments/create"
+            response = requests.post(appointment_url, json=appointment_data, headers=headers, timeout=15)
 
+            print(f"📡 Respuesta Appointment Service: {response.status_code}")
+
+            if response.status_code in [200, 201]:
+                result = response.json()
+                if result.get('success'):
+                    print(f"✅ Cita creada exitosamente: {result.get('appointment_id')}")
+
+                    return jsonify({
+                        'success': True,
+                        'message': 'Cita agendada exitosamente',
+                        'appointment': result.get('appointment', {}),
+                        'appointment_id': result.get('appointment_id')
+                    })
+            else:
+                # Manejar errores específicos del servicio
+                try:
+                    error_data = response.json()
+                    error_message = error_data.get('message', 'Error del servidor')
+                except:
+                    error_message = f'Error HTTP {response.status_code}'
+
+                return jsonify({
+                    'success': False,
+                    'message': error_message
+                }), response.status_code
+
+        except requests.RequestException as req_error:
+            print(f"❌ Error de conexión con Appointment Service: {req_error}")
+            return jsonify({
+                'success': False,
+                'message': 'Error de conexión con el servicio de citas. Intente nuevamente.'
+            }), 500
+
+        # MÉTODO 2: Intentar endpoint alternativo
+        try:
+            alt_url = f"{current_app.config.get('APPOINTMENT_SERVICE_URL', 'http://localhost:5002')}/appointments/appointments"
+            response = requests.post(alt_url, json=appointment_data, headers=headers, timeout=15)
+
+            if response.status_code in [200, 201]:
+                result = response.json()
+                if result.get('success'):
+                    return jsonify(result)
+
+        except Exception as alt_error:
+            print(f"⚠️ Error endpoint alternativo: {alt_error}")
+
+        # Si llegamos aquí, no se pudo crear la cita
         return jsonify({
             'success': False,
-            'message': error_message
-        }), response.status_code
+            'message': 'No se pudo agendar la cita. El servicio no está disponible temporalmente.'
+        }), 503
 
     except Exception as e:
         print(f"❌ Error en api_public_create_appointment: {e}")
+        import traceback
+        traceback.print_exc()
+
         return jsonify({
             'success': False,
             'message': f'Error interno: {str(e)}'
         }), 500
+
 
 @frontend_bp.route('/api/client/appointments')
 @role_required(['client'])
