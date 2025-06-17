@@ -507,7 +507,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script>
+<script >
     let currentSchedule = {};
     let hasUnsavedChanges = false;
 
@@ -803,6 +803,8 @@
         });
     }
 
+
+
     // Atajos de teclado
     document.addEventListener('keydown', function(e) {
         // Ctrl/Cmd + S: Guardar
@@ -820,4 +822,5 @@
 
     console.log('✅ Configuración de Horario inicializada correctamente');
 </script>
+<script src="{{ url_for('static', filename='js/veterinarian_schedule.js') }}"></script>
 {% endblock %}

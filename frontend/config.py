@@ -3,6 +3,7 @@ import os
 from datetime import timedelta
 
 
+
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-frontend-super-secure-2024'
 
@@ -18,6 +19,7 @@ class Config:
     DEBUG = os.environ.get('FLASK_DEBUG', 'True').lower() in ['true', '1', 'yes']
 
     # Session Configuration
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-fallback-key'
     SESSION_TYPE = 'filesystem'
     SESSION_PERMANENT = True
     SESSION_USE_SIGNER = True

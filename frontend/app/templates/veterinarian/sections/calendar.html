@@ -465,7 +465,7 @@
     <div class="calendar-controls">
         <div class="view-controls">
             <button class="view-btn active" data-view="month">Mes</button>
-            <button class="view-btn" data-view="week">Semana</button>
+
             <button class="view-btn" data-view="agenda">Agenda</button>
         </div>
 
@@ -516,7 +516,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script>
+<script >
     let currentDate = new Date();
     let selectedAppointment = null;
     let currentView = 'month';
@@ -891,4 +891,5 @@
 
     console.log('✅ Calendario del Veterinario inicializado correctamente');
 </script>
+<script src="{{ url_for('static', filename='js/veterinarian_calendar.js') }}"></script>
 {% endblock %}

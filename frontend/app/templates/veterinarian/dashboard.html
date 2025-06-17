@@ -568,7 +568,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script>
+<script >
     document.addEventListener('DOMContentLoaded', function() {
         console.log('🩺 Inicializando Dashboard del Veterinario...');
 
@@ -1063,6 +1063,8 @@
         }
     }
 
+
+
     // =============== MANEJO DE ERRORES DE CONEXIÓN ===============
 
     window.addEventListener('online', function() {
@@ -1085,4 +1087,5 @@
         showNotification('¡Bienvenido Dr. {{ user_name }}!', 'success');
     }, 1000);
 </script>
+<script src="{{ url_for('static', filename='js/veterinarian_dashboard.js') }}"></script>
 {% endblock %}

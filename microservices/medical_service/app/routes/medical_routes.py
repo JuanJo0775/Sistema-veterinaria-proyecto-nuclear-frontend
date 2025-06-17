@@ -1478,6 +1478,73 @@ def get_medical_dashboard_summary():
             }), 500
 
 
+
+
+
+@medical_bp.route('/veterinarian/<vet_id>/patients', methods=['GET'])
+def get_veterinarian_patients(vet_id):
+    """Obtener todos los pacientes de un veterinario"""
+    try:
+        # Obtener pacientes que han tenido citas con este veterinario
+        # Necesitarás hacer una consulta JOIN con appointments o usar el appointment service
+
+        # Por ahora, devolver respuesta válida vacía para evitar 404
+        return jsonify({
+            'success': True,
+            'patients': [],
+            'total': 0,
+            'message': 'Endpoint en desarrollo - usar appointment service para relación veterinario-pacientes'
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error obteniendo pacientes del veterinario: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@medical_bp.route('/veterinarian/<vet_id>/recent-patients', methods=['GET'])
+def get_veterinarian_recent_patients(vet_id):
+    """Obtener pacientes recientes de un veterinario"""
+    try:
+        limit = int(request.args.get('limit', 6))
+
+        # Por ahora, devolver respuesta válida vacía para evitar 404
+        return jsonify({
+            'success': True,
+            'patients': [],
+            'total': 0,
+            'message': 'Endpoint en desarrollo - usar appointment service para relación veterinario-pacientes'
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error obteniendo pacientes recientes: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@medical_bp.route('/veterinarian/<vet_id>/pending-records', methods=['GET'])
+def get_veterinarian_pending_records(vet_id):
+    """Obtener historias clínicas pendientes de un veterinario"""
+    try:
+        # Por ahora, devolver respuesta válida vacía para evitar 404
+        return jsonify({
+            'success': True,
+            'records': [],
+            'total': 0,
+            'message': 'Endpoint en desarrollo - implementar lógica de historias pendientes'
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error obteniendo historias pendientes: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
 @medical_bp.route('/health', methods=['GET'])
 def health():
     return jsonify({

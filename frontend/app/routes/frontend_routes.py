@@ -8944,20 +8944,72 @@ def veterinarian_dashboard():
         flash('Error al cargar el dashboard', 'error')
         return redirect(url_for('frontend.login'))
 
+
 @frontend_bp.route('/veterinarian/schedule')
 @role_required(['veterinarian'])
 def veterinarian_schedule():
     """Página de horario del veterinario"""
     try:
         user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener horarios del veterinario desde la API
+        schedule_data = []
+        try:
+            schedule_response = requests.get(
+                f"{current_app.config['APPOINTMENT_SERVICE_URL']}/schedules/{user['id']}",
+                headers=headers, timeout=5
+            )
+            if schedule_response.status_code == 200:
+                data = schedule_response.json()
+                if data.get('success'):
+                    schedule_data = data.get('schedules', [])
+        except Exception as e:
+            print(f"⚠️ Error obteniendo horarios: {e}")
+
+        # Obtener estadísticas de citas
+        stats = {
+            'today_appointments': 0,
+            'week_appointments': 0
+        }
+
+        try:
+            # Citas de hoy
+            today_response = requests.get(
+                f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/veterinarian/{user['id']}/today",
+                headers=headers, timeout=5
+            )
+            if today_response.status_code == 200:
+                today_data = today_response.json()
+                if today_data.get('success'):
+                    stats['today_appointments'] = len(today_data.get('appointments', []))
+
+            # Citas de la semana
+            week_response = requests.get(
+                f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/veterinarian/{user['id']}/week",
+                headers=headers, timeout=5
+            )
+            if week_response.status_code == 200:
+                week_data = week_response.json()
+                if week_data.get('success'):
+                    weekly_schedule = week_data.get('weekly_schedule', {})
+                    total_week = sum(len(day['appointments']) for day in weekly_schedule.values())
+                    stats['week_appointments'] = total_week
+
+        except Exception as e:
+            print(f"⚠️ Error obteniendo estadísticas: {e}")
+
         template_data = {
             'user': user,
             'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Dr. Veterinario',
             'user_role': 'Veterinario',
-            'user_initial': user.get('first_name', 'V')[0].upper() if user.get('first_name') else 'V'
+            'user_initial': user.get('first_name', 'V')[0].upper() if user.get('first_name') else 'V',
+            'schedule_data': schedule_data,
+            **stats
         }
 
-        return render_template('veterinarian/schedule.html', **template_data)
+        # CORRECCIÓN: Usar la ruta correcta a la plantilla
+        return render_template('veterinarian/sections/schedule.html', **template_data)
 
     except Exception as e:
         print(f"❌ Error en veterinarian schedule: {e}")
@@ -8971,19 +9023,278 @@ def veterinarian_calendar():
     """Página de calendario del veterinario"""
     try:
         user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener citas del veterinario para el calendario
+        appointments_data = []
+        try:
+            # Obtener citas del mes actual
+            appointments_response = requests.get(
+                f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/veterinarian/{user['id']}/month",
+                headers=headers, timeout=5
+            )
+            if appointments_response.status_code == 200:
+                data = appointments_response.json()
+                if data.get('success'):
+                    appointments_data = data.get('appointments', [])
+        except Exception as e:
+            print(f"⚠️ Error obteniendo citas para calendario: {e}")
+
         template_data = {
             'user': user,
             'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Dr. Veterinario',
             'user_role': 'Veterinario',
-            'user_initial': user.get('first_name', 'V')[0].upper() if user.get('first_name') else 'V'
+            'user_initial': user.get('first_name', 'V')[0].upper() if user.get('first_name') else 'V',
+            'appointments_data': appointments_data
         }
 
-        return render_template('veterinarian/calendar.html', **template_data)
+        # CORRECCIÓN: Usar la ruta correcta a la plantilla
+        return render_template('veterinarian/sections/calendar.html', **template_data)
 
     except Exception as e:
         print(f"❌ Error en veterinarian calendar: {e}")
         flash('Error al cargar el calendario', 'error')
         return redirect(url_for('frontend.veterinarian_dashboard'))
+
+
+@frontend_bp.route('/api/veterinarian/dashboard-data')
+@role_required(['veterinarian'])
+def get_veterinarian_dashboard_data():
+    """API para obtener datos del dashboard del veterinario"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        dashboard_data = {
+            'success': True,
+            'user_info': {
+                'name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip(),
+                'role': 'Veterinario',
+                'initial': user.get('first_name', 'V')[0].upper() if user.get('first_name') else 'V'
+            },
+            'today_appointments': [],
+            'recent_patients': [],
+            'stats': {
+                'today_appointments_count': 0,
+                'total_patients': 0,
+                'pending_records': 0,
+                'completed_today': 0
+            }
+        }
+
+        # Obtener citas de hoy
+        try:
+            today_response = requests.get(
+                f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/veterinarian/{user['id']}/today",
+                headers=headers, timeout=5
+            )
+            if today_response.status_code == 200:
+                today_data = today_response.json()
+                if today_data.get('success'):
+                    appointments = today_data.get('appointments', [])
+                    dashboard_data['today_appointments'] = appointments
+                    dashboard_data['stats']['today_appointments_count'] = len(appointments)
+                    # Contar completadas hoy
+                    completed = sum(1 for apt in appointments if apt.get('status') == 'completed')
+                    dashboard_data['stats']['completed_today'] = completed
+        except Exception as e:
+            print(f"⚠️ Error obteniendo citas de hoy: {e}")
+
+        # Obtener pacientes recientes
+        try:
+            patients_response = requests.get(
+                f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/veterinarian/{user['id']}/recent-patients",
+                headers=headers, timeout=5
+            )
+            if patients_response.status_code == 200:
+                patients_data = patients_response.json()
+                if patients_data.get('success'):
+                    dashboard_data['recent_patients'] = patients_data.get('patients', [])
+        except Exception as e:
+            print(f"⚠️ Error obteniendo pacientes recientes: {e}")
+
+        # Obtener total de pacientes
+        try:
+            total_patients_response = requests.get(
+                f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/veterinarian/{user['id']}/patients",
+                headers=headers, timeout=5
+            )
+            if total_patients_response.status_code == 200:
+                total_data = total_patients_response.json()
+                if total_data.get('success'):
+                    dashboard_data['stats']['total_patients'] = len(total_data.get('patients', []))
+        except Exception as e:
+            print(f"⚠️ Error obteniendo total de pacientes: {e}")
+
+        # Obtener historias pendientes
+        try:
+            pending_response = requests.get(
+                f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/veterinarian/{user['id']}/pending-records",
+                headers=headers, timeout=5
+            )
+            if pending_response.status_code == 200:
+                pending_data = pending_response.json()
+                if pending_data.get('success'):
+                    dashboard_data['stats']['pending_records'] = len(pending_data.get('records', []))
+        except Exception as e:
+            print(f"⚠️ Error obteniendo historias pendientes: {e}")
+
+        return jsonify(dashboard_data)
+
+    except Exception as e:
+        print(f"❌ Error en dashboard data API: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@frontend_bp.route('/api/veterinarian/schedule-data')
+@role_required(['veterinarian'])
+def get_veterinarian_schedule_data():
+    """API para obtener datos del horario del veterinario"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener horarios del veterinario
+        schedule_response = requests.get(
+            f"{current_app.config['APPOINTMENT_SERVICE_URL']}/schedules/{user['id']}",
+            headers=headers, timeout=10
+        )
+
+        if schedule_response.status_code == 200:
+            return jsonify(schedule_response.json())
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Error obteniendo horarios',
+                'schedules': []
+            })
+
+    except Exception as e:
+        print(f"❌ Error obteniendo schedule data: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e),
+            'schedules': []
+        })
+
+
+@frontend_bp.route('/api/veterinarian/calendar-data')
+@role_required(['veterinarian'])
+def get_veterinarian_calendar_data():
+    """API para obtener datos del calendario del veterinario"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        # Obtener parámetros de consulta
+        month = request.args.get('month')
+        year = request.args.get('year')
+
+        # Construir URL con parámetros
+        url = f"{current_app.config['APPOINTMENT_SERVICE_URL']}/appointments/veterinarian/{user['id']}/calendar"
+        params = {}
+        if month:
+            params['month'] = month
+        if year:
+            params['year'] = year
+
+        calendar_response = requests.get(url, headers=headers, params=params, timeout=10)
+
+        if calendar_response.status_code == 200:
+            return jsonify(calendar_response.json())
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Error obteniendo datos del calendario',
+                'appointments': []
+            })
+
+    except Exception as e:
+        print(f"❌ Error obteniendo calendar data: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e),
+            'appointments': []
+        })
+
+
+@frontend_bp.route('/api/veterinarian/save-schedule', methods=['POST'])
+@role_required(['veterinarian'])
+def save_veterinarian_schedule():
+    """API para guardar horario del veterinario"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        data = request.get_json()
+
+        if not data or 'schedules' not in data:
+            return jsonify({
+                'success': False,
+                'message': 'Datos de horario requeridos'
+            }), 400
+
+        schedules = data['schedules']
+        saved_schedules = []
+        errors = []
+
+        for schedule in schedules:
+            try:
+                # Agregar el ID del veterinario
+                schedule['veterinarian_id'] = user['id']
+
+                # Si tiene schedule_id, actualizar; si no, crear nuevo
+                if schedule.get('schedule_id'):
+                    # Actualizar horario existente
+                    response = requests.put(
+                        f"{current_app.config['APPOINTMENT_SERVICE_URL']}/schedules/{schedule['schedule_id']}",
+                        json=schedule,
+                        headers=headers,
+                        timeout=10
+                    )
+                else:
+                    # Crear nuevo horario
+                    response = requests.post(
+                        f"{current_app.config['APPOINTMENT_SERVICE_URL']}/schedules",
+                        json=schedule,
+                        headers=headers,
+                        timeout=10
+                    )
+
+                if response.status_code in [200, 201]:
+                    result = response.json()
+                    if result.get('success'):
+                        saved_schedules.append(result.get('schedule'))
+                    else:
+                        errors.append(f"Error en día {schedule.get('day_of_week')}: {result.get('message')}")
+                else:
+                    errors.append(f"Error HTTP {response.status_code} en día {schedule.get('day_of_week')}")
+
+            except Exception as e:
+                errors.append(f"Error procesando día {schedule.get('day_of_week')}: {str(e)}")
+
+        if errors:
+            return jsonify({
+                'success': False,
+                'message': 'Algunos horarios no se pudieron guardar',
+                'errors': errors,
+                'saved_schedules': saved_schedules
+            }), 207  # Multi-status
+
+        return jsonify({
+            'success': True,
+            'message': 'Horarios guardados exitosamente',
+            'saved_schedules': saved_schedules
+        })
+
+    except Exception as e:
+        print(f"❌ Error guardando horarios: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
 
 
 @frontend_bp.route('/veterinarian/appointments')

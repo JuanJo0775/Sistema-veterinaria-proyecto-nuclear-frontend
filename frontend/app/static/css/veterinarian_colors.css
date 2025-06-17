@@ -1,0 +1,418 @@
+/* frontend/app/static/css/veterinarian_colors.css */
+
+:root {
+    --primary-green: #52B788;      /* Verde principal */
+    --dark-green: #2D6A4F;         /* Verde oscuro */
+    --light-green: #B7E4C7;        /* Verde claro */
+    --darkest-green: #081C15;      /* Verde más oscuro */
+    --lightest-green: #D8F3DC;     /* Verde más claro */
+    --blue-dark: #22577A;          /* Azul oscuro */
+    --blue-light: #38A3A5;         /* Azul claro */
+
+    /* Gradientes */
+    --gradient-primary: linear-gradient(135deg, var(--dark-green) 0%, var(--blue-dark) 100%);
+    --gradient-secondary: linear-gradient(135deg, var(--primary-green) 0%, var(--blue-light) 100%);
+    --gradient-light: linear-gradient(135deg, var(--lightest-green) 0%, var(--light-green) 100%);
+
+    /* Sombras */
+    --shadow-light: 0 2px 8px rgba(8, 28, 21, 0.1);
+    --shadow-medium: 0 5px 15px rgba(8, 28, 21, 0.15);
+    --shadow-heavy: 0 10px 25px rgba(8, 28, 21, 0.2);
+
+    /* Bordes redondeados */
+    --radius-small: 8px;
+    --radius-medium: 12px;
+    --radius-large: 15px;
+    --radius-xl: 20px;
+}
+
+/* =============== APLICACIÓN DE COLORES =============== */
+
+/* Elementos principales */
+.main-header {
+    background: var(--gradient-primary) !important;
+    color: white !important;
+}
+
+.sidebar {
+    background: white !important;
+    border-right: 1px solid var(--light-green) !important;
+}
+
+.sidebar-nav .nav-link {
+    color: var(--dark-green) !important;
+    transition: all 0.3s ease;
+}
+
+.sidebar-nav .nav-link:hover,
+.sidebar-nav .nav-link.active {
+    background: var(--lightest-green) !important;
+    color: var(--darkest-green) !important;
+    border-left: 4px solid var(--primary-green);
+}
+
+/* Cards y paneles */
+.card, .dashboard-section, .stat-card {
+    background: white !important;
+    border: 1px solid var(--light-green) !important;
+    border-radius: var(--radius-medium) !important;
+    box-shadow: var(--shadow-light) !important;
+    transition: all 0.3s ease;
+}
+
+.card:hover, .dashboard-section:hover, .stat-card:hover {
+    box-shadow: var(--shadow-medium) !important;
+    border-color: var(--primary-green) !important;
+}
+
+/* Headers de secciones */
+.section-header, .card-header {
+    background: var(--gradient-light) !important;
+    border-bottom: 2px solid var(--light-green) !important;
+    border-radius: var(--radius-medium) var(--radius-medium) 0 0 !important;
+}
+
+.section-title, .card-title {
+    color: var(--darkest-green) !important;
+    font-weight: 600;
+}
+
+.section-subtitle {
+    color: var(--dark-green) !important;
+    opacity: 0.8;
+}
+
+/* Botones primarios */
+.btn-primary, .save-btn.btn-primary, .action-btn {
+    background: var(--gradient-secondary) !important;
+    border: none !important;
+    color: white !important;
+    border-radius: var(--radius-small) !important;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover, .save-btn.btn-primary:hover, .action-btn:hover {
+    background: var(--gradient-primary) !important;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium) !important;
+}
+
+/* Botones secundarios */
+.btn-secondary, .save-btn.btn-secondary {
+    background: white !important;
+    border: 2px solid var(--light-green) !important;
+    color: var(--dark-green) !important;
+    border-radius: var(--radius-small) !important;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary:hover, .save-btn.btn-secondary:hover {
+    background: var(--lightest-green) !important;
+    border-color: var(--primary-green) !important;
+    color: var(--darkest-green) !important;
+}
+
+/* Estadísticas y métricas */
+.stat-number {
+    color: var(--primary-green) !important;
+    font-weight: 700;
+}
+
+.stat-label {
+    color: var(--dark-green) !important;
+    font-weight: 500;
+}
+
+.stat-icon {
+    background: var(--lightest-green) !important;
+    color: var(--primary-green) !important;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+/* Quick stats específicos */
+.stat-card.appointments {
+    border-left: 4px solid var(--primary-green) !important;
+}
+
+.stat-card.patients {
+    border-left: 4px solid var(--blue-light) !important;
+}
+
+.stat-card.pending {
+    border-left: 4px solid var(--blue-dark) !important;
+}
+
+.stat-card.completed {
+    border-left: 4px solid var(--dark-green) !important;
+}
+
+/* Formularios */
+.form-control, .time-input {
+    border: 2px solid var(--light-green) !important;
+    border-radius: var(--radius-small) !important;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .time-input:focus {
+    border-color: var(--primary-green) !important;
+    box-shadow: 0 0 0 0.2rem rgba(82, 183, 136, 0.25) !important;
+}
+
+.form-label, .time-label {
+    color: var(--dark-green) !important;
+    font-weight: 500;
+}
+
+/* Welcome section */
+.welcome-section {
+    background: var(--gradient-primary) !important;
+    color: white !important;
+    border-radius: var(--radius-large) !important;
+}
+
+.welcome-title {
+    color: white !important;
+}
+
+.welcome-subtitle {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Horarios - Day schedule */
+.day-schedule {
+    background: var(--lightest-green) !important;
+    border: 2px solid var(--light-green) !important;
+    border-radius: var(--radius-medium) !important;
+}
+
+.day-schedule.active {
+    border-color: var(--primary-green) !important;
+    background: var(--gradient-light) !important;
+}
+
+.day-schedule.inactive {
+    background: #f8f9fa !important;
+    border-color: #e9ecef !important;
+    opacity: 0.6;
+}
+
+.day-name {
+    color: var(--dark-green) !important;
+    font-weight: 600;
+}
+
+.day-toggle {
+    background: #ccc !important;
+    border-radius: 15px;
+}
+
+.day-toggle.active {
+    background: var(--primary-green) !important;
+}
+
+/* Calendario */
+.calendar-container {
+    background: white !important;
+    border-radius: var(--radius-large) !important;
+    box-shadow: var(--shadow-light) !important;
+}
+
+.calendar-header {
+    background: var(--gradient-primary) !important;
+    color: white !important;
+    border-radius: var(--radius-large) var(--radius-large) 0 0 !important;
+}
+
+.nav-btn {
+    background: rgba(255, 255, 255, 0.2) !important;
+    border: none !important;
+    color: white !important;
+    border-radius: var(--radius-small) !important;
+}
+
+.nav-btn:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+    transform: translateY(-2px);
+}
+
+.view-btn {
+    background: var(--lightest-green) !important;
+    border: 1px solid var(--light-green) !important;
+    color: var(--dark-green) !important;
+    border-radius: 25px !important;
+}
+
+.view-btn.active,
+.view-btn:hover {
+    background: var(--primary-green) !important;
+    color: white !important;
+    border-color: var(--primary-green) !important;
+}
+
+/* Citas en calendario */
+.appointment-preview, .week-appointment, .day-appointment {
+    background: var(--primary-green) !important;
+    color: white !important;
+    border-radius: var(--radius-small) !important;
+}
+
+.appointment-preview.emergency, .week-appointment.emergency, .day-appointment.emergency {
+    background: var(--blue-dark) !important;
+}
+
+.appointment-preview.surgery, .week-appointment.surgery, .day-appointment.surgery {
+    background: var(--blue-light) !important;
+}
+
+.appointment-preview.vaccination, .week-appointment.vaccination, .day-appointment.vaccination {
+    background: var(--dark-green) !important;
+}
+
+.appointment-preview.control, .week-appointment.control, .day-appointment.control {
+    background: var(--light-green) !important;
+    color: var(--dark-green) !important;
+}
+
+/* Estados de citas */
+.status-badge.scheduled {
+    background: var(--lightest-green) !important;
+    color: var(--dark-green) !important;
+}
+
+.status-badge.confirmed {
+    background: var(--light-green) !important;
+    color: var(--dark-green) !important;
+}
+
+.status-badge.in-progress {
+    background: var(--blue-light) !important;
+    color: white !important;
+}
+
+.status-badge.completed {
+    background: var(--primary-green) !important;
+    color: white !important;
+}
+
+.status-badge.cancelled {
+    background: #ffebee !important;
+    color: #c62828 !important;
+}
+
+/* User avatar */
+.user-avatar {
+    background: var(--gradient-secondary) !important;
+    color: white !important;
+    border-radius: 50% !important;
+}
+
+/* Sidebar cards */
+.sidebar-card {
+    background: white !important;
+    border: 1px solid var(--light-green) !important;
+    border-radius: var(--radius-medium) !important;
+    box-shadow: var(--shadow-light) !important;
+}
+
+.sidebar-header {
+    background: var(--lightest-green) !important;
+    border-bottom: 1px solid var(--light-green) !important;
+    border-radius: var(--radius-medium) var(--radius-medium) 0 0 !important;
+}
+
+.sidebar-title {
+    color: var(--dark-green) !important;
+    font-weight: 600;
+}
+
+/* Loading states */
+.spinner {
+    border: 3px solid var(--lightest-green) !important;
+    border-top: 3px solid var(--primary-green) !important;
+}
+
+.loading {
+    color: var(--primary-green) !important;
+}
+
+/* Toasts */
+.toast-success {
+    background: #d4edda !important;
+    border: 1px solid #c3e6cb !important;
+    color: #155724 !important;
+}
+
+.toast-error {
+    background: #f8d7da !important;
+    border: 1px solid #f5c6cb !important;
+    color: #721c24 !important;
+}
+
+.toast-info {
+    background: var(--lightest-green) !important;
+    border: 1px solid var(--light-green) !important;
+    color: var(--dark-green) !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .card, .dashboard-section, .stat-card {
+        margin-bottom: 15px;
+    }
+
+    .welcome-section {
+        padding: 20px !important;
+        margin-bottom: 20px;
+    }
+
+    .stat-card {
+        min-height: auto !important;
+    }
+}
+
+/* Animaciones suaves */
+* {
+    transition: all 0.3s ease;
+}
+
+/* Hover effects generales */
+.clickable, .stat-card, .card, .appointment-item, .patient-card {
+    cursor: pointer;
+}
+
+.clickable:hover, .stat-card:hover, .card:hover, .appointment-item:hover, .patient-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium) !important;
+}
+
+/* Focus states */
+.btn:focus, .form-control:focus, .time-input:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 0.2rem rgba(82, 183, 136, 0.25) !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--lightest-green);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--light-green);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-green);
+}

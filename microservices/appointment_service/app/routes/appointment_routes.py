@@ -173,7 +173,6 @@ def get_veterinarian_schedules(vet_id):
             'message': str(e)
         }), 500
 
-
 @appointment_bp.route('/schedules', methods=['GET'])
 def get_all_schedules():
     """Obtener todos los horarios"""
@@ -2379,6 +2378,213 @@ def create_sample_schedules():
             'message': f'Error interno: {str(e)}'
         }), 500
 
+
+@appointment_bp.route('/veterinarian/<vet_id>/today', methods=['GET'])
+def get_veterinarian_today_appointments(vet_id):
+    """Obtener citas de hoy para un veterinario"""
+    try:
+        today = datetime.now().date()
+
+        appointments = Appointment.query.filter(
+            Appointment.veterinarian_id == vet_id,
+            Appointment.appointment_date == today
+        ).order_by(Appointment.appointment_time).all()
+
+        return jsonify({
+            'success': True,
+            'appointments': [apt.to_dict() for apt in appointments],
+            'date': today.isoformat(),
+            'total': len(appointments)
+        }), 200
+
+
+    except Exception as e:
+        print(f"❌ Error obteniendo citas de hoy: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@appointment_bp.route('/veterinarian/<vet_id>/week', methods=['GET'])
+def get_veterinarian_week_appointments(vet_id):
+    """Obtener citas de la semana para un veterinario"""
+    try:
+        # Obtener parámetros de semana
+        week_offset = int(request.args.get('week_offset', 0))
+
+        # Calcular inicio y fin de semana
+        today = datetime.now().date()
+        monday = today - timedelta(days=today.weekday()) + timedelta(weeks=week_offset)
+        sunday = monday + timedelta(days=6)
+
+        appointments = Appointment.query.filter(
+            Appointment.veterinarian_id == vet_id,
+            Appointment.appointment_date.between(monday, sunday)
+        ).order_by(
+            Appointment.appointment_date,
+            Appointment.appointment_time
+        ).all()
+
+        # Organizar por días de la semana
+        weekly_schedule = {}
+        for i in range(7):
+            day_date = monday + timedelta(days=i)
+            day_name = day_date.strftime('%A').lower()
+            weekly_schedule[day_name] = {
+                'date': day_date.isoformat(),
+                'appointments': []
+            }
+
+        # Llenar con citas
+        for appointment in appointments:
+            day_name = appointment.appointment_date.strftime('%A').lower()
+            if day_name in weekly_schedule:
+                weekly_schedule[day_name]['appointments'].append(appointment.to_dict())
+
+        return jsonify({
+            'success': True,
+            'weekly_schedule': weekly_schedule,
+            'week_info': {
+                'monday': monday.isoformat(),
+                'sunday': sunday.isoformat(),
+                'week_offset': week_offset,
+                'total_appointments': len(appointments)
+            }
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error obteniendo citas de la semana: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@appointment_bp.route('/veterinarian/<vet_id>/month', methods=['GET'])
+def get_veterinarian_month_appointments(vet_id):
+    """Obtener citas del mes para un veterinario"""
+    try:
+        # Obtener parámetros de mes
+        month = int(request.args.get('month', datetime.now().month))
+        year = int(request.args.get('year', datetime.now().year))
+
+        # Calcular inicio y fin del mes
+        start_date = datetime(year, month, 1).date()
+        if month == 12:
+            end_date = datetime(year + 1, 1, 1).date() - timedelta(days=1)
+        else:
+            end_date = datetime(year, month + 1, 1).date() - timedelta(days=1)
+
+        appointments = Appointment.query.filter(
+            Appointment.veterinarian_id == vet_id,
+            Appointment.appointment_date.between(start_date, end_date)
+        ).order_by(
+            Appointment.appointment_date,
+            Appointment.appointment_time
+        ).all()
+
+        return jsonify({
+            'success': True,
+            'appointments': [apt.to_dict() for apt in appointments],
+            'month_info': {
+                'month': month,
+                'year': year,
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat(),
+                'total_appointments': len(appointments)
+            }
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error obteniendo citas del mes: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@appointment_bp.route('/veterinarian/<vet_id>/calendar', methods=['GET'])
+def get_veterinarian_calendar_appointments(vet_id):
+    """Obtener citas para el calendario del veterinario"""
+    try:
+        # Obtener parámetros
+        month = request.args.get('month')
+        year = request.args.get('year')
+
+        if month and year:
+            month = int(month)
+            year = int(year)
+
+            # Calcular rango del mes
+            start_date = datetime(year, month, 1).date()
+            if month == 12:
+                end_date = datetime(year + 1, 1, 1).date() - timedelta(days=1)
+            else:
+                end_date = datetime(year, month + 1, 1).date() - timedelta(days=1)
+        else:
+            # Por defecto, mes actual
+            today = datetime.now().date()
+            start_date = datetime(today.year, today.month, 1).date()
+            if today.month == 12:
+                end_date = datetime(today.year + 1, 1, 1).date() - timedelta(days=1)
+            else:
+                end_date = datetime(today.year, today.month + 1, 1).date() - timedelta(days=1)
+
+        appointments = Appointment.query.filter(
+            Appointment.veterinarian_id == vet_id,
+            Appointment.appointment_date.between(start_date, end_date)
+        ).order_by(
+            Appointment.appointment_date,
+            Appointment.appointment_time
+        ).all()
+
+        # Convertir a formato para calendario
+        calendar_appointments = []
+        for apt in appointments:
+            apt_dict = apt.to_dict()
+            # Agregar información adicional para el calendario
+            apt_dict.update({
+                'appointment_type': apt_dict.get('appointment_type', 'consultation'),
+                'pet_species': apt_dict.get('pet_species', ''),
+                'owner_name': apt_dict.get('owner_name', ''),
+                'pet_name': apt_dict.get('pet_name', '')
+            })
+            calendar_appointments.append(apt_dict)
+
+        return jsonify({
+            'success': True,
+            'appointments': calendar_appointments,
+            'period_info': {
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat(),
+                'total_appointments': len(calendar_appointments)
+            }
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error obteniendo citas para calendario: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@appointment_bp.route('/schedules/<vet_id>', methods=['GET'])
+def get_vet_schedules(vet_id):
+    """Obtener horarios de un veterinario"""
+    try:
+        schedules = VeterinarianSchedule.get_by_veterinarian(vet_id)
+        return jsonify({
+            'success': True,
+            'schedules': [schedule.to_dict() for schedule in schedules],
+            'veterinarian_id': vet_id
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e),
+            'schedules': []
+        }), 200
 
 @appointment_bp.route('/health', methods=['GET'])
 def health():

@@ -8,7 +8,9 @@ from .. import db
 db = SQLAlchemy()
 
 # Importar modelos específicos
-from .appointment import Appointment
-from .schedule import VeterinarianSchedule
+# from .appointment import Appointment
+# from .schedule import VeterinarianSchedule
 
-__all__ = ['Appointment', 'VeterinarianSchedule', 'db']
+# __all__ = ['Appointment', 'VeterinarianSchedule', 'db']
+
+__all__ = ['db']
