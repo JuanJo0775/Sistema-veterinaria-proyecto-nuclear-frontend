@@ -976,8 +976,8 @@
                 <div class="form-group">
                     <label class="form-label" for="consultationReason">Motivo de la consulta *</label>
                     <textarea class="form-textarea" id="consultationReason" 
-                            placeholder="Describe brevemente el motivo de la consulta, síntomas observados o cualquier información relevante que pueda ayudar al veterinario..." 
-                            required></textarea>
+                            placeholder="Describe brevemente el motivo de la consulta, síntomas observados o cualquier información relevante que pueda ayudar al veterinario MINIMO 10 Letras..."
+                    required minlength="10"></textarea>
                 </div>
             </form>
         </div>
@@ -1262,58 +1262,122 @@
     }
 
     async function loadAvailability() {
-        if (!selectedVet || !selectedDate) return;
+    if (!selectedVet || !selectedDate) {
+        console.log('❌ Faltan datos: vet =', selectedVet, 'date =', selectedDate);
+        return;
+    }
 
-        try {
-            const container = document.getElementById('timeSlots');
-            showLoading('timeSlots', 'Cargando horarios disponibles...');
+    try {
+        const container = document.getElementById('timeSlots');
+        showLoading('timeSlots', 'Verificando horarios disponibles...');
 
-            console.log(`⏰ Cargando disponibilidad para ${selectedVet} en ${selectedDate}`);
+        console.log(`⏰ Cargando disponibilidad para veterinario ${selectedVet} en ${selectedDate}`);
 
-            // MÉTODO 1: Desde frontend (ruta proxy)
-            let response = await fetch(`/api/public/availability/${selectedVet}/${selectedDate}`, {
+        // MÉTODO 1: Intentar desde la ruta pública
+        let response = await fetch(`/api/public/availability/${selectedVet}/${selectedDate}`, {
+            headers: {
+                'Authorization': `Bearer ${USER_TOKEN}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        console.log(`📡 Respuesta disponibilidad (público): ${response.status}`);
+
+        // MÉTODO 2: Si falla, intentar directo al Appointment Service
+        if (!response.ok) {
+            console.log('🔄 Intentando directo al Appointment Service...');
+            const appointmentUrl = `http://localhost:5002/appointments/available-slots?veterinarian_id=${selectedVet}&date=${selectedDate}`;
+
+            response = await fetch(appointmentUrl, {
                 headers: {
                     'Authorization': `Bearer ${USER_TOKEN}`,
                     'Content-Type': 'application/json'
                 }
             });
+            console.log(`📡 Respuesta Appointment Service directo: ${response.status}`);
+        }
 
-            console.log(`📡 Respuesta disponibilidad (frontend): ${response.status}`);
-
-            // MÉTODO 2: Directo desde Appointment Service
-            if (!response.ok) {
-                console.log('🔄 Intentando desde Appointment Service...');
-                response = await fetch(`${SERVICES.APPOINTMENT}/appointments/available-slots?veterinarian_id=${selectedVet}&date=${selectedDate}`, {
-                    headers: {
-                        'Authorization': `Bearer ${USER_TOKEN}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                console.log(`📡 Respuesta Appointment Service: ${response.status}`);
-            }
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
+        if (response.ok) {
             const data = await response.json();
             console.log('📦 Datos de disponibilidad:', data);
 
             if (data.success && data.available_slots && data.available_slots.length > 0) {
                 renderTimeSlots(data.available_slots);
             } else {
-                showEmptyState('timeSlots', '⏰', 'Sin horarios disponibles',
-                    data.message || 'No hay horarios disponibles para esta fecha.',
-                    null, null);
+                // Generar slots desde horarios del veterinario
+                const fallbackSlots = generateSlotsFromVetSchedule();
+                if (fallbackSlots.length > 0) {
+                    renderTimeSlots(fallbackSlots);
+                    showMessage('Horarios generados desde la agenda del veterinario', 'info');
+                } else {
+                    showEmptyState('timeSlots', '⏰', 'Sin horarios disponibles',
+                        data.message || 'El veterinario no atiende este día o no tiene horarios configurados.',
+                        null, null);
+                }
             }
+        } else {
+            throw new Error(`HTTP ${response.status}`);
+        }
 
-        } catch (error) {
-            console.error('❌ Error cargando disponibilidad:', error);
+    } catch (error) {
+        console.error('❌ Error cargando disponibilidad:', error);
+
+        // Fallback final: intentar generar desde horarios del veterinario
+        const fallbackSlots = generateSlotsFromVetSchedule();
+        if (fallbackSlots.length > 0) {
+            renderTimeSlots(fallbackSlots);
+            showMessage('Usando horarios del veterinario (modo offline)', 'warning');
+        } else {
             showEmptyState('timeSlots', '❌', 'Error de conexión',
-                'No se pudo cargar la disponibilidad. Por favor, intenta de nuevo.',
+                'No se pudo cargar la disponibilidad. Contacta a la clínica para agendar por teléfono.',
                 null, null);
         }
     }
+}
+
+    function generateSlotsFromVetSchedule() {
+    if (!selectedVet || !selectedDate) return [];
+
+    const vet = veterinarians.find(v => v.id === selectedVet);
+    if (!vet || !vet.schedule) return [];
+
+    const dayOfWeek = getDayOfWeek(selectedDate);
+    const daySchedule = vet.schedule[dayOfWeek];
+
+    if (!daySchedule || !daySchedule.active) {
+        console.log(`❌ Veterinario no atiende los ${dayOfWeek}`);
+        return [];
+    }
+
+    const slots = [];
+    const startHour = parseInt(daySchedule.start.split(':')[0]);
+    const startMinute = parseInt(daySchedule.start.split(':')[1]);
+    const endHour = parseInt(daySchedule.end.split(':')[0]);
+    const endMinute = parseInt(daySchedule.end.split(':')[1]);
+
+    let currentHour = startHour;
+    let currentMinute = startMinute;
+
+    while (currentHour < endHour || (currentHour === endHour && currentMinute < endMinute)) {
+        const timeString = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+
+        // Excluir hora de almuerzo (12:00-13:00)
+        if (!(currentHour === 12 || (currentHour === 13 && currentMinute === 0))) {
+            slots.push(timeString);
+        }
+
+        // Incrementar 30 minutos
+        currentMinute += 30;
+        if (currentMinute >= 60) {
+            currentMinute = 0;
+            currentHour++;
+        }
+    }
+
+    console.log(`✅ Generados ${slots.length} slots desde horario del veterinario:`, slots);
+    return slots;
+}
+
 
     // =============== FUNCIONES DE RENDERIZADO ===============
     function renderPets() {
@@ -1367,69 +1431,81 @@
     }
 
     function renderCalendar() {
-        const grid = document.getElementById('calendarGrid');
-        const monthYear = document.getElementById('currentMonth');
+    const grid = document.getElementById('calendarGrid');
+    const monthYear = document.getElementById('currentMonth');
 
-        const monthNames = [
-            'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-        ];
+    const monthNames = [
+        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
 
-        monthYear.textContent = `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
+    monthYear.textContent = `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
 
-        // Headers de días
-        const dayHeaders = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-        let calendarHTML = dayHeaders.map(day =>
-            `<div class="calendar-day-header">${day}</div>`
-        ).join('');
+    // Headers de días
+    const dayHeaders = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    let calendarHTML = dayHeaders.map(day =>
+        `<div class="calendar-day-header">${day}</div>`
+    ).join('');
 
-        // Días del mes
-        const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-        const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+    // Días del mes
+    const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-        // Días vacíos al inicio
-        for (let i = 0; i < firstDay.getDay(); i++) {
-            calendarHTML += '<div class="calendar-day"></div>';
-        }
+    // Días vacíos al inicio
+    for (let i = 0; i < firstDay.getDay(); i++) {
+        calendarHTML += '<div class="calendar-day"></div>';
+    }
 
-        // Días del mes
-        for (let day = 1; day <= lastDay.getDate(); day++) {
-            const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-            const dateString = date.toISOString().split('T')[0];
+    // Días del mes
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+        const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+        const dateString = date.toISOString().split('T')[0];
+        const isPast = date < today;
+        const isToday = date.toDateString() === today.toDateString();
+
+        let classes = 'calendar-day';
+        let clickHandler = '';
+
+        if (isPast) {
+            classes += ' disabled';
+        } else {
+            // Verificar disponibilidad solo si no es pasado
             const isAvailable = isDateAvailable(date);
-            const isPast = date < today;
-            const isToday = date.toDateString() === today.toDateString();
 
-            let classes = 'calendar-day';
-            if (isPast) {
-                classes += ' disabled';
-            } else if (isAvailable) {
+            if (isAvailable) {
                 classes += ' available';
+                clickHandler = `selectDate('${dateString}')`;
             } else {
                 classes += ' disabled';
             }
-
-            if (isToday) {
-                classes += ' today';
-            }
-
-            if (selectedDate === dateString) {
-                classes += ' selected';
-            }
-
-            const clickHandler = (!isPast && isAvailable) ? `selectDate('${dateString}')` : '';
-
-            calendarHTML += `
-                <div class="${classes}" onclick="${clickHandler}" data-date="${dateString}">
-                    ${day}
-                </div>
-            `;
         }
 
-        grid.innerHTML = calendarHTML;
+        if (isToday) {
+            classes += ' today';
+        }
+
+        if (selectedDate === dateString) {
+            classes += ' selected';
+        }
+
+        calendarHTML += `
+            <div class="${classes}" onclick="${clickHandler}" data-date="${dateString}" title="${isPast ? 'Fecha pasada' : isDateAvailable(date) ? 'Disponible' : 'No disponible'}">
+                ${day}
+            </div>
+        `;
     }
+
+    grid.innerHTML = calendarHTML;
+
+    // Debug: Mostrar información del veterinario seleccionado
+    if (selectedVet) {
+        const vet = veterinarians.find(v => v.id === selectedVet);
+        console.log('🔍 Veterinario seleccionado:', vet);
+        console.log('📅 Horarios del veterinario:', vet?.schedule);
+    }
+}
 
     function renderTimeSlots(availableSlots = []) {
         const container = document.getElementById('timeSlots');
@@ -1536,39 +1612,94 @@
     }
 
     function selectVet(vetId) {
-        console.log('👨‍⚕️ Seleccionando veterinario:', vetId);
+    console.log('👨‍⚕️ Seleccionando veterinario:', vetId);
 
-        document.querySelectorAll('.vet-card').forEach(card => card.classList.remove('selected'));
-        const vetCard = document.querySelector(`[data-vet-id="${vetId}"]`);
+    document.querySelectorAll('.vet-card').forEach(card => card.classList.remove('selected'));
+    const vetCard = document.querySelector(`[data-vet-id="${vetId}"]`);
 
-        if (vetCard) {
-            vetCard.classList.add('selected');
-            selectedVet = vetId;
-            selectedDate = null;
-            selectedTime = null;
+    if (vetCard) {
+        vetCard.classList.add('selected');
+        selectedVet = vetId;
 
-            document.getElementById('nextStep2').disabled = false;
-            console.log('✅ Veterinario seleccionado:', vetId);
+        // LIMPIAR ESTADO ANTERIOR AL CAMBIAR VETERINARIO
+        selectedDate = null;
+        selectedTime = null;
+
+        // Limpiar calendario
+        document.querySelectorAll('.calendar-day').forEach(day => {
+            day.classList.remove('selected');
+        });
+
+        // Limpiar slots de tiempo
+        document.getElementById('timeSlots').innerHTML = `
+            <div class="loading">
+                <div class="spinner"></div>
+                <span>Selecciona una fecha primero...</span>
+            </div>
+        `;
+
+        document.getElementById('nextStep2').disabled = false;
+        document.getElementById('nextStep3').disabled = true;
+        document.getElementById('nextStep4').disabled = true;
+
+        console.log('✅ Veterinario seleccionado:', vetId);
+
+        // Buscar información del veterinario
+        const vet = veterinarians.find(v => v.id === vetId);
+        if (vet) {
+            console.log('📋 Datos del veterinario:', vet);
+            console.log('📅 Horarios configurados:', vet.schedule);
         }
     }
+}
+
 
     function selectDate(dateString) {
-        console.log('📅 Seleccionando fecha:', dateString);
+    console.log('📅 Intentando seleccionar fecha:', dateString);
 
-        const dateElement = document.querySelector(`[data-date="${dateString}"]`);
+    const dateElement = document.querySelector(`[data-date="${dateString}"]`);
 
-        if (dateElement && !dateElement.classList.contains('disabled')) {
-            document.querySelectorAll('.calendar-day').forEach(day => day.classList.remove('selected'));
-            dateElement.classList.add('selected');
-            selectedDate = dateString;
-            selectedTime = null;
-
-            document.getElementById('nextStep3').disabled = false;
-            console.log('✅ Fecha seleccionada:', dateString);
-
-            loadAvailability();
-        }
+    if (!dateElement) {
+        console.log('❌ Elemento de fecha no encontrado');
+        return;
     }
+
+    if (dateElement.classList.contains('disabled')) {
+        console.log('❌ Fecha deshabilitada');
+        showMessage('Esta fecha no está disponible para el veterinario seleccionado', 'warning');
+        return;
+    }
+
+    // Verificar que sea una fecha futura
+    const selectedDateObj = new Date(dateString + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDateObj < today) {
+        console.log('❌ Fecha en el pasado');
+        showMessage('No se pueden agendar citas en fechas pasadas', 'error');
+        return;
+    }
+
+    // Verificar disponibilidad del veterinario
+    if (!isDateAvailable(selectedDateObj)) {
+        console.log('❌ Veterinario no disponible este día');
+        showMessage('El veterinario no atiende este día según su horario', 'warning');
+        return;
+    }
+
+    // Todo OK, seleccionar fecha
+    document.querySelectorAll('.calendar-day').forEach(day => day.classList.remove('selected'));
+    dateElement.classList.add('selected');
+    selectedDate = dateString;
+    selectedTime = null; // Limpiar tiempo seleccionado
+
+    document.getElementById('nextStep3').disabled = false;
+    console.log('✅ Fecha seleccionada:', dateString);
+
+    // Cargar disponibilidad inmediatamente
+    loadAvailability();
+}
 
     function selectTime(time) {
         console.log('🕐 Seleccionando hora:', time);
@@ -1583,6 +1714,16 @@
             console.log('✅ Hora seleccionada:', time);
         }
     }
+
+    function debugVeterinarians() {
+    console.log('🔍 DEBUG: Veterinarios cargados:', veterinarians.length);
+    veterinarians.forEach((vet, index) => {
+        console.log(`👨‍⚕️ ${index + 1}. ${vet.first_name} ${vet.last_name} (ID: ${vet.id})`);
+        console.log('   📅 Horarios:', vet.schedule);
+        console.log('   ✅ Tiene horarios:', vet.has_schedule);
+        console.log('   📝 Texto horario:', vet.schedule_text);
+    });
+}
 
     // =============== NAVEGACIÓN ENTRE PASOS ===============
     function goToStep(step) {
@@ -1619,46 +1760,78 @@
     }
 
     function validateFinalForm() {
-        const type = document.getElementById('consultationType').value;
-        const reason = document.getElementById('consultationReason').value.trim();
+    const type = document.getElementById('consultationType').value;
+    const reason = document.getElementById('consultationReason').value.trim();
 
-        document.getElementById('confirmBooking').disabled = !type || !reason || reason.length < 10;
-    }
+    // Verificar que todos los campos anteriores estén seleccionados
+    const allDataSelected = selectedPet && selectedVet && selectedDate && selectedTime;
+
+    // Verificar campos del formulario final
+    const formValid = type && reason && reason.length >= 10;
+
+    // Habilitar/deshabilitar botón
+    const confirmBtn = document.getElementById('confirmBooking');
+    confirmBtn.disabled = !(allDataSelected && formValid);
+
+    return allDataSelected && formValid;
+}
 
     // =============== CONFIRMACIÓN DE CITA ===============
     async function confirmAppointment() {
-        try {
-            const type = document.getElementById('consultationType').value;
-            const reason = document.getElementById('consultationReason').value.trim();
+    try {
+        const type = document.getElementById('consultationType').value;
+        const reason = document.getElementById('consultationReason').value.trim();
 
-            if (!type || !reason) {
-                showMessage('Por favor completa todos los campos requeridos', 'error');
-                return;
-            }
+        // Validaciones
+        if (!type || !reason) {
+            showMessage('Por favor completa todos los campos requeridos', 'error');
+            return;
+        }
 
-            if (reason.length < 10) {
-                showMessage('El motivo debe tener al menos 10 caracteres', 'error');
-                return;
-            }
+        if (reason.length < 10) {
+            showMessage('El motivo debe tener al menos 10 caracteres', 'error');
+            return;
+        }
 
-            const appointmentData = {
-                pet_id: selectedPet,
-                veterinarian_id: selectedVet,
-                client_id: USER_ID,
-                appointment_date: selectedDate,
-                appointment_time: selectedTime,
-                consultation_type: type,
-                reason: reason
-            };
+        // Verificar que todos los datos están seleccionados
+        if (!selectedPet || !selectedVet || !selectedDate || !selectedTime) {
+            showMessage('Faltan datos para completar la cita. Por favor regresa y verifica tu selección.', 'error');
+            return;
+        }
 
-            console.log('📝 Enviando datos de la cita:', appointmentData);
+        const appointmentData = {
+            pet_id: selectedPet,
+            veterinarian_id: selectedVet,
+            client_id: USER_ID,
+            appointment_date: selectedDate,
+            appointment_time: selectedTime,
+            reason: reason,
+            notes: '', // Opcional
+            status: 'scheduled', // Estado inicial
+        };
 
-            const confirmBtn = document.getElementById('confirmBooking');
-            confirmBtn.disabled = true;
-            confirmBtn.innerHTML = '<div class="loading-spinner" style="width: 20px; height: 20px; margin-right: 10px;"></div>Agendando...';
+        console.log('📝 Enviando datos de la cita:', appointmentData);
 
-            // MÉTODO 1: Usar ruta proxy del frontend
-            let response = await fetch('/api/public/appointments', {
+        const confirmBtn = document.getElementById('confirmBooking');
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<div class="spinner" style="width: 20px; height: 20px; margin-right: 10px;"></div>Agendando...';
+
+        // MÉTODO 1: Usar ruta corregida del appointment service
+        let response = await fetch('/api/public/appointments', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${USER_TOKEN}`
+            },
+            body: JSON.stringify(appointmentData)
+        });
+
+        console.log(`📡 Respuesta del frontend: ${response.status}`);
+
+        // MÉTODO 2: Directo al Appointment Service si falla el primero
+        if (!response.ok) {
+            console.log('🔄 Intentando directo al Appointment Service...');
+            response = await fetch('http://localhost:5002/appointments/create', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1666,39 +1839,25 @@
                 },
                 body: JSON.stringify(appointmentData)
             });
+            console.log(`📡 Respuesta Appointment Service directo: ${response.status}`);
+        }
 
-            console.log(`📡 Respuesta del frontend: ${response.status}`);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `Error HTTP ${response.status}`);
+        }
 
-            // MÉTODO 2: Directo al Appointment Service
-            if (!response.ok) {
-                console.log('🔄 Intentando desde Appointment Service...');
-                response = await fetch(`${SERVICES.APPOINTMENT}/appointments/create`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${USER_TOKEN}`
-                    },
-                    body: JSON.stringify(appointmentData)
-                });
-                console.log(`📡 Respuesta Appointment Service: ${response.status}`);
-            }
+        const data = await response.json();
+        console.log('📦 Respuesta:', data);
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `HTTP ${response.status}`);
-            }
+        if (data.success) {
+            showMessage('✅ ¡Cita agendada exitosamente!', 'success');
 
-            const data = await response.json();
-            console.log('📦 Respuesta:', data);
+            setTimeout(() => {
+                const pet = userPets.find(p => p.id === selectedPet);
+                const vet = veterinarians.find(v => v.id === selectedVet);
 
-            if (data.success) {
-                showMessage('✅ ¡Cita agendada exitosamente!', 'success');
-
-                setTimeout(() => {
-                    const pet = userPets.find(p => p.id === selectedPet);
-                    const vet = veterinarians.find(v => v.id === selectedVet);
-
-                    alert(`¡Cita agendada exitosamente!
+                alert(`¡Cita agendada exitosamente!
 
 📅 Fecha: ${formatDate(selectedDate)}
 🕐 Hora: ${selectedTime}
@@ -1707,21 +1866,21 @@
 
 Recibirás una confirmación por email.`);
 
-                    window.location.href = DASHBOARD_URL;
-                }, 1000);
-            } else {
-                throw new Error(data.message || 'Error al agendar la cita');
-            }
-
-        } catch (error) {
-            console.error('❌ Error al confirmar cita:', error);
-            showMessage(`Error al agendar la cita: ${error.message}`, 'error');
-
-            const confirmBtn = document.getElementById('confirmBooking');
-            confirmBtn.disabled = false;
-            confirmBtn.innerHTML = '🗓️ Confirmar Cita';
+                window.location.href = DASHBOARD_URL;
+            }, 1000);
+        } else {
+            throw new Error(data.message || 'Error al agendar la cita');
         }
+
+    } catch (error) {
+        console.error('❌ Error al confirmar cita:', error);
+        showMessage(`Error al agendar la cita: ${error.message}`, 'error');
+
+        const confirmBtn = document.getElementById('confirmBooking');
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '🗓️ Confirmar Cita';
     }
+}
 
     // =============== FUNCIONES AUXILIARES ===============
     function formatPetAge(years, months) {
@@ -1773,24 +1932,38 @@ Recibirás una confirmación por email.`);
     }
 
     function isDateAvailable(date) {
-        if (!selectedVet) return false;
-
-        const vet = veterinarians.find(v => v.id === selectedVet);
-        if (!vet || !vet.schedule) {
-            return true;
-        }
-
-        const dayOfWeek = getDayOfWeek(date.toISOString().split('T')[0]);
-        const daySchedule = vet.schedule[dayOfWeek];
-
-        return daySchedule && daySchedule.active;
+    if (!selectedVet) {
+        console.log('❌ No hay veterinario seleccionado');
+        return false;
     }
+
+    const vet = veterinarians.find(v => v.id === selectedVet);
+    if (!vet) {
+        console.log('❌ Veterinario no encontrado');
+        return false;
+    }
+
+    // Si no tiene horarios configurados, permitir todas las fechas
+    if (!vet.schedule || Object.keys(vet.schedule).length === 0) {
+        console.log('⚠️ Veterinario sin horarios, permitiendo fecha');
+        return true;
+    }
+
+    const dayOfWeek = getDayOfWeek(date.toISOString().split('T')[0]);
+    const daySchedule = vet.schedule[dayOfWeek];
+
+    console.log(`🔍 Fecha: ${date.toISOString().split('T')[0]}, Día: ${dayOfWeek}, Horario:`, daySchedule);
+
+    return daySchedule && daySchedule.active;
+}
 
     function getDayOfWeek(dateString) {
-        const date = new Date(dateString);
-        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        return days[date.getDay()];
-    }
+    const date = new Date(dateString + 'T00:00:00'); // Evitar problemas de timezone
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayIndex = date.getDay(); // 0 = domingo
+    console.log(`🗓️ Fecha: ${dateString}, DayIndex: ${dayIndex}, DayName: ${days[dayIndex]}`);
+    return days[dayIndex];
+}
 
     function timeToMinutes(timeString) {
         const [hours, minutes] = timeString.split(':').map(Number);
