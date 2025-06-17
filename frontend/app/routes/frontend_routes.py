@@ -9342,42 +9342,42 @@ def veterinarian_emergency():
 @frontend_bp.route('/veterinarian/patients')
 @role_required(['veterinarian'])
 def veterinarian_patients():
-    """Página de pacientes del veterinario"""
+    """Página principal de pacientes del veterinario"""
     try:
         user = session.get('user', {})
         template_data = {
             'user': user,
-            'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Dr. Veterinario',
-            'user_role': 'Veterinario',
+            'user_name': f"Dr. {user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Dr. Veterinario',
             'user_initial': user.get('first_name', 'V')[0].upper() if user.get('first_name') else 'V'
         }
 
+        print(f"✅ Cargando página de pacientes para veterinario: {user.get('id')}")
         return render_template('veterinarian/patients.html', **template_data)
 
     except Exception as e:
         print(f"❌ Error en veterinarian patients: {e}")
-        flash('Error al cargar pacientes', 'error')
+        flash('Error al cargar la página de pacientes', 'error')
         return redirect(url_for('frontend.veterinarian_dashboard'))
 
 
 @frontend_bp.route('/veterinarian/search-patients')
 @role_required(['veterinarian'])
 def veterinarian_search_patients():
-    """Página de búsqueda de pacientes"""
+    """Página de búsqueda de pacientes del veterinario"""
     try:
         user = session.get('user', {})
         template_data = {
             'user': user,
-            'user_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Dr. Veterinario',
-            'user_role': 'Veterinario',
+            'user_name': f"Dr. {user.get('first_name', '')} {user.get('last_name', '')}".strip() or 'Dr. Veterinario',
             'user_initial': user.get('first_name', 'V')[0].upper() if user.get('first_name') else 'V'
         }
 
-        return render_template('veterinarian/search-patients.html', **template_data)
+        print(f"✅ Cargando página de búsqueda para veterinario: {user.get('id')}")
+        return render_template('veterinarian/search_patients.html', **template_data)
 
     except Exception as e:
         print(f"❌ Error en veterinarian search patients: {e}")
-        flash('Error al cargar búsqueda de pacientes', 'error')
+        flash('Error al cargar la página de búsqueda', 'error')
         return redirect(url_for('frontend.veterinarian_dashboard'))
 
 
@@ -10428,72 +10428,109 @@ def get_example_vet_appointments_today():
 
 
 def get_example_vet_patients():
-    """Datos de ejemplo mejorados para pacientes del veterinario"""
-    from datetime import datetime, timedelta
-
-    recent_dates = [
-        datetime.now() - timedelta(days=1),
-        datetime.now() - timedelta(days=3),
-        datetime.now() - timedelta(days=5),
-        datetime.now() - timedelta(days=7),
-        datetime.now() - timedelta(days=10)
-    ]
-
+    """Función para proporcionar datos de ejemplo cuando el servicio no esté disponible"""
     return [
         {
-            'id': 'pet_001',
+            'id': 1,
             'name': 'Max',
-            'species': 'perro',
+            'species': 'dog',
             'breed': 'Golden Retriever',
-            'age': '3 años',
-            'owner_id': 'client_001',
-            'owner_name': 'Carlos López',
-            'last_visit': recent_dates[0].strftime('%Y-%m-%d'),
-            'visits_count': 8
-        },
-        {
-            'id': 'pet_002',
-            'name': 'Luna',
-            'species': 'gato',
-            'breed': 'Persa',
-            'age': '2 años',
-            'owner_id': 'client_002',
+            'age': 5,
+            'weight': 28.5,
+            'owner_id': 101,
             'owner_name': 'María González',
-            'last_visit': recent_dates[1].strftime('%Y-%m-%d'),
-            'visits_count': 5
+            'owner_phone': '+34 123 456 789',
+            'owner_email': 'maria.gonzalez@email.com',
+            'owner_address': 'Calle Real 123, Madrid',
+            'status': 'active',
+            'last_visit': '2024-06-15',
+            'visits_count': 12,
+            'birth_date': '2019-03-10'
         },
         {
-            'id': 'pet_003',
-            'name': 'Rocky',
-            'species': 'perro',
-            'breed': 'Pastor Alemán',
-            'age': '5 años',
-            'owner_id': 'client_003',
-            'owner_name': 'Ana Martínez',
-            'last_visit': recent_dates[2].strftime('%Y-%m-%d'),
-            'visits_count': 12
-        },
-        {
-            'id': 'pet_004',
-            'name': 'Bella',
-            'species': 'gato',
+            'id': 2,
+            'name': 'Luna',
+            'species': 'cat',
             'breed': 'Siamés',
-            'age': '1 año',
-            'owner_id': 'client_004',
-            'owner_name': 'Pedro Silva',
-            'last_visit': recent_dates[3].strftime('%Y-%m-%d'),
-            'visits_count': 3
+            'age': 3,
+            'weight': 4.2,
+            'owner_id': 102,
+            'owner_name': 'Carlos Rodríguez',
+            'owner_phone': '+34 987 654 321',
+            'owner_email': 'carlos.rodriguez@email.com',
+            'owner_address': 'Avenida Central 456, Barcelona',
+            'status': 'treatment',
+            'last_visit': '2024-06-14',
+            'visits_count': 8,
+            'birth_date': '2021-07-22'
         },
         {
-            'id': 'pet_005',
-            'name': 'Cooper',
-            'species': 'perro',
-            'breed': 'Labrador',
-            'age': '4 años',
-            'owner_id': 'client_005',
-            'owner_name': 'Laura Ramírez',
-            'last_visit': recent_dates[4].strftime('%Y-%m-%d'),
-            'visits_count': 6
+            'id': 3,
+            'name': 'Rocky',
+            'species': 'dog',
+            'breed': 'Pastor Alemán',
+            'age': 7,
+            'weight': 35.0,
+            'owner_id': 103,
+            'owner_name': 'Ana Martínez',
+            'owner_phone': '+34 555 123 456',
+            'owner_email': 'ana.martinez@email.com',
+            'owner_address': 'Plaza Mayor 789, Valencia',
+            'status': 'active',
+            'last_visit': '2024-06-10',
+            'visits_count': 15,
+            'birth_date': '2017-01-15'
+        },
+        {
+            'id': 4,
+            'name': 'Coco',
+            'species': 'bird',
+            'breed': 'Canario',
+            'age': 2,
+            'weight': 0.02,
+            'owner_id': 104,
+            'owner_name': 'Luis García',
+            'owner_phone': '+34 666 789 012',
+            'owner_email': 'luis.garcia@email.com',
+            'owner_address': 'Calle Luna 321, Sevilla',
+            'status': 'active',
+            'last_visit': '2024-06-08',
+            'visits_count': 5,
+            'birth_date': '2022-05-30'
+        },
+        {
+            'id': 5,
+            'name': 'Bella',
+            'species': 'cat',
+            'breed': 'Persa',
+            'age': 4,
+            'weight': 5.1,
+            'owner_id': 105,
+            'owner_name': 'Carmen López',
+            'owner_phone': '+34 777 345 678',
+            'owner_email': 'carmen.lopez@email.com',
+            'owner_address': 'Calle Sol 654, Bilbao',
+            'status': 'emergency',
+            'last_visit': '2024-06-16',
+            'visits_count': 10,
+            'birth_date': '2020-11-12'
+        },
+        {
+            'id': 6,
+            'name': 'Toby',
+            'species': 'rabbit',
+            'breed': 'Enano Holandés',
+            'age': 1,
+            'weight': 1.8,
+            'owner_id': 106,
+            'owner_name': 'Pedro Sánchez',
+            'owner_phone': '+34 888 901 234',
+            'owner_email': 'pedro.sanchez@email.com',
+            'owner_address': 'Avenida Flores 987, Zaragoza',
+            'status': 'active',
+            'last_visit': '2024-06-05',
+            'visits_count': 3,
+            'birth_date': '2023-08-20'
         }
     ]
 
@@ -10579,46 +10616,876 @@ def get_example_vet_appointments():
     ]
 
 
-def get_example_vet_patients():
-    """Datos de ejemplo para pacientes del veterinario"""
-    from datetime import datetime, timedelta
+# Agregar estas rutas al archivo frontend/app/routes/frontend_routes.py
 
-    recent_date = datetime.now() - timedelta(days=3)
+# =============== API ENDPOINTS PARA PACIENTES DEL VETERINARIO ===============
 
-    return [
-        {
-            'id': 'pet_001',
-            'name': 'Max',
-            'species': 'perro',
-            'breed': 'Golden Retriever',
-            'age': '3 años',
-            'owner_id': 'client_001',
-            'owner_name': 'Carlos López',
-            'last_visit': recent_date.strftime('%Y-%m-%d'),
-            'visits_count': 8
-        },
-        {
-            'id': 'pet_002',
-            'name': 'Luna',
-            'species': 'gato',
-            'breed': 'Persa',
-            'age': '2 años',
-            'owner_id': 'client_002',
-            'owner_name': 'María González',
-            'last_visit': (recent_date - timedelta(days=1)).strftime('%Y-%m-%d'),
-            'visits_count': 5
-        },
-        {
-            'id': 'pet_003',
-            'name': 'Rocky',
-            'species': 'perro',
-            'breed': 'Pastor Alemán',
-            'age': '5 años',
-            'owner_id': 'client_003',
-            'owner_name': 'Ana Martínez',
-            'last_visit': (recent_date - timedelta(days=2)).strftime('%Y-%m-%d'),
-            'visits_count': 12
-        }]
+@frontend_bp.route('/api/veterinarian/patients')
+@role_required(['veterinarian'])
+def api_veterinarian_patients():
+    """API para obtener todos los pacientes del veterinario"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        print(f"🐕 Obteniendo todos los pacientes para veterinario: {user['id']}")
+
+        # MÉTODO 1: Endpoint específico del veterinario
+        try:
+            medical_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/veterinarian/{user['id']}/patients"
+            response = requests.get(medical_url, headers=headers, timeout=15)
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('success'):
+                    patients = data.get('patients', [])
+
+                    # Enriquecer cada paciente con información adicional
+                    enriched_patients = []
+                    for patient in patients:
+                        try:
+                            # Obtener información del propietario
+                            owner_response = requests.get(
+                                f"{current_app.config['AUTH_SERVICE_URL']}/auth/users/{patient['owner_id']}",
+                                headers=headers, timeout=5
+                            )
+                            if owner_response.status_code == 200:
+                                owner_data = owner_response.json()
+                                if owner_data.get('success'):
+                                    owner = owner_data['user']
+                                    patient[
+                                        'owner_name'] = f"{owner.get('first_name', '')} {owner.get('last_name', '')}".strip()
+                                    patient['owner_phone'] = owner.get('phone', '')
+                                    patient['owner_email'] = owner.get('email', '')
+                                    patient['owner_address'] = owner.get('address', '')
+
+                            # Calcular edad si hay fecha de nacimiento
+                            if patient.get('birth_date'):
+                                try:
+                                    from datetime import datetime
+                                    birth_date = datetime.strptime(patient['birth_date'], '%Y-%m-%d')
+                                    today = datetime.now()
+                                    age = today.year - birth_date.year
+                                    if today.month < birth_date.month or (
+                                            today.month == birth_date.month and today.day < birth_date.day):
+                                        age -= 1
+                                    patient['age'] = age
+                                except:
+                                    pass
+
+                            # Obtener última visita desde registros médicos
+                            try:
+                                records_response = requests.get(
+                                    f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/records/pet/{patient['id']}/recent",
+                                    headers=headers, timeout=5
+                                )
+                                if records_response.status_code == 200:
+                                    records_data = records_response.json()
+                                    if records_data.get('success') and records_data.get('medical_records'):
+                                        latest_record = records_data['medical_records'][0]
+                                        patient['last_visit'] = latest_record.get('created_at', '').split('T')[0]
+                                        patient['visits_count'] = len(records_data['medical_records'])
+                                    else:
+                                        patient['last_visit'] = None
+                                        patient['visits_count'] = 0
+                            except:
+                                patient['last_visit'] = None
+                                patient['visits_count'] = 0
+
+                            # Asignar estado por defecto si no existe
+                            if not patient.get('status'):
+                                patient['status'] = 'active'
+
+                            enriched_patients.append(patient)
+                        except Exception as e:
+                            print(f"⚠️ Error enriqueciendo paciente {patient.get('id')}: {e}")
+                            enriched_patients.append(patient)
+
+                    return jsonify({
+                        'success': True,
+                        'patients': enriched_patients,
+                        'total_patients': len(enriched_patients)
+                    })
+        except Exception as e:
+            print(f"⚠️ Error en método 1: {e}")
+
+        # MÉTODO 2: Obtener desde registros médicos del veterinario
+        try:
+            records_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/records/veterinarian/{user['id']}"
+            records_response = requests.get(records_url, headers=headers, timeout=15)
+
+            if records_response.status_code == 200:
+                records_data = records_response.json()
+                if records_data.get('success'):
+                    records = records_data.get('medical_records', [])
+
+                    # Extraer pacientes únicos de los registros
+                    seen_pets = set()
+                    patients = []
+
+                    for record in records:
+                        pet_id = record.get('pet_id')
+                        if pet_id and pet_id not in seen_pets:
+                            seen_pets.add(pet_id)
+
+                            # Obtener datos completos de la mascota
+                            try:
+                                pet_response = requests.get(
+                                    f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}",
+                                    headers=headers, timeout=5
+                                )
+                                if pet_response.status_code == 200:
+                                    pet_data = pet_response.json()
+                                    if pet_data.get('success'):
+                                        pet = pet_data['pet']
+
+                                        # Obtener información del propietario
+                                        try:
+                                            owner_response = requests.get(
+                                                f"{current_app.config['AUTH_SERVICE_URL']}/auth/users/{pet['owner_id']}",
+                                                headers=headers, timeout=3
+                                            )
+                                            if owner_response.status_code == 200:
+                                                owner_data = owner_response.json()
+                                                if owner_data.get('success'):
+                                                    owner = owner_data['user']
+                                                    pet[
+                                                        'owner_name'] = f"{owner.get('first_name', '')} {owner.get('last_name', '')}".strip()
+                                                    pet['owner_phone'] = owner.get('phone', '')
+                                                    pet['owner_email'] = owner.get('email', '')
+                                        except:
+                                            pet['owner_name'] = 'Propietario desconocido'
+
+                                        # Contar visitas del veterinario
+                                        vet_records = [r for r in records if r.get('pet_id') == pet_id]
+                                        pet['visits_count'] = len(vet_records)
+
+                                        # Última visita
+                                        if vet_records:
+                                            latest = max(vet_records, key=lambda x: x.get('created_at', ''))
+                                            pet['last_visit'] = latest.get('created_at', '').split('T')[0]
+
+                                        pet['status'] = pet.get('status', 'active')
+                                        patients.append(pet)
+                            except:
+                                continue
+
+                    return jsonify({
+                        'success': True,
+                        'patients': patients,
+                        'total_patients': len(patients)
+                    })
+        except Exception as e:
+            print(f"⚠️ Error en método 2: {e}")
+
+        # MÉTODO 3: Fallback con datos de ejemplo
+        example_patients = get_example_vet_patients()
+        return jsonify({
+            'success': True,
+            'patients': example_patients,
+            'total_patients': len(example_patients),
+            'message': 'Usando datos de ejemplo - Servicio no disponible'
+        })
+
+    except Exception as e:
+        print(f"❌ Error en api_veterinarian_patients: {e}")
+        # Último fallback
+        example_patients = get_example_vet_patients()
+        return jsonify({
+            'success': True,
+            'patients': example_patients,
+            'total_patients': len(example_patients),
+            'message': 'Error del servidor - usando datos de ejemplo'
+        })
+
+
+@frontend_bp.route('/api/veterinarian/patients/search', methods=['POST'])
+@role_required(['veterinarian'])
+def api_veterinarian_patients_search():
+    """API para buscar pacientes con criterios específicos"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+        criteria = request.get_json()
+
+        print(f"🔍 Búsqueda de pacientes para veterinario: {user['id']} con criterios: {criteria}")
+
+        # Primero obtener todos los pacientes del veterinario
+        all_patients_response = requests.get(f"/api/veterinarian/patients", headers=headers)
+
+        if not all_patients_response or all_patients_response.status_code != 200:
+            # Fallback: obtener pacientes desde registros médicos
+            try:
+                records_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/records/veterinarian/{user['id']}"
+                records_response = requests.get(records_url, headers=headers, timeout=15)
+
+                all_patients = []
+                if records_response.status_code == 200:
+                    records_data = records_response.json()
+                    if records_data.get('success'):
+                        records = records_data.get('medical_records', [])
+                        seen_pets = set()
+
+                        for record in records:
+                            pet_id = record.get('pet_id')
+                            if pet_id and pet_id not in seen_pets:
+                                seen_pets.add(pet_id)
+                                try:
+                                    pet_response = requests.get(
+                                        f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}",
+                                        headers=headers, timeout=5
+                                    )
+                                    if pet_response.status_code == 200:
+                                        pet_data = pet_response.json()
+                                        if pet_data.get('success'):
+                                            pet = pet_data['pet']
+                                            # Enriquecer con información básica
+                                            pet['visits_count'] = len([r for r in records if r.get('pet_id') == pet_id])
+                                            vet_records = [r for r in records if r.get('pet_id') == pet_id]
+                                            if vet_records:
+                                                latest = max(vet_records, key=lambda x: x.get('created_at', ''))
+                                                pet['last_visit'] = latest.get('created_at', '').split('T')[0]
+                                            pet['status'] = pet.get('status', 'active')
+                                            all_patients.append(pet)
+                                except:
+                                    continue
+            except:
+                all_patients = get_example_vet_patients()
+        else:
+            # Usar respuesta de API interna
+            internal_response = api_veterinarian_patients()
+            if hasattr(internal_response, 'get_json'):
+                data = internal_response.get_json()
+                all_patients = data.get('patients', [])
+            else:
+                all_patients = get_example_vet_patients()
+
+        # Aplicar filtros según el tipo de búsqueda
+        filtered_patients = []
+
+        if criteria.get('type') == 'global':
+            # Búsqueda global
+            query = criteria.get('query', '').lower()
+            filtered_patients = [
+                patient for patient in all_patients
+                if (query in (patient.get('name', '') or '').lower() or
+                    query in (patient.get('owner_name', '') or '').lower() or
+                    query in str(patient.get('id', '')) or
+                    query in (patient.get('species', '') or '').lower() or
+                    query in (patient.get('breed', '') or '').lower())
+            ]
+
+        elif criteria.get('type') == 'advanced':
+            # Búsqueda avanzada
+            filtered_patients = all_patients
+
+            # Filtrar por nombre de mascota
+            if criteria.get('petName'):
+                pet_name = criteria['petName'].lower()
+                filtered_patients = [p for p in filtered_patients
+                                     if pet_name in (p.get('name', '') or '').lower()]
+
+            # Filtrar por nombre del propietario
+            if criteria.get('ownerName'):
+                owner_name = criteria['ownerName'].lower()
+                filtered_patients = [p for p in filtered_patients
+                                     if owner_name in (p.get('owner_name', '') or '').lower()]
+
+            # Filtrar por especie
+            if criteria.get('species'):
+                species = criteria['species']
+                filtered_patients = [p for p in filtered_patients
+                                     if p.get('species') == species]
+
+            # Filtrar por raza
+            if criteria.get('breed'):
+                breed = criteria['breed'].lower()
+                filtered_patients = [p for p in filtered_patients
+                                     if breed in (p.get('breed', '') or '').lower()]
+
+            # Filtrar por edad
+            if criteria.get('ageMin') or criteria.get('ageMax'):
+                age_min = int(criteria.get('ageMin', 0))
+                age_max = int(criteria.get('ageMax', 999))
+                filtered_patients = [p for p in filtered_patients
+                                     if age_min <= (p.get('age', 0) or 0) <= age_max]
+
+            # Filtrar por estado
+            if criteria.get('patientStatus'):
+                status = criteria['patientStatus']
+                filtered_patients = [p for p in filtered_patients
+                                     if p.get('status') == status]
+
+            # Filtrar por ID
+            if criteria.get('petId'):
+                pet_id = int(criteria['petId'])
+                filtered_patients = [p for p in filtered_patients
+                                     if p.get('id') == pet_id]
+
+            # Filtrar por última visita
+            if criteria.get('lastVisit'):
+                from datetime import datetime, timedelta
+                today = datetime.now()
+
+                filter_date = None
+                if criteria['lastVisit'] == 'today':
+                    filter_date = today.date()
+                elif criteria['lastVisit'] == 'week':
+                    filter_date = (today - timedelta(days=7)).date()
+                elif criteria['lastVisit'] == 'month':
+                    filter_date = (today - timedelta(days=30)).date()
+                elif criteria['lastVisit'] == '3months':
+                    filter_date = (today - timedelta(days=90)).date()
+                elif criteria['lastVisit'] == '6months':
+                    filter_date = (today - timedelta(days=180)).date()
+                elif criteria['lastVisit'] == 'year':
+                    filter_date = (today - timedelta(days=365)).date()
+
+                if filter_date:
+                    filtered_patients = [
+                        p for p in filtered_patients
+                        if p.get('last_visit') and
+                           datetime.strptime(p['last_visit'], '%Y-%m-%d').date() >= filter_date
+                    ]
+
+        elif criteria.get('type') == 'quick':
+            # Búsquedas rápidas
+            quick_filter = criteria.get('filter')
+
+            if quick_filter == 'recent_visits':
+                from datetime import datetime, timedelta
+                week_ago = (datetime.now() - timedelta(days=7)).date()
+                filtered_patients = [
+                    p for p in all_patients
+                    if p.get('last_visit') and
+                       datetime.strptime(p['last_visit'], '%Y-%m-%d').date() >= week_ago
+                ]
+            elif quick_filter == 'in_treatment':
+                filtered_patients = [p for p in all_patients if p.get('status') == 'treatment']
+            elif quick_filter == 'emergency_cases':
+                filtered_patients = [p for p in all_patients if p.get('status') == 'emergency']
+            elif quick_filter == 'no_recent_visits':
+                from datetime import datetime, timedelta
+                month_ago = (datetime.now() - timedelta(days=30)).date()
+                filtered_patients = [
+                    p for p in all_patients
+                    if not p.get('last_visit') or
+                       datetime.strptime(p['last_visit'], '%Y-%m-%d').date() < month_ago
+                ]
+            else:
+                filtered_patients = all_patients
+
+        else:
+            filtered_patients = all_patients
+
+        return jsonify({
+            'success': True,
+            'patients': filtered_patients,
+            'total_results': len(filtered_patients),
+            'search_criteria': criteria
+        })
+
+    except Exception as e:
+        print(f"❌ Error en búsqueda de pacientes: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error en la búsqueda: {str(e)}',
+            'patients': [],
+            'total_results': 0
+        }), 500
+
+
+@frontend_bp.route('/api/veterinarian/patients/<int:patient_id>/details')
+@role_required(['veterinarian'])
+def api_veterinarian_patient_details(patient_id):
+    """API para obtener detalles completos de un paciente específico"""
+    try:
+        user = session.get('user', {})
+        headers = {'Authorization': f"Bearer {session.get('token')}"}
+
+        print(f"📋 Obteniendo detalles del paciente {patient_id} para veterinario {user['id']}")
+
+        # Obtener información básica de la mascota
+        pet_response = requests.get(
+            f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{patient_id}",
+            headers=headers, timeout=10
+        )
+
+        if pet_response.status_code != 200:
+            return jsonify({
+                'success': False,
+                'message': 'Paciente no encontrado'
+            }), 404
+
+        pet_data = pet_response.json()
+        if not pet_data.get('success'):
+            return jsonify({
+                'success': False,
+                'message': 'Error obteniendo datos del paciente'
+            }), 500
+
+        patient = pet_data['pet']
+
+        # Obtener información médica adicional
+        medical_info = {}
+
+        try:
+            # Obtener registros médicos del paciente
+            records_response = requests.get(
+                f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/records/pet/{patient_id}",
+                headers=headers, timeout=10
+            )
+
+            if records_response.status_code == 200:
+                records_data = records_response.json()
+                if records_data.get('success'):
+                    records = records_data.get('medical_records', [])
+
+                    # Extraer información médica de los registros
+                    allergies = set()
+                    medications = set()
+                    conditions = set()
+                    vaccinations = []
+
+                    for record in records:
+                        # Alergias
+                        if record.get('allergies'):
+                            allergies.update(record['allergies'].split(','))
+
+                        # Medicamentos
+                        if record.get('medications'):
+                            medications.update([med.strip() for med in record['medications'].split(',') if med.strip()])
+
+                        # Condiciones
+                        if record.get('diagnosis'):
+                            conditions.add(record['diagnosis'])
+
+                        # Vacunaciones
+                        if record.get('treatment_type') == 'vaccination':
+                            vaccinations.append({
+                                'date': record.get('created_at', '').split('T')[0],
+                                'vaccine': record.get('treatment', 'Vacunación'),
+                                'veterinarian': record.get('veterinarian_name', 'Dr. Veterinario')
+                            })
+
+                    medical_info = {
+                        'allergies': ', '.join(allergies) if allergies else 'Ninguna conocida',
+                        'current_medications': ', '.join(medications) if medications else 'Ninguno',
+                        'chronic_conditions': ', '.join(conditions) if conditions else 'Ninguna',
+                        'last_vaccination': vaccinations[-1]['date'] if vaccinations else None,
+                        'vaccination_history': vaccinations[-5:] if vaccinations else []  # Últimas 5
+                    }
+        except Exception as e:
+            print(f"⚠️ Error obteniendo información médica: {e}")
+            medical_info = {
+                'allergies': 'No disponible',
+                'current_medications': 'No disponible',
+                'chronic_conditions': 'No disponible',
+                'last_vaccination': None
+            }
+
+        # Obtener notas del veterinario
+        vet_notes = "Sin notas adicionales"
+        try:
+            # Buscar registros médicos del veterinario actual
+            vet_records_response = requests.get(
+                f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/records/pet/{patient_id}/veterinarian/{user['id']}",
+                headers=headers, timeout=5
+            )
+
+            if vet_records_response.status_code == 200:
+                vet_records_data = vet_records_response.json()
+                if vet_records_data.get('success'):
+                    vet_records = vet_records_data.get('medical_records', [])
+                    if vet_records:
+                        # Obtener la nota más reciente
+                        latest_record = vet_records[0]
+                        if latest_record.get('notes'):
+                            vet_notes = latest_record['notes']
+        except:
+            pass
+
+        return jsonify({
+            'success': True,
+            'patient_info': patient,
+            'medical_info': medical_info,
+            'vet_notes': vet_notes
+        })
+
+    except Exception as e:
+        print(f"❌ Error obteniendo detalles del paciente {patient_id}: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
+
+# =============== FUNCIONES AUXILIARES ===============
+
+
+def get_patients_from_medical_records(vet_id, headers):
+    """Obtener pacientes desde los registros médicos del veterinario"""
+    try:
+        records_url = f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/records/veterinarian/{vet_id}"
+        records_response = requests.get(records_url, headers=headers, timeout=15)
+
+        if records_response.status_code == 200:
+            records_data = records_response.json()
+            if records_data.get('success'):
+                records = records_data.get('medical_records', [])
+
+                # Extraer pacientes únicos de los registros
+                seen_pets = set()
+                patients = []
+
+                for record in records:
+                    pet_id = record.get('pet_id')
+                    if pet_id and pet_id not in seen_pets:
+                        seen_pets.add(pet_id)
+
+                        # Obtener datos completos de la mascota
+                        try:
+                            pet_response = requests.get(
+                                f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/pets/{pet_id}",
+                                headers=headers, timeout=5
+                            )
+                            if pet_response.status_code == 200:
+                                pet_data = pet_response.json()
+                                if pet_data.get('success'):
+                                    pet = pet_data['pet']
+
+                                    # Enriquecer con información del propietario
+                                    pet = enrich_patient_data(pet, headers)
+
+                                    # Contar visitas del veterinario
+                                    vet_records = [r for r in records if r.get('pet_id') == pet_id]
+                                    pet['visits_count'] = len(vet_records)
+
+                                    # Última visita
+                                    if vet_records:
+                                        latest = max(vet_records, key=lambda x: x.get('created_at', ''))
+                                        pet['last_visit'] = latest.get('created_at', '').split('T')[0]
+
+                                    pet['status'] = pet.get('status', 'active')
+                                    patients.append(pet)
+                        except:
+                            continue
+
+                return patients
+        return []
+    except Exception as e:
+        print(f"⚠️ Error obteniendo pacientes desde registros médicos: {e}")
+        return []
+
+def apply_search_filters(patients, criteria):
+    """Aplicar filtros de búsqueda a la lista de pacientes"""
+    filtered_patients = []
+
+    if criteria.get('type') == 'global':
+        # Búsqueda global
+        query = criteria.get('query', '').lower()
+        filtered_patients = [
+            patient for patient in patients
+            if (query in (patient.get('name', '') or '').lower() or
+                query in (patient.get('owner_name', '') or '').lower() or
+                query in str(patient.get('id', '')) or
+                query in (patient.get('species', '') or '').lower() or
+                query in (patient.get('breed', '') or '').lower())
+        ]
+
+    elif criteria.get('type') == 'advanced':
+        # Búsqueda avanzada
+        filtered_patients = patients
+
+        # Filtrar por nombre de mascota
+        if criteria.get('petName'):
+            pet_name = criteria['petName'].lower()
+            filtered_patients = [p for p in filtered_patients
+                                 if pet_name in (p.get('name', '') or '').lower()]
+
+        # Filtrar por nombre del propietario
+        if criteria.get('ownerName'):
+            owner_name = criteria['ownerName'].lower()
+            filtered_patients = [p for p in filtered_patients
+                                 if owner_name in (p.get('owner_name', '') or '').lower()]
+
+        # Filtrar por especie
+        if criteria.get('species'):
+            species = criteria['species']
+            filtered_patients = [p for p in filtered_patients
+                                 if p.get('species') == species]
+
+        # Filtrar por raza
+        if criteria.get('breed'):
+            breed = criteria['breed'].lower()
+            filtered_patients = [p for p in filtered_patients
+                                 if breed in (p.get('breed', '') or '').lower()]
+
+        # Filtrar por edad
+        if criteria.get('ageMin') or criteria.get('ageMax'):
+            age_min = int(criteria.get('ageMin', 0))
+            age_max = int(criteria.get('ageMax', 999))
+            filtered_patients = [p for p in filtered_patients
+                                 if age_min <= (p.get('age', 0) or 0) <= age_max]
+
+        # Filtrar por estado
+        if criteria.get('patientStatus'):
+            status = criteria['patientStatus']
+            filtered_patients = [p for p in filtered_patients
+                                 if p.get('status') == status]
+
+        # Filtrar por ID
+        if criteria.get('petId'):
+            pet_id = int(criteria['petId'])
+            filtered_patients = [p for p in filtered_patients
+                                 if p.get('id') == pet_id]
+
+        # Filtrar por última visita
+        if criteria.get('lastVisit'):
+            from datetime import datetime, timedelta
+            today = datetime.now()
+
+            filter_date = None
+            if criteria['lastVisit'] == 'today':
+                filter_date = today.date()
+            elif criteria['lastVisit'] == 'week':
+                filter_date = (today - timedelta(days=7)).date()
+            elif criteria['lastVisit'] == 'month':
+                filter_date = (today - timedelta(days=30)).date()
+            elif criteria['lastVisit'] == '3months':
+                filter_date = (today - timedelta(days=90)).date()
+            elif criteria['lastVisit'] == '6months':
+                filter_date = (today - timedelta(days=180)).date()
+            elif criteria['lastVisit'] == 'year':
+                filter_date = (today - timedelta(days=365)).date()
+
+            if filter_date:
+                filtered_patients = [
+                    p for p in filtered_patients
+                    if p.get('last_visit') and
+                       datetime.strptime(p['last_visit'], '%Y-%m-%d').date() >= filter_date
+                ]
+
+    elif criteria.get('type') == 'quick':
+        # Búsquedas rápidas
+        quick_filter = criteria.get('filter')
+
+        if quick_filter == 'recent_visits':
+            from datetime import datetime, timedelta
+            week_ago = (datetime.now() - timedelta(days=7)).date()
+            filtered_patients = [
+                p for p in patients
+                if p.get('last_visit') and
+                   datetime.strptime(p['last_visit'], '%Y-%m-%d').date() >= week_ago
+            ]
+        elif quick_filter == 'in_treatment':
+            filtered_patients = [p for p in patients if p.get('status') == 'treatment']
+        elif quick_filter == 'emergency_cases':
+            filtered_patients = [p for p in patients if p.get('status') == 'emergency']
+        elif quick_filter == 'no_recent_visits':
+            from datetime import datetime, timedelta
+            month_ago = (datetime.now() - timedelta(days=30)).date()
+            filtered_patients = [
+                p for p in patients
+                if not p.get('last_visit') or
+                   datetime.strptime(p['last_visit'], '%Y-%m-%d').date() < month_ago
+            ]
+        else:
+            filtered_patients = patients
+
+    else:
+        filtered_patients = patients
+
+    return filtered_patients
+
+def get_patient_medical_info(patient_id, headers):
+    """Obtener información médica detallada de un paciente"""
+    medical_info = {}
+
+    try:
+        # Obtener registros médicos del paciente
+        records_response = requests.get(
+            f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/records/pet/{patient_id}",
+            headers=headers, timeout=10
+        )
+
+        if records_response.status_code == 200:
+            records_data = records_response.json()
+            if records_data.get('success'):
+                records = records_data.get('medical_records', [])
+
+                # Extraer información médica de los registros
+                allergies = set()
+                medications = set()
+                conditions = set()
+                vaccinations = []
+
+                for record in records:
+                    # Alergias
+                    if record.get('allergies'):
+                        allergies.update(record['allergies'].split(','))
+
+                    # Medicamentos
+                    if record.get('medications'):
+                        medications.update([med.strip() for med in record['medications'].split(',') if med.strip()])
+
+                    # Condiciones
+                    if record.get('diagnosis'):
+                        conditions.add(record['diagnosis'])
+
+                    # Vacunaciones
+                    if record.get('treatment_type') == 'vaccination':
+                        vaccinations.append({
+                            'date': record.get('created_at', '').split('T')[0],
+                            'vaccine': record.get('treatment', 'Vacunación'),
+                            'veterinarian': record.get('veterinarian_name', 'Dr. Veterinario')
+                        })
+
+                medical_info = {
+                    'allergies': ', '.join(allergies) if allergies else 'Ninguna conocida',
+                    'current_medications': ', '.join(medications) if medications else 'Ninguno',
+                    'chronic_conditions': ', '.join(conditions) if conditions else 'Ninguna',
+                    'last_vaccination': vaccinations[-1]['date'] if vaccinations else None,
+                    'vaccination_history': vaccinations[-5:] if vaccinations else []  # Últimas 5
+                }
+    except Exception as e:
+        print(f"⚠️ Error obteniendo información médica: {e}")
+        medical_info = {
+            'allergies': 'No disponible',
+            'current_medications': 'No disponible',
+            'chronic_conditions': 'No disponible',
+            'last_vaccination': None
+        }
+
+    return medical_info
+
+
+def get_vet_notes_for_patient(patient_id, vet_id, headers):
+    """Obtener notas del veterinario para un paciente específico"""
+    try:
+        # Buscar registros médicos del veterinario actual
+        vet_records_response = requests.get(
+            f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/records/pet/{patient_id}/veterinarian/{vet_id}",
+            headers=headers, timeout=5
+        )
+
+        if vet_records_response.status_code == 200:
+            vet_records_data = vet_records_response.json()
+            if vet_records_data.get('success'):
+                vet_records = vet_records_data.get('medical_records', [])
+                if vet_records:
+                    # Obtener la nota más reciente
+                    latest_record = vet_records[0]
+                    if latest_record.get('notes'):
+                        return latest_record['notes']
+
+        return "Sin notas adicionales"
+    except:
+        return "Sin notas adicionales"
+
+
+# =============== FUNCIÓN PARA VALIDAR Y SANITIZAR CRITERIOS DE BÚSQUEDA ===============
+def validate_search_criteria(criteria):
+    """Validar y sanitizar criterios de búsqueda"""
+    # Validar tipo de búsqueda
+    valid_types = ['global', 'advanced', 'quick']
+    if criteria.get('type') not in valid_types:
+        return False, "Tipo de búsqueda inválido"
+
+    # Validar búsqueda global
+    if criteria.get('type') == 'global':
+        query = criteria.get('query', '').strip()
+        if not query:
+            return False, "Consulta de búsqueda requerida"
+        if len(query) < 2:
+            return False, "La consulta debe tener al menos 2 caracteres"
+
+    # Validar búsqueda avanzada
+    if criteria.get('type') == 'advanced':
+        # Verificar que al menos un criterio esté presente
+        search_fields = ['petName', 'ownerName', 'species', 'breed', 'ageMin', 'ageMax', 'patientStatus', 'petId',
+                         'lastVisit']
+        has_criteria = any(criteria.get(field) for field in search_fields)
+        if not has_criteria:
+            return False, "Se requiere al menos un criterio de búsqueda"
+
+        # Validar rangos de edad
+        age_min = criteria.get('ageMin')
+        age_max = criteria.get('ageMax')
+        if age_min and age_max:
+            try:
+                if int(age_min) > int(age_max):
+                    return False, "La edad mínima no puede ser mayor que la máxima"
+            except ValueError:
+                return False, "Las edades deben ser números válidos"
+
+    # Validar búsqueda rápida
+    if criteria.get('type') == 'quick':
+        valid_filters = ['recent_visits', 'in_treatment', 'emergency_cases', 'no_recent_visits']
+        if criteria.get('filter') not in valid_filters:
+            return False, "Filtro rápido inválido"
+
+    return True, None
+
+def enrich_patient_data(patient, headers):
+    """Enriquecer datos del paciente con información adicional"""
+    try:
+        # Obtener información del propietario
+        owner_response = requests.get(
+            f"{current_app.config['AUTH_SERVICE_URL']}/auth/users/{patient['owner_id']}",
+            headers=headers, timeout=5
+        )
+        if owner_response.status_code == 200:
+            owner_data = owner_response.json()
+            if owner_data.get('success'):
+                owner = owner_data['user']
+                patient['owner_name'] = f"{owner.get('first_name', '')} {owner.get('last_name', '')}".strip()
+                patient['owner_phone'] = owner.get('phone', '')
+                patient['owner_email'] = owner.get('email', '')
+                patient['owner_address'] = owner.get('address', '')
+
+        # Calcular edad si hay fecha de nacimiento
+        if patient.get('birth_date'):
+            try:
+                from datetime import datetime
+                birth_date = datetime.strptime(patient['birth_date'], '%Y-%m-%d')
+                today = datetime.now()
+                age = today.year - birth_date.year
+                if today.month < birth_date.month or (
+                        today.month == birth_date.month and today.day < birth_date.day):
+                    age -= 1
+                patient['age'] = age
+            except:
+                pass
+
+        # Obtener última visita desde registros médicos
+        try:
+            records_response = requests.get(
+                f"{current_app.config['MEDICAL_SERVICE_URL']}/medical/records/pet/{patient['id']}/recent",
+                headers=headers, timeout=5
+            )
+            if records_response.status_code == 200:
+                records_data = records_response.json()
+                if records_data.get('success') and records_data.get('medical_records'):
+                    latest_record = records_data['medical_records'][0]
+                    patient['last_visit'] = latest_record.get('created_at', '').split('T')[0]
+                    patient['visits_count'] = len(records_data['medical_records'])
+                else:
+                    patient['last_visit'] = None
+                    patient['visits_count'] = 0
+        except:
+            patient['last_visit'] = None
+            patient['visits_count'] = 0
+
+        # Asignar estado por defecto si no existe
+        if not patient.get('status'):
+            patient['status'] = 'active'
+
+        return patient
+    except Exception as e:
+        print(f"⚠️ Error enriqueciendo paciente {patient.get('id')}: {e}")
+        return patient
+
 
 @frontend_bp.route('/health')
 def health():

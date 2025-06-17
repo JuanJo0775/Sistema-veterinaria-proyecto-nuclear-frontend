@@ -1,0 +1,1395 @@
+{% extends "veterinarian/vet_base.html" %}
+
+{% block title %}Mis Pacientes{% endblock %}
+{% block page_title %}Mis Pacientes{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+/* =============== ESTILOS ESPECÍFICOS PARA MIS PACIENTES =============== */
+.patients-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 30px;
+}
+
+.patients-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    border-radius: var(--border-radius-large);
+    padding: 40px;
+    margin-bottom: 40px;
+    color: white;
+    box-shadow: var(--shadow-heavy);
+    position: relative;
+    overflow: hidden;
+}
+
+.patients-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 200px;
+    height: 100%;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2"/><path d="M30 50 L70 50 M50 30 L50 70" stroke="rgba(255,255,255,0.1)" stroke-width="3"/></svg>') no-repeat center;
+    background-size: contain;
+    opacity: 0.3;
+}
+
+.patients-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 15px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.patients-header p {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    margin-bottom: 30px;
+}
+
+.patients-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-top: 25px;
+}
+
+.stat-card {
+    background: rgba(255,255,255,0.2);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    text-align: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.3);
+    transition: var(--transition);
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    background: rgba(255,255,255,0.25);
+}
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+    color: white;
+}
+
+.stat-label {
+    font-size: 1rem;
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+.patients-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    background: var(--white);
+    padding: 25px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-light);
+}
+
+.filters-section {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.filter-select {
+    padding: 12px 16px;
+    border: 2px solid var(--primary-light);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    background: white;
+    color: var(--dark);
+    transition: var(--transition);
+    min-width: 140px;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(82,183,136,0.1);
+}
+
+.search-section {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.search-input {
+    padding: 12px 20px;
+    border: 2px solid var(--primary-light);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    width: 300px;
+    transition: var(--transition);
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(82,183,136,0.1);
+}
+
+.search-button {
+    padding: 12px 25px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: var(--shadow-light);
+}
+
+.search-button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+}
+
+.patients-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 25px;
+    margin-bottom: 40px;
+}
+
+.patient-card {
+    background: var(--white);
+    border-radius: var(--border-radius-large);
+    padding: 30px;
+    box-shadow: var(--shadow-light);
+    transition: var(--transition);
+    border: 1px solid var(--primary-light);
+    position: relative;
+    overflow: hidden;
+}
+
+.patient-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+}
+
+.patient-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-heavy);
+}
+
+.patient-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.patient-avatar {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    margin-right: 20px;
+    color: white;
+    font-weight: bold;
+    border: 4px solid var(--primary-light);
+    box-shadow: var(--shadow-light);
+}
+
+.patient-info {
+    flex: 1;
+}
+
+.patient-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 5px;
+}
+
+.patient-species {
+    font-size: 1rem;
+    color: var(--primary-dark);
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.patient-owner {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.patient-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.detail-icon {
+    font-size: 1rem;
+    color: var(--primary);
+}
+
+.detail-label {
+    color: #666;
+    font-weight: 500;
+}
+
+.detail-value {
+    color: var(--dark);
+    font-weight: 600;
+}
+
+.patient-status {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 15px;
+}
+
+.status-active {
+    background: rgba(82,183,136,0.1);
+    color: var(--primary-dark);
+    border: 1px solid var(--primary-light);
+}
+
+.status-treatment {
+    background: rgba(34,87,122,0.1);
+    color: var(--accent-secondary);
+    border: 1px solid var(--accent-secondary);
+}
+
+.status-emergency {
+    background: rgba(220,53,69,0.1);
+    color: #dc3545;
+    border: 1px solid #dc3545;
+}
+
+.patient-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.action-button {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    box-shadow: var(--shadow-light);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+}
+
+.btn-secondary {
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    border: 1px solid var(--primary);
+}
+
+.btn-secondary:hover {
+    background: var(--primary);
+    color: white;
+}
+
+.loading-container {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid var(--primary-light);
+    border-top: 4px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    background: var(--white);
+    border-radius: var(--border-radius-large);
+    box-shadow: var(--shadow-light);
+}
+
+.empty-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.empty-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 15px;
+}
+
+.empty-message {
+    font-size: 1.1rem;
+    color: #666;
+    margin-bottom: 30px;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 40px;
+    padding: 20px;
+    background: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-light);
+}
+
+.pagination-button {
+    padding: 10px 15px;
+    border: 2px solid var(--primary-light);
+    background: white;
+    color: var(--primary-dark);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: var(--transition);
+    font-weight: 600;
+}
+
+.pagination-button:hover:not(:disabled) {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.pagination-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-button.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.pagination-info {
+    margin: 0 20px;
+    font-weight: 600;
+    color: var(--dark);
+}
+
+/* =============== RESPONSIVE DESIGN =============== */
+@media (max-width: 1024px) {
+    .patients-container {
+        padding: 20px;
+    }
+
+    .patients-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .patients-controls {
+        flex-direction: column;
+        gap: 20px;
+        align-items: stretch;
+    }
+
+    .search-section {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .search-input {
+        width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .patients-header {
+        padding: 25px;
+        text-align: center;
+    }
+
+    .patients-header h1 {
+        font-size: 2rem;
+    }
+
+    .patients-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .patient-card {
+        padding: 20px;
+    }
+
+    .patient-header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .patient-avatar {
+        margin: 0 0 15px 0;
+    }
+
+    .patient-details {
+        grid-template-columns: 1fr;
+    }
+
+    .patient-actions {
+        flex-direction: column;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="patients-container">
+    <!-- HEADER CON ESTADÍSTICAS -->
+    <div class="patients-header">
+        <h1>🐕 Mis Pacientes</h1>
+        <p>Gestiona y supervisa a todos tus pacientes asignados</p>
+
+        <div class="patients-stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalPatients">0</div>
+                <div class="stat-label">Total Pacientes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="activePatients">0</div>
+                <div class="stat-label">Activos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="inTreatment">0</div>
+                <div class="stat-label">En Tratamiento</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="recentVisits">0</div>
+                <div class="stat-label">Visitas Recientes</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTROLES Y FILTROS -->
+    <div class="patients-controls">
+        <div class="filters-section">
+            <select class="filter-select" id="statusFilter">
+                <option value="">Todos los estados</option>
+                <option value="active">Activos</option>
+                <option value="treatment">En tratamiento</option>
+                <option value="emergency">Emergencia</option>
+            </select>
+
+            <select class="filter-select" id="speciesFilter">
+                <option value="">Todas las especies</option>
+                <option value="dog">Perros</option>
+                <option value="cat">Gatos</option>
+                <option value="bird">Aves</option>
+                <option value="other">Otros</option>
+            </select>
+
+            <select class="filter-select" id="sortBy">
+                <option value="name">Ordenar por nombre</option>
+                <option value="last_visit">Última visita</option>
+                <option value="age">Edad</option>
+                <option value="visits_count">Número de visitas</option>
+            </select>
+        </div>
+
+        <div class="search-section">
+            <input type="text" class="search-input" id="searchInput" placeholder="Buscar por nombre de mascota o propietario...">
+            <button class="search-button" id="searchButton">🔍 Buscar</button>
+        </div>
+    </div>
+
+    <!-- CONTENEDOR DE LOADING -->
+    <div class="loading-container" id="loadingContainer" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>Cargando pacientes...</p>
+    </div>
+
+    <!-- GRID DE PACIENTES -->
+    <div class="patients-grid" id="patientsGrid">
+        <!-- Los pacientes se cargarán aquí dinámicamente -->
+    </div>
+
+    <!-- ESTADO VACÍO -->
+    <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-icon">🐾</div>
+        <h3 class="empty-title">No hay pacientes disponibles</h3>
+        <p class="empty-message">No se encontraron pacientes que coincidan con los criterios de búsqueda.</p>
+    </div>
+
+    <!-- PAGINACIÓN -->
+    <div class="pagination" id="pagination" style="display: none;">
+        <button class="pagination-button" id="prevButton">← Anterior</button>
+        <div class="pagination-info" id="paginationInfo">Página 1 de 1</div>
+        <button class="pagination-button" id="nextButton">Siguiente →</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// =============== GESTIÓN DE PACIENTES DEL VETERINARIO ===============
+class VeterinarianPatientsManager {
+    constructor() {
+        this.patients = [];
+        this.filteredPatients = [];
+        this.currentPage = 1;
+        this.patientsPerPage = 12;
+        this.searchTerm = '';
+        this.filters = {
+            status: '',
+            species: '',
+            sortBy: 'name'
+        };
+
+        this.init();
+    }
+
+    init() {
+        console.log('🐕 Inicializando gestor de pacientes del veterinario...');
+
+        this.bindEvents();
+        this.loadPatients();
+
+        console.log('✅ Gestor de pacientes inicializado');
+    }
+
+    bindEvents() {
+        // Filtros
+        document.getElementById('statusFilter').addEventListener('change', (e) => {
+            this.filters.status = e.target.value;
+            this.applyFilters();
+        });
+
+        document.getElementById('speciesFilter').addEventListener('change', (e) => {
+            this.filters.species = e.target.value;
+            this.applyFilters();
+        });
+
+        document.getElementById('sortBy').addEventListener('change', (e) => {
+            this.filters.sortBy = e.target.value;
+            this.applyFilters();
+        });
+
+        // Búsqueda
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            this.searchTerm = e.target.value.toLowerCase();
+            this.applyFilters();
+        });
+
+        document.getElementById('searchButton').addEventListener('click', () => {
+            this.applyFilters();
+        });
+
+        // Paginación
+        document.getElementById('prevButton').addEventListener('click', () => {
+            if (this.currentPage > 1) {
+                this.currentPage--;
+                this.renderPatients();
+            }
+        });
+
+        document.getElementById('nextButton').addEventListener('click', () => {
+            const totalPages = Math.ceil(this.filteredPatients.length / this.patientsPerPage);
+            if (this.currentPage < totalPages) {
+                this.currentPage++;
+                this.renderPatients();
+            }
+        });
+
+        // Enter en búsqueda
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.applyFilters();
+            }
+        });
+    }
+
+    async loadPatients() {
+        try {
+            this.showLoading();
+
+            const response = await fetch('/api/veterinarian/patients', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.patients = data.patients || [];
+                this.filteredPatients = [...this.patients];
+                this.updateStatistics();
+                this.renderPatients();
+
+                if (this.patients.length === 0) {
+                    this.showEmptyState();
+                }
+            } else {
+                throw new Error(data.message || 'Error al cargar pacientes');
+            }
+
+        } catch (error) {
+            console.error('❌ Error cargando pacientes:', error);
+            this.showError('Error al cargar los pacientes. Por favor, intenta de nuevo.');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    applyFilters() {
+        this.filteredPatients = this.patients.filter(patient => {
+            // Filtro de búsqueda
+            if (this.searchTerm) {
+                const searchFields = [
+                    patient.name || '',
+                    patient.owner_name || '',
+                    patient.species || '',
+                    patient.breed || ''
+                ].join(' ').toLowerCase();
+
+                if (!searchFields.includes(this.searchTerm)) {
+                    return false;
+                }
+            }
+
+            // Filtro de estado
+            if (this.filters.status && patient.status !== this.filters.status) {
+                return false;
+            }
+
+            // Filtro de especie
+            if (this.filters.species && patient.species !== this.filters.species) {
+                return false;
+            }
+
+            return true;
+        });
+
+        // Aplicar ordenamiento
+        this.sortPatients();
+
+        // Resetear página
+        this.currentPage = 1;
+
+        // Renderizar
+        this.renderPatients();
+    }
+
+    sortPatients() {
+        this.filteredPatients.sort((a, b) => {
+            switch (this.filters.sortBy) {
+                case 'name':
+                    return (a.name || '').localeCompare(b.name || '');
+                case 'last_visit':
+                    return new Date(b.last_visit || 0) - new Date(a.last_visit || 0);
+                case 'age':
+                    return (b.age || 0) - (a.age || 0);
+                case 'visits_count':
+                    return (b.visits_count || 0) - (a.visits_count || 0);
+                default:
+                    return 0;
+            }
+        });
+    }
+
+    renderPatients() {
+        const grid = document.getElementById('patientsGrid');
+        const emptyState = document.getElementById('emptyState');
+
+        if (this.filteredPatients.length === 0) {
+            grid.style.display = 'none';
+            emptyState.style.display = 'block';
+            this.hidePagination();
+            return;
+        }
+
+        grid.style.display = 'grid';
+        emptyState.style.display = 'none';
+
+        // Calcular pacientes para la página actual
+        const startIndex = (this.currentPage - 1) * this.patientsPerPage;
+        const endIndex = startIndex + this.patientsPerPage;
+        const currentPatients = this.filteredPatients.slice(startIndex, endIndex);
+
+        // Renderizar pacientes
+        grid.innerHTML = currentPatients.map(patient => this.createPatientCard(patient)).join('');
+
+        // Actualizar paginación
+        this.updatePagination();
+    }
+
+    createPatientCard(patient) {
+        const age = patient.age ? `${patient.age} años` : 'Edad desconocida';
+        const lastVisit = patient.last_visit ? this.formatDate(patient.last_visit) : 'Sin visitas';
+        const visits = patient.visits_count || 0;
+        const status = patient.status || 'active';
+        const statusClass = `status-${status}`;
+        const statusText = this.getStatusText(status);
+
+        // Icono basado en especie
+        const icon = this.getSpeciesIcon(patient.species);
+
+        return `
+            <div class="patient-card" data-patient-id="${patient.id}">
+                <div class="patient-header">
+                    <div class="patient-avatar">${icon}</div>
+                    <div class="patient-info">
+                        <h3 class="patient-name">${patient.name || 'Sin nombre'}</h3>
+                        <div class="patient-species">${patient.species || 'Especie desconocida'} • ${patient.breed || 'Raza mixta'}</div>
+                        <div class="patient-owner">👤 ${patient.owner_name || 'Propietario desconocido'}</div>
+                    </div>
+                </div>
+
+                <div class="patient-status ${statusClass}">${statusText}</div>
+
+                <div class="patient-details">
+                    <div class="detail-item">
+                        <span class="detail-icon">🎂</span>
+                        <span class="detail-label">Edad:</span>
+                        <span class="detail-value">${age}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-icon">📅</span>
+                        <span class="detail-label">Última visita:</span>
+                        <span class="detail-value">${lastVisit}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-icon">🏥</span>
+                        <span class="detail-label">Visitas:</span>
+                        <span class="detail-value">${visits}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-icon">📞</span>
+                        <span class="detail-label">Teléfono:</span>
+                        <span class="detail-value">${patient.owner_phone || 'No disponible'}</span>
+                    </div>
+                </div>
+
+                <div class="patient-actions">
+                    <button class="action-button btn-primary" onclick="viewPatientDetails(${patient.id})">
+                        📋 Ver Detalles
+                    </button>
+                    <button class="action-button btn-secondary" onclick="createMedicalRecord(${patient.id})">
+                        📝 Nueva Consulta
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    getSpeciesIcon(species) {
+        const icons = {
+            'dog': '🐕',
+            'cat': '🐱',
+            'bird': '🦜',
+            'rabbit': '🐰',
+            'hamster': '🐹',
+            'fish': '🐠',
+            'reptile': '🦎',
+            'other': '🐾'
+        };
+        return icons[species] || icons.other;
+    }
+
+    getStatusText(status) {
+        const statusMap = {
+            'active': 'Activo',
+            'treatment': 'En tratamiento',
+            'emergency': 'Emergencia',
+            'inactive': 'Inactivo'
+        };
+        return statusMap[status] || 'Activo';
+    }
+
+    updateStatistics() {
+        const stats = {
+            total: this.patients.length,
+            active: this.patients.filter(p => p.status === 'active').length,
+            treatment: this.patients.filter(p => p.status === 'treatment').length,
+            recent: this.patients.filter(p => {
+                if (!p.last_visit) return false;
+                const lastVisit = new Date(p.last_visit);
+                const weekAgo = new Date();
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                return lastVisit >= weekAgo;
+            }).length
+        };
+
+        document.getElementById('totalPatients').textContent = stats.total;
+        document.getElementById('activePatients').textContent = stats.active;
+        document.getElementById('inTreatment').textContent = stats.treatment;
+        document.getElementById('recentVisits').textContent = stats.recent;
+    }
+
+    updatePagination() {
+        const totalPages = Math.ceil(this.filteredPatients.length / this.patientsPerPage);
+        const pagination = document.getElementById('pagination');
+        const paginationInfo = document.getElementById('paginationInfo');
+        const prevButton = document.getElementById('prevButton');
+        const nextButton = document.getElementById('nextButton');
+
+        if (totalPages > 1) {
+            pagination.style.display = 'flex';
+            paginationInfo.textContent = `Página ${this.currentPage} de ${totalPages}`;
+            prevButton.disabled = this.currentPage === 1;
+            nextButton.disabled = this.currentPage === totalPages;
+        } else {
+            pagination.style.display = 'none';
+        }
+    }
+
+    hidePagination() {
+        document.getElementById('pagination').style.display = 'none';
+    }
+
+    showLoading() {
+        document.getElementById('loadingContainer').style.display = 'block';
+        document.getElementById('patientsGrid').style.display = 'none';
+        document.getElementById('emptyState').style.display = 'none';
+    }
+
+    hideLoading() {
+        document.getElementById('loadingContainer').style.display = 'none';
+    }
+
+    showEmptyState() {
+        document.getElementById('emptyState').style.display = 'block';
+        document.getElementById('patientsGrid').style.display = 'none';
+    }
+
+    showError(message) {
+        showMessage(message, 'error');
+    }
+
+    formatDate(dateString) {
+        if (!dateString) return 'Sin fecha';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+}
+
+// =============== FUNCIONES GLOBALES ===============
+function viewPatientDetails(patientId) {
+    console.log(`📋 Viendo detalles del paciente: ${patientId}`);
+
+    // Crear modal para mostrar detalles del paciente
+    showPatientDetailsModal(patientId);
+}
+
+function createMedicalRecord(patientId) {
+    console.log(`📝 Creando nueva consulta para paciente: ${patientId}`);
+
+    // Redirigir a la página de crear historia clínica con el ID del paciente
+    window.location.href = `/veterinarian/medical-records?patient=${patientId}`;
+}
+
+async function showPatientDetailsModal(patientId) {
+    try {
+        showLoading();
+
+        const response = await fetch(`/api/veterinarian/patients/${patientId}/details`);
+        const data = await response.json();
+
+        if (data.success) {
+            createPatientModal(data);
+        } else {
+            throw new Error(data.message || 'Error al cargar detalles');
+        }
+    } catch (error) {
+        console.error('❌ Error cargando detalles:', error);
+        showMessage('Error al cargar los detalles del paciente', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+function createPatientModal(data) {
+    const patient = data.patient_info;
+    const medical = data.medical_info;
+    const notes = data.vet_notes;
+
+    // Crear modal
+    const modal = document.createElement('div');
+    modal.className = 'patient-modal-overlay';
+    modal.innerHTML = `
+        <div class="patient-modal">
+            <div class="modal-header">
+                <h2>📋 Detalles del Paciente</h2>
+                <button class="close-modal" onclick="closePatientModal()">✕</button>
+            </div>
+
+            <div class="modal-content">
+                <div class="patient-summary">
+                    <div class="patient-avatar-large">${window.patientsManager.getSpeciesIcon(patient.species)}</div>
+                    <div class="patient-basic-info">
+                        <h3>${patient.name || 'Sin nombre'}</h3>
+                        <p>${patient.species || 'Especie desconocida'} • ${patient.breed || 'Raza mixta'}</p>
+                        <div class="patient-status ${patient.status ? `status-${patient.status}` : 'status-active'}">
+                            ${window.patientsManager.getStatusText(patient.status || 'active')}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-sections">
+                    <div class="modal-section">
+                        <h4>👤 Información del Propietario</h4>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="label">Nombre:</span>
+                                <span class="value">${patient.owner_name || 'No disponible'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Teléfono:</span>
+                                <span class="value">${patient.owner_phone || 'No disponible'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Email:</span>
+                                <span class="value">${patient.owner_email || 'No disponible'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Dirección:</span>
+                                <span class="value">${patient.owner_address || 'No disponible'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-section">
+                        <h4>🐾 Información Médica</h4>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="label">Edad:</span>
+                                <span class="value">${patient.age ? `${patient.age} años` : 'Desconocida'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Peso:</span>
+                                <span class="value">${patient.weight ? `${patient.weight} kg` : 'No registrado'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Última visita:</span>
+                                <span class="value">${patient.last_visit ? window.patientsManager.formatDate(patient.last_visit) : 'Sin visitas'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Total visitas:</span>
+                                <span class="value">${patient.visits_count || 0}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-section">
+                        <h4>💊 Información Clínica</h4>
+                        <div class="clinical-info">
+                            <div class="clinical-item">
+                                <span class="clinical-label">Alergias conocidas:</span>
+                                <span class="clinical-value">${medical?.allergies || 'Ninguna conocida'}</span>
+                            </div>
+                            <div class="clinical-item">
+                                <span class="clinical-label">Medicamentos actuales:</span>
+                                <span class="clinical-value">${medical?.current_medications || 'Ninguno'}</span>
+                            </div>
+                            <div class="clinical-item">
+                                <span class="clinical-label">Condiciones crónicas:</span>
+                                <span class="clinical-value">${medical?.chronic_conditions || 'Ninguna'}</span>
+                            </div>
+                            <div class="clinical-item">
+                                <span class="clinical-label">Última vacunación:</span>
+                                <span class="clinical-value">${medical?.last_vaccination ? window.patientsManager.formatDate(medical.last_vaccination) : 'No registrada'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-section">
+                        <h4>📝 Notas del Veterinario</h4>
+                        <div class="vet-notes">
+                            ${notes || 'Sin notas adicionales registradas.'}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="action-button btn-primary" onclick="createMedicalRecord(${patient.id})">
+                        📝 Nueva Consulta
+                    </button>
+                    <button class="action-button btn-secondary" onclick="viewMedicalHistory(${patient.id})">
+                        📄 Ver Historial
+                    </button>
+                    <button class="action-button btn-secondary" onclick="closePatientModal()">
+                        ✕ Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Agregar estilos del modal
+    if (!document.getElementById('patientModalStyles')) {
+        const styles = document.createElement('style');
+        styles.id = 'patientModalStyles';
+        styles.textContent = `
+            .patient-modal-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(8, 28, 21, 0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+                backdrop-filter: blur(5px);
+                animation: fadeIn 0.3s ease;
+            }
+
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+
+            .patient-modal {
+                background: white;
+                border-radius: var(--border-radius-large);
+                width: 90%;
+                max-width: 800px;
+                max-height: 90vh;
+                overflow-y: auto;
+                box-shadow: var(--shadow-heavy);
+                animation: slideUp 0.3s ease;
+            }
+
+            @keyframes slideUp {
+                from { transform: translateY(50px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+
+            .modal-header {
+                padding: 30px;
+                background: linear-gradient(135deg, var(--primary), var(--accent));
+                color: white;
+                border-radius: var(--border-radius-large) var(--border-radius-large) 0 0;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .modal-header h2 {
+                margin: 0;
+                font-size: 1.8rem;
+                font-weight: 700;
+            }
+
+            .close-modal {
+                background: none;
+                border: none;
+                color: white;
+                font-size: 1.5rem;
+                cursor: pointer;
+                padding: 5px;
+                border-radius: 50%;
+                transition: var(--transition);
+            }
+
+            .close-modal:hover {
+                background: rgba(255,255,255,0.2);
+            }
+
+            .modal-content {
+                padding: 30px;
+            }
+
+            .patient-summary {
+                display: flex;
+                align-items: center;
+                gap: 20px;
+                margin-bottom: 30px;
+                padding: 20px;
+                background: var(--background);
+                border-radius: var(--border-radius);
+            }
+
+            .patient-avatar-large {
+                width: 80px;
+                height: 80px;
+                background: linear-gradient(135deg, var(--primary), var(--accent));
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 2.5rem;
+                color: white;
+                border: 4px solid var(--primary-light);
+            }
+
+            .patient-basic-info h3 {
+                margin: 0 0 10px 0;
+                font-size: 1.8rem;
+                color: var(--dark);
+            }
+
+            .patient-basic-info p {
+                margin: 0 0 15px 0;
+                color: var(--primary-dark);
+                font-weight: 500;
+            }
+
+            .modal-sections {
+                display: grid;
+                gap: 25px;
+            }
+
+            .modal-section {
+                background: var(--white);
+                border: 1px solid var(--primary-light);
+                border-radius: var(--border-radius);
+                padding: 20px;
+            }
+
+            .modal-section h4 {
+                margin: 0 0 15px 0;
+                color: var(--primary-dark);
+                font-size: 1.2rem;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .info-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 15px;
+            }
+
+            .info-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 10px 0;
+                border-bottom: 1px solid var(--primary-light);
+            }
+
+            .info-item:last-child {
+                border-bottom: none;
+            }
+
+            .info-item .label {
+                font-weight: 600;
+                color: var(--primary-dark);
+            }
+
+            .info-item .value {
+                color: var(--dark);
+                text-align: right;
+            }
+
+            .clinical-info {
+                display: grid;
+                gap: 15px;
+            }
+
+            .clinical-item {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+                padding: 15px;
+                background: var(--background);
+                border-radius: var(--border-radius);
+            }
+
+            .clinical-label {
+                font-weight: 600;
+                color: var(--primary-dark);
+                font-size: 0.9rem;
+            }
+
+            .clinical-value {
+                color: var(--dark);
+                font-size: 1rem;
+            }
+
+            .vet-notes {
+                background: var(--background);
+                padding: 20px;
+                border-radius: var(--border-radius);
+                border-left: 4px solid var(--primary);
+                font-style: italic;
+                color: var(--dark);
+                line-height: 1.6;
+            }
+
+            .modal-actions {
+                display: flex;
+                gap: 15px;
+                margin-top: 30px;
+                flex-wrap: wrap;
+            }
+
+            @media (max-width: 768px) {
+                .patient-modal {
+                    width: 95%;
+                    margin: 20px;
+                }
+
+                .modal-header {
+                    padding: 20px;
+                }
+
+                .modal-content {
+                    padding: 20px;
+                }
+
+                .patient-summary {
+                    flex-direction: column;
+                    text-align: center;
+                }
+
+                .info-grid {
+                    grid-template-columns: 1fr;
+                }
+
+                .info-item {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 5px;
+                }
+
+                .info-item .value {
+                    text-align: left;
+                }
+
+                .modal-actions {
+                    flex-direction: column;
+                }
+            }
+        `;
+        document.head.appendChild(styles);
+    }
+
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+
+    // Cerrar con Escape
+    document.addEventListener('keydown', function escapeHandler(e) {
+        if (e.key === 'Escape') {
+            closePatientModal();
+            document.removeEventListener('keydown', escapeHandler);
+        }
+    });
+
+    // Cerrar al hacer clic fuera
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closePatientModal();
+        }
+    });
+}
+
+function closePatientModal() {
+    const modal = document.querySelector('.patient-modal-overlay');
+    if (modal) {
+        modal.style.animation = 'fadeOut 0.3s ease';
+        setTimeout(() => {
+            modal.remove();
+            document.body.style.overflow = '';
+        }, 300);
+    }
+}
+
+function viewMedicalHistory(patientId) {
+    console.log(`📄 Viendo historial médico del paciente: ${patientId}`);
+    closePatientModal();
+    window.location.href = `/veterinarian/medical-history?patient=${patientId}`;
+}
+
+// =============== INICIALIZACIÓN ===============
+let patientsManager;
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🐕 Inicializando página de pacientes del veterinario...');
+
+    patientsManager = new VeterinarianPatientsManager();
+    window.patientsManager = patientsManager; // Para acceso global
+
+    console.log('✅ Página de pacientes inicializada');
+});
+
+// Agregar estilo para fadeOut
+const fadeOutKeyframes = `
+    @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+    }
+`;
+
+if (!document.getElementById('fadeOutStyles')) {
+    const style = document.createElement('style');
+    style.id = 'fadeOutStyles';
+    style.textContent = fadeOutKeyframes;
+    document.head.appendChild(style);
+}
+</script>
+{% endblock %}

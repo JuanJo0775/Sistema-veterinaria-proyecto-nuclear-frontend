@@ -1,0 +1,1323 @@
+{% extends "veterinarian/vet_base.html" %}
+
+{% block title %}Buscar Pacientes{% endblock %}
+{% block page_title %}Buscar Pacientes{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+/* =============== ESTILOS ESPECÍFICOS PARA BÚSQUEDA DE PACIENTES =============== */
+.search-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 30px;
+}
+
+.search-header {
+    background: linear-gradient(135deg, var(--accent-secondary) 0%, var(--primary-dark) 100%);
+    border-radius: var(--border-radius-large);
+    padding: 40px;
+    margin-bottom: 40px;
+    color: white;
+    box-shadow: var(--shadow-heavy);
+    position: relative;
+    overflow: hidden;
+}
+
+.search-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 150px;
+    height: 100%;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="30" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2"/><circle cx="70" cy="70" r="8" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2"/><line x1="64" y1="64" x2="76" y2="76" stroke="rgba(255,255,255,0.1)" stroke-width="3"/></svg>') no-repeat center;
+    background-size: contain;
+    opacity: 0.3;
+}
+
+.search-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 15px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.search-header p {
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+.search-types {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    margin-bottom: 40px;
+}
+
+.search-type-card {
+    background: var(--white);
+    border-radius: var(--border-radius-large);
+    padding: 30px;
+    box-shadow: var(--shadow-light);
+    border: 2px solid var(--primary-light);
+    transition: var(--transition);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.search-type-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.search-type-card:hover::before,
+.search-type-card.active::before {
+    transform: scaleX(1);
+}
+
+.search-type-card:hover,
+.search-type-card.active {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-heavy);
+    border-color: var(--primary);
+}
+
+.search-type-icon {
+    font-size: 3rem;
+    margin-bottom: 20px;
+    color: var(--primary);
+}
+
+.search-type-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 10px;
+}
+
+.search-type-description {
+    color: #666;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.search-form-container {
+    background: var(--white);
+    border-radius: var(--border-radius-large);
+    padding: 40px;
+    margin-bottom: 40px;
+    box-shadow: var(--shadow-light);
+    border: 1px solid var(--primary-light);
+}
+
+.search-form {
+    display: none;
+}
+
+.search-form.active {
+    display: block;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* =============== BÚSQUEDA GLOBAL =============== */
+.global-search {
+    text-align: center;
+}
+
+.global-search-input {
+    width: 100%;
+    max-width: 600px;
+    padding: 20px 25px;
+    font-size: 1.2rem;
+    border: 2px solid var(--primary-light);
+    border-radius: var(--border-radius-large);
+    margin-bottom: 25px;
+    transition: var(--transition);
+    box-shadow: var(--shadow-light);
+}
+
+.global-search-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(82,183,136,0.1);
+}
+
+.global-search-button {
+    padding: 20px 40px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    border: none;
+    border-radius: var(--border-radius-large);
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: var(--shadow-medium);
+    min-width: 200px;
+}
+
+.global-search-button:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-heavy);
+}
+
+/* =============== BÚSQUEDA AVANZADA =============== */
+.advanced-search-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 25px;
+    margin-bottom: 30px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--primary-dark);
+    margin-bottom: 8px;
+    font-size: 1rem;
+}
+
+.form-input {
+    padding: 12px 16px;
+    border: 2px solid var(--primary-light);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    transition: var(--transition);
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(82,183,136,0.1);
+}
+
+.form-select {
+    padding: 12px 16px;
+    border: 2px solid var(--primary-light);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    background: white;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.form-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(82,183,136,0.1);
+}
+
+.age-range-inputs {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 10px;
+    align-items: center;
+}
+
+.age-range-separator {
+    text-align: center;
+    font-weight: 600;
+    color: var(--primary-dark);
+}
+
+.advanced-search-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+.search-button {
+    padding: 15px 30px;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    min-width: 150px;
+}
+
+.btn-search {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    box-shadow: var(--shadow-light);
+}
+
+.btn-search:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+}
+
+.btn-reset {
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    border: 1px solid var(--primary);
+}
+
+.btn-reset:hover {
+    background: var(--primary);
+    color: white;
+}
+
+/* =============== BÚSQUEDAS RÁPIDAS =============== */
+.quick-searches {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.quick-search-card {
+    background: linear-gradient(135deg, var(--primary-light) 0%, rgba(183, 228, 199, 0.5) 100%);
+    border: 2px solid var(--primary);
+    border-radius: var(--border-radius);
+    padding: 25px;
+    text-align: center;
+    cursor: pointer;
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.quick-search-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left 0.5s ease;
+}
+
+.quick-search-card:hover::before {
+    left: 100%;
+}
+
+.quick-search-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-medium);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    color: white;
+}
+
+.quick-search-icon {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+    color: var(--primary-dark);
+    transition: var(--transition);
+}
+
+.quick-search-card:hover .quick-search-icon {
+    color: white;
+    transform: scale(1.1);
+}
+
+.quick-search-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--dark);
+    transition: var(--transition);
+}
+
+.quick-search-card:hover .quick-search-title {
+    color: white;
+}
+
+.quick-search-description {
+    font-size: 0.9rem;
+    color: #666;
+    transition: var(--transition);
+}
+
+.quick-search-card:hover .quick-search-description {
+    color: rgba(255,255,255,0.9);
+}
+
+/* =============== RESULTADOS =============== */
+.search-results {
+    margin-top: 40px;
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding: 20px;
+    background: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-light);
+}
+
+.results-count {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--dark);
+}
+
+.results-sort {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.sort-label {
+    font-weight: 600;
+    color: var(--primary-dark);
+}
+
+.sort-select {
+    padding: 8px 12px;
+    border: 2px solid var(--primary-light);
+    border-radius: var(--border-radius);
+    font-size: 0.9rem;
+    background: white;
+    cursor: pointer;
+}
+
+.results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 25px;
+}
+
+/* Reutilizar estilos de patient-card de la página anterior */
+.patient-card {
+    background: var(--white);
+    border-radius: var(--border-radius-large);
+    padding: 30px;
+    box-shadow: var(--shadow-light);
+    transition: var(--transition);
+    border: 1px solid var(--primary-light);
+    position: relative;
+    overflow: hidden;
+}
+
+.patient-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+}
+
+.patient-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-heavy);
+}
+
+.patient-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.patient-avatar {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    margin-right: 20px;
+    color: white;
+    font-weight: bold;
+    border: 4px solid var(--primary-light);
+    box-shadow: var(--shadow-light);
+}
+
+.patient-info {
+    flex: 1;
+}
+
+.patient-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 5px;
+}
+
+.patient-species {
+    font-size: 1rem;
+    color: var(--primary-dark);
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.patient-owner {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.patient-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.detail-icon {
+    font-size: 1rem;
+    color: var(--primary);
+}
+
+.detail-label {
+    color: #666;
+    font-weight: 500;
+}
+
+.detail-value {
+    color: var(--dark);
+    font-weight: 600;
+}
+
+.patient-status {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 15px;
+}
+
+.status-active {
+    background: rgba(82,183,136,0.1);
+    color: var(--primary-dark);
+    border: 1px solid var(--primary-light);
+}
+
+.status-treatment {
+    background: rgba(34,87,122,0.1);
+    color: var(--accent-secondary);
+    border: 1px solid var(--accent-secondary);
+}
+
+.status-emergency {
+    background: rgba(220,53,69,0.1);
+    color: #dc3545;
+    border: 1px solid #dc3545;
+}
+
+.patient-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.action-button {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    box-shadow: var(--shadow-light);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+}
+
+.btn-secondary {
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    border: 1px solid var(--primary);
+}
+
+.btn-secondary:hover {
+    background: var(--primary);
+    color: white;
+}
+
+.loading-container {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid var(--primary-light);
+    border-top: 4px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    background: var(--white);
+    border-radius: var(--border-radius-large);
+    box-shadow: var(--shadow-light);
+}
+
+.empty-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.empty-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 15px;
+}
+
+.empty-message {
+    font-size: 1.1rem;
+    color: #666;
+    margin-bottom: 30px;
+}
+
+.search-tips {
+    background: var(--background);
+    border-left: 4px solid var(--primary);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    margin-top: 20px;
+}
+
+.tips-title {
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin-bottom: 10px;
+}
+
+.tips-list {
+    color: #666;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+/* =============== RESPONSIVE DESIGN =============== */
+@media (max-width: 1024px) {
+    .search-container {
+        padding: 20px;
+    }
+
+    .search-types {
+        grid-template-columns: 1fr;
+    }
+
+    .advanced-search-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .quick-searches {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .results-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .search-header {
+        padding: 25px;
+        text-align: center;
+    }
+
+    .search-header h1 {
+        font-size: 2rem;
+    }
+
+    .search-form-container {
+        padding: 25px;
+    }
+
+    .global-search-input {
+        font-size: 1rem;
+        padding: 15px 20px;
+    }
+
+    .global-search-button {
+        padding: 15px 30px;
+        font-size: 1rem;
+        width: 100%;
+        margin-top: 15px;
+    }
+
+    .advanced-search-actions {
+        flex-direction: column;
+    }
+
+    .quick-searches {
+        grid-template-columns: 1fr;
+    }
+
+    .results-header {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .patient-card {
+        padding: 20px;
+    }
+
+    .patient-header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .patient-avatar {
+        margin: 0 0 15px 0;
+    }
+
+    .patient-details {
+        grid-template-columns: 1fr;
+    }
+
+    .patient-actions {
+        flex-direction: column;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="search-container">
+    <!-- HEADER -->
+    <div class="search-header">
+        <h1>🔍 Buscar Pacientes</h1>
+        <p>Encuentra pacientes usando diferentes métodos de búsqueda</p>
+    </div>
+
+    <!-- TIPOS DE BÚSQUEDA -->
+    <div class="search-types">
+        <div class="search-type-card" data-search-type="global">
+            <div class="search-type-icon">🌐</div>
+            <h3 class="search-type-title">Búsqueda Global</h3>
+            <p class="search-type-description">Busca rápidamente por nombre de mascota, propietario o características básicas</p>
+        </div>
+
+        <div class="search-type-card" data-search-type="advanced">
+            <div class="search-type-icon">⚙️</div>
+            <h3 class="search-type-title">Búsqueda Avanzada</h3>
+            <p class="search-type-description">Utiliza filtros específicos para búsquedas más precisas</p>
+        </div>
+
+        <div class="search-type-card" data-search-type="quick">
+            <div class="search-type-icon">⚡</div>
+            <h3 class="search-type-title">Búsquedas Rápidas</h3>
+            <p class="search-type-description">Accesos directos a búsquedas comunes predefinidas</p>
+        </div>
+    </div>
+
+    <!-- FORMULARIOS DE BÚSQUEDA -->
+    <div class="search-form-container">
+        <!-- BÚSQUEDA GLOBAL -->
+        <form class="search-form" id="globalSearchForm">
+            <div class="global-search">
+                <input
+                    type="text"
+                    class="global-search-input"
+                    id="globalSearchInput"
+                    placeholder="Buscar por nombre de mascota, propietario, especie, raza..."
+                >
+                <button type="submit" class="global-search-button">
+                    🔍 Buscar
+                </button>
+            </div>
+        </form>
+
+        <!-- BÚSQUEDA AVANZADA -->
+        <form class="search-form" id="advancedSearchForm">
+            <div class="advanced-search-grid">
+                <div class="form-group">
+                    <label class="form-label" for="petName">Nombre de la Mascota</label>
+                    <input type="text" class="form-input" id="petName" placeholder="Nombre de la mascota">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="ownerName">Nombre del Propietario</label>
+                    <input type="text" class="form-input" id="ownerName" placeholder="Nombre del propietario">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="species">Especie</label>
+                    <select class="form-select" id="species">
+                        <option value="">Seleccionar especie</option>
+                        <option value="dog">Perro</option>
+                        <option value="cat">Gato</option>
+                        <option value="bird">Ave</option>
+                        <option value="rabbit">Conejo</option>
+                        <option value="hamster">Hámster</option>
+                        <option value="fish">Pez</option>
+                        <option value="reptile">Reptil</option>
+                        <option value="other">Otro</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="breed">Raza</label>
+                    <input type="text" class="form-input" id="breed" placeholder="Raza de la mascota">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Rango de Edad</label>
+                    <div class="age-range-inputs">
+                        <input type="number" class="form-input" id="ageMin" placeholder="Min" min="0" max="30">
+                        <span class="age-range-separator">a</span>
+                        <input type="number" class="form-input" id="ageMax" placeholder="Max" min="0" max="30">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="patientStatus">Estado del Paciente</label>
+                    <select class="form-select" id="patientStatus">
+                        <option value="">Todos los estados</option>
+                        <option value="active">Activo</option>
+                        <option value="treatment">En tratamiento</option>
+                        <option value="emergency">Emergencia</option>
+                        <option value="inactive">Inactivo</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="petId">ID de Paciente</label>
+                    <input type="number" class="form-input" id="petId" placeholder="ID específico">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="lastVisit">Última Visita</label>
+                    <select class="form-select" id="lastVisit">
+                        <option value="">Cualquier fecha</option>
+                        <option value="today">Hoy</option>
+                        <option value="week">Última semana</option>
+                        <option value="month">Último mes</option>
+                        <option value="3months">Últimos 3 meses</option>
+                        <option value="6months">Últimos 6 meses</option>
+                        <option value="year">Último año</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="advanced-search-actions">
+                <button type="submit" class="search-button btn-search">
+                    🔍 Buscar Avanzado
+                </button>
+                <button type="button" class="search-button btn-reset" id="resetAdvancedForm">
+                    🔄 Limpiar Filtros
+                </button>
+            </div>
+        </form>
+
+        <!-- BÚSQUEDAS RÁPIDAS -->
+        <div class="search-form" id="quickSearchForm">
+            <div class="quick-searches">
+                <div class="quick-search-card" data-quick-filter="recent_visits">
+                    <div class="quick-search-icon">📅</div>
+                    <h4 class="quick-search-title">Visitas Recientes</h4>
+                    <p class="quick-search-description">Pacientes con visitas en los últimos 7 días</p>
+                </div>
+
+                <div class="quick-search-card" data-quick-filter="in_treatment">
+                    <div class="quick-search-icon">💊</div>
+                    <h4 class="quick-search-title">En Tratamiento</h4>
+                    <p class="quick-search-description">Pacientes actualmente en tratamiento</p>
+                </div>
+
+                <div class="quick-search-card" data-quick-filter="emergency_cases">
+                    <div class="quick-search-icon">🚨</div>
+                    <h4 class="quick-search-title">Casos de Emergencia</h4>
+                    <p class="quick-search-description">Pacientes marcados como emergencia</p>
+                </div>
+
+                <div class="quick-search-card" data-quick-filter="no_recent_visits">
+                    <div class="quick-search-icon">⏰</div>
+                    <h4 class="quick-search-title">Sin Visitas Recientes</h4>
+                    <p class="quick-search-description">Pacientes sin visitas en el último mes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENEDOR DE LOADING -->
+    <div class="loading-container" id="loadingContainer" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>Buscando pacientes...</p>
+    </div>
+
+    <!-- RESULTADOS DE BÚSQUEDA -->
+    <div class="search-results" id="searchResults" style="display: none;">
+        <div class="results-header">
+            <div class="results-count" id="resultsCount">0 resultados encontrados</div>
+            <div class="results-sort">
+                <label class="sort-label">Ordenar por:</label>
+                <select class="sort-select" id="resultsSort">
+                    <option value="name">Nombre</option>
+                    <option value="last_visit">Última visita</option>
+                    <option value="age">Edad</option>
+                    <option value="visits_count">Número de visitas</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="results-grid" id="resultsGrid">
+            <!-- Los resultados se cargarán aquí dinámicamente -->
+        </div>
+    </div>
+
+    <!-- ESTADO VACÍO -->
+    <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-icon">🔍</div>
+        <h3 class="empty-title">No se encontraron pacientes</h3>
+        <p class="empty-message">No hay pacientes que coincidan con los criterios de búsqueda especificados.</p>
+
+        <div class="search-tips">
+            <div class="tips-title">💡 Consejos de búsqueda:</div>
+            <div class="tips-list">
+                • Intenta usar términos más generales<br>
+                • Verifica la ortografía de los nombres<br>
+                • Prueba con búsquedas rápidas predefinidas<br>
+                • Utiliza la búsqueda global para términos amplios
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// =============== GESTOR DE BÚSQUEDA DE PACIENTES ===============
+class PatientSearchManager {
+    constructor() {
+        this.currentSearchType = 'global';
+        this.searchResults = [];
+        this.currentSort = 'name';
+
+        this.init();
+    }
+
+    init() {
+        console.log('🔍 Inicializando gestor de búsqueda de pacientes...');
+
+        this.bindEvents();
+        this.showSearchForm('global');
+
+        console.log('✅ Gestor de búsqueda inicializado');
+    }
+
+    bindEvents() {
+        // Selección de tipo de búsqueda
+        document.querySelectorAll('.search-type-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const searchType = card.dataset.searchType;
+                this.selectSearchType(searchType);
+            });
+        });
+
+        // Búsqueda global
+        document.getElementById('globalSearchForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.performGlobalSearch();
+        });
+
+        // Búsqueda avanzada
+        document.getElementById('advancedSearchForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.performAdvancedSearch();
+        });
+
+        // Reset formulario avanzado
+        document.getElementById('resetAdvancedForm').addEventListener('click', () => {
+            this.resetAdvancedForm();
+        });
+
+        // Búsquedas rápidas
+        document.querySelectorAll('.quick-search-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const filter = card.dataset.quickFilter;
+                this.performQuickSearch(filter);
+            });
+        });
+
+        // Ordenamiento de resultados
+        document.getElementById('resultsSort').addEventListener('change', (e) => {
+            this.currentSort = e.target.value;
+            this.sortAndDisplayResults();
+        });
+
+        // Enter en búsqueda global
+        document.getElementById('globalSearchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.performGlobalSearch();
+            }
+        });
+    }
+
+    selectSearchType(type) {
+        // Actualizar cards activas
+        document.querySelectorAll('.search-type-card').forEach(card => {
+            card.classList.remove('active');
+        });
+        document.querySelector(`[data-search-type="${type}"]`).classList.add('active');
+
+        // Mostrar formulario correspondiente
+        this.showSearchForm(type);
+        this.currentSearchType = type;
+
+        // Limpiar resultados previos
+        this.clearResults();
+    }
+
+    showSearchForm(type) {
+        // Ocultar todos los formularios
+        document.querySelectorAll('.search-form').forEach(form => {
+            form.classList.remove('active');
+        });
+
+        // Mostrar formulario seleccionado
+        document.getElementById(`${type}SearchForm`).classList.add('active');
+    }
+
+    async performGlobalSearch() {
+        const query = document.getElementById('globalSearchInput').value.trim();
+
+        if (!query) {
+            showMessage('Por favor, ingresa un término de búsqueda', 'warning');
+            return;
+        }
+
+        const criteria = {
+            type: 'global',
+            query: query
+        };
+
+        await this.executeSearch(criteria);
+    }
+
+    async performAdvancedSearch() {
+        const criteria = {
+            type: 'advanced',
+            petName: document.getElementById('petName').value.trim(),
+            ownerName: document.getElementById('ownerName').value.trim(),
+            species: document.getElementById('species').value,
+            breed: document.getElementById('breed').value.trim(),
+            ageMin: document.getElementById('ageMin').value,
+            ageMax: document.getElementById('ageMax').value,
+            patientStatus: document.getElementById('patientStatus').value,
+            petId: document.getElementById('petId').value,
+            lastVisit: document.getElementById('lastVisit').value
+        };
+
+        // Verificar que al menos un criterio esté lleno
+        const hasAnyCriteria = Object.values(criteria).some(value =>
+            value && value.toString().trim() !== '' && value !== 'advanced'
+        );
+
+        if (!hasAnyCriteria) {
+            showMessage('Por favor, especifica al menos un criterio de búsqueda', 'warning');
+            return;
+        }
+
+        await this.executeSearch(criteria);
+    }
+
+    async performQuickSearch(filter) {
+        const criteria = {
+            type: 'quick',
+            filter: filter
+        };
+
+        await this.executeSearch(criteria);
+    }
+
+    async executeSearch(criteria) {
+        try {
+            this.showLoading();
+
+            const response = await fetch('/api/veterinarian/patients/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(criteria)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.searchResults = data.patients || [];
+                this.displayResults();
+            } else {
+                throw new Error(data.message || 'Error en la búsqueda');
+            }
+
+        } catch (error) {
+            console.error('❌ Error en búsqueda:', error);
+            this.showError('Error al realizar la búsqueda. Por favor, intenta de nuevo.');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    displayResults() {
+        const resultsContainer = document.getElementById('searchResults');
+        const emptyState = document.getElementById('emptyState');
+        const resultsCount = document.getElementById('resultsCount');
+
+        if (this.searchResults.length === 0) {
+            resultsContainer.style.display = 'none';
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        resultsContainer.style.display = 'block';
+
+        resultsCount.textContent = `${this.searchResults.length} resultado${this.searchResults.length !== 1 ? 's' : ''} encontrado${this.searchResults.length !== 1 ? 's' : ''}`;
+
+        this.sortAndDisplayResults();
+    }
+
+    sortAndDisplayResults() {
+        const sortedResults = [...this.searchResults].sort((a, b) => {
+            switch (this.currentSort) {
+                case 'name':
+                    return (a.name || '').localeCompare(b.name || '');
+                case 'last_visit':
+                    return new Date(b.last_visit || 0) - new Date(a.last_visit || 0);
+                case 'age':
+                    return (b.age || 0) - (a.age || 0);
+                case 'visits_count':
+                    return (b.visits_count || 0) - (a.visits_count || 0);
+                default:
+                    return 0;
+            }
+        });
+
+        const resultsGrid = document.getElementById('resultsGrid');
+        resultsGrid.innerHTML = sortedResults.map(patient => this.createPatientCard(patient)).join('');
+    }
+
+    createPatientCard(patient) {
+        const age = patient.age ? `${patient.age} años` : 'Edad desconocida';
+        const lastVisit = patient.last_visit ? this.formatDate(patient.last_visit) : 'Sin visitas';
+        const visits = patient.visits_count || 0;
+        const status = patient.status || 'active';
+        const statusClass = `status-${status}`;
+        const statusText = this.getStatusText(status);
+
+        // Icono basado en especie
+        const icon = this.getSpeciesIcon(patient.species);
+
+        return `
+            <div class="patient-card" data-patient-id="${patient.id}">
+                <div class="patient-header">
+                    <div class="patient-avatar">${icon}</div>
+                    <div class="patient-info">
+                        <h3 class="patient-name">${patient.name || 'Sin nombre'}</h3>
+                        <div class="patient-species">${patient.species || 'Especie desconocida'} • ${patient.breed || 'Raza mixta'}</div>
+                        <div class="patient-owner">👤 ${patient.owner_name || 'Propietario desconocido'}</div>
+                    </div>
+                </div>
+
+                <div class="patient-status ${statusClass}">${statusText}</div>
+
+                <div class="patient-details">
+                    <div class="detail-item">
+                        <span class="detail-icon">🎂</span>
+                        <span class="detail-label">Edad:</span>
+                        <span class="detail-value">${age}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-icon">📅</span>
+                        <span class="detail-label">Última visita:</span>
+                        <span class="detail-value">${lastVisit}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-icon">🏥</span>
+                        <span class="detail-label">Visitas:</span>
+                        <span class="detail-value">${visits}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-icon">📞</span>
+                        <span class="detail-label">Teléfono:</span>
+                        <span class="detail-value">${patient.owner_phone || 'No disponible'}</span>
+                    </div>
+                </div>
+
+                <div class="patient-actions">
+                    <button class="action-button btn-primary" onclick="viewPatientDetails(${patient.id})">
+                        📋 Ver Detalles
+                    </button>
+                    <button class="action-button btn-secondary" onclick="createMedicalRecord(${patient.id})">
+                        📝 Nueva Consulta
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    getSpeciesIcon(species) {
+        const icons = {
+            'dog': '🐕',
+            'cat': '🐱',
+            'bird': '🦜',
+            'rabbit': '🐰',
+            'hamster': '🐹',
+            'fish': '🐠',
+            'reptile': '🦎',
+            'other': '🐾'
+        };
+        return icons[species] || icons.other;
+    }
+
+    getStatusText(status) {
+        const statusMap = {
+            'active': 'Activo',
+            'treatment': 'En tratamiento',
+            'emergency': 'Emergencia',
+            'inactive': 'Inactivo'
+        };
+        return statusMap[status] || 'Activo';
+    }
+
+    resetAdvancedForm() {
+        document.getElementById('advancedSearchForm').reset();
+        this.clearResults();
+    }
+
+    clearResults() {
+        document.getElementById('searchResults').style.display = 'none';
+        document.getElementById('emptyState').style.display = 'none';
+        this.searchResults = [];
+    }
+
+    showLoading() {
+        document.getElementById('loadingContainer').style.display = 'block';
+        document.getElementById('searchResults').style.display = 'none';
+        document.getElementById('emptyState').style.display = 'none';
+    }
+
+    hideLoading() {
+        document.getElementById('loadingContainer').style.display = 'none';
+    }
+
+    showError(message) {
+        showMessage(message, 'error');
+    }
+
+    formatDate(dateString) {
+        if (!dateString) return 'Sin fecha';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+}
+
+// =============== FUNCIONES GLOBALES REUTILIZADAS ===============
+function viewPatientDetails(patientId) {
+    console.log(`📋 Viendo detalles del paciente: ${patientId}`);
+    // Reutilizar la función del archivo anterior
+    showPatientDetailsModal(patientId);
+}
+
+function createMedicalRecord(patientId) {
+    console.log(`📝 Creando nueva consulta para paciente: ${patientId}`);
+    window.location.href = `/veterinarian/medical-records?patient=${patientId}`;
+}
+
+// Reutilizar funciones de modal del archivo anterior
+async function showPatientDetailsModal(patientId) {
+    try {
+        showLoading();
+
+        const response = await fetch(`/api/veterinarian/patients/${patientId}/details`);
+        const data = await response.json();
+
+        if (data.success) {
+            createPatientModal(data);
+        } else {
+            throw new Error(data.message || 'Error al cargar detalles');
+        }
+    } catch (error) {
+        console.error('❌ Error cargando detalles:', error);
+        showMessage('Error al cargar los detalles del paciente', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+// =============== INICIALIZACIÓN ===============
+let searchManager;
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔍 Inicializando página de búsqueda de pacientes...');
+
+    searchManager = new PatientSearchManager();
+    window.searchManager = searchManager; // Para acceso global
+
+    console.log('✅ Página de búsqueda inicializada');
+});
+</script>
+{% endblock %}
