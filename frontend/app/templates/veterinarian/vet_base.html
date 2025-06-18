@@ -686,18 +686,6 @@
                             <span>Crear Historia</span>
                         </a>
                     </li>
-                    <li class="menu-item">
-                        <a href="{{ url_for('frontend.veterinarian_records_history') }}" class="menu-link {% if request.endpoint == 'frontend.veterinarian_records_history' %}active{% endif %}">
-                            <span class="menu-icon">📚</span>
-                            <span>Mis Registros</span>
-                        </a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="{{ url_for('frontend.veterinarian_prescriptions') }}" class="menu-link {% if request.endpoint == 'frontend.veterinarian_prescriptions' %}active{% endif %}">
-                            <span class="menu-icon">💊</span>
-                            <span>Prescripciones</span>
-                        </a>
-                    </li>
                 </ul>
             </div>
 
@@ -711,18 +699,7 @@
                             <span>Medicamentos</span>
                         </a>
                     </li>
-                    <li class="menu-item">
-                        <a href="{{ url_for('frontend.veterinarian_exams') }}" class="menu-link {% if request.endpoint == 'frontend.veterinarian_exams' %}active{% endif %}">
-                            <span class="menu-icon">🔬</span>
-                            <span>Solicitar Exámenes</span>
-                        </a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="{{ url_for('frontend.veterinarian_references') }}" class="menu-link {% if request.endpoint == 'frontend.veterinarian_references' %}active{% endif %}">
-                            <span class="menu-icon">📖</span>
-                            <span>Referencias Médicas</span>
-                        </a>
-                    </li>
+
                 </ul>
             </div>
 
